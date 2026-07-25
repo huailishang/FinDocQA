@@ -1,0 +1,155 @@
+{
+  "schema_version": "prompt_ab_fixture_v1",
+  "description": "Synthetic frozen-input/fixed-output Prompt A/B fixture. It is not a model-quality benchmark and makes no leaderboard claim.",
+  "cases": [
+    {
+      "case_id": "multi_option_evidence_ref",
+      "question_kind": "multi_choice",
+      "model_run": {
+        "model_id": "qwen3.7-max",
+        "generation_parameters": {
+          "temperature": 0,
+          "max_tokens": 4096,
+          "mode": "fixed-output-fixture"
+        }
+      },
+      "frozen_input": {
+        "question": {
+          "qid": "bb04c_multi_fixture_001",
+          "domain": "regulatory",
+          "text": "根据证据，哪些陈述得到支持？",
+          "options": {
+            "A": "资本要求适用",
+            "B": "可以忽略禁止条款",
+            "C": "报告期为2025年",
+            "D": "未提及的事项自动成立"
+          },
+          "answer_format": "multi",
+          "doc_ids": ["reg_fixture_001"],
+          "candidate_doc_ids": ["reg_fixture_001"],
+          "raw": {
+            "type": "多选题",
+            "answer_format": "multi",
+            "split": "B"
+          }
+        },
+        "classification": {
+          "labels": ["multi_option"],
+          "reasons": {"fixture": "frozen"}
+        },
+        "evidence_bundle": {
+          "candidates": [
+            {
+              "domain": "regulatory",
+              "doc_id": "reg_fixture_001",
+              "source": "fixture://reg_fixture_001#p1",
+              "text": "证据明确说明资本要求适用，禁止忽略相关禁止条款，报告期为2025年；对未提及事项没有结论。",
+              "score": 1.0,
+              "retriever": "offline_fixture"
+            }
+          ],
+          "prompt_context": "[DOC:reg_fixture_001]\n证据明确说明资本要求适用，禁止忽略相关禁止条款，报告期为2025年；对未提及事项没有结论。",
+          "estimated_tokens": 80,
+          "metadata": {"fixture": "bb_p0_04c"}
+        },
+        "retrieval": {
+          "mode": "frozen_fixture",
+          "candidate_doc_ids": ["reg_fixture_001"],
+          "retriever": "offline_fixture"
+        },
+        "verification": {"mode": "none_fixed_output_fixture"}
+      },
+      "arms": [
+        {
+          "name": "A",
+          "prompt_id": "multi_choice.main",
+          "version": "2.0.0",
+          "model_output": "使用文档：reg_fixture_001\nA: 【支持】证据明确支持资本要求。\nB: 【反驳】证据明确禁止忽略条款。\nC: 【支持】证据明确报告期为2025年。\nD: 【不确定】证据未给出结论。"
+        },
+        {
+          "name": "B",
+          "prompt_id": "multi_choice.main",
+          "version": "2.1.0-offline",
+          "model_output": "使用文档：reg_fixture_001\nA: 【支持】证据明确支持资本要求。[DOC:reg_fixture_001]\nB: 【反驳】证据明确禁止忽略条款。[DOC:reg_fixture_001]\nC: 【支持】证据明确报告期为2025年。[DOC:reg_fixture_001]\nD: 【不确定】证据未给出结论。[DOC:reg_fixture_001]"
+        }
+      ]
+    },
+    {
+      "case_id": "calculation_formula_audit",
+      "question_kind": "calculation_freeform",
+      "model_run": {
+        "model_id": "qwen3.7-max",
+        "generation_parameters": {
+          "temperature": 0,
+          "max_tokens": 2048,
+          "mode": "fixed-output-fixture"
+        }
+      },
+      "frozen_input": {
+        "question": {
+          "qid": "bb04c_calc_fixture_001",
+          "domain": "financial_reports",
+          "text": "已知指标a为100、b为200，计算a+b，保留两位小数。",
+          "options": {},
+          "answer_format": "freeform",
+          "doc_ids": ["fin_fixture_001"],
+          "candidate_doc_ids": ["fin_fixture_001"],
+          "submission_slot_count": 1,
+          "submission_slot_contracts": [
+            {
+              "slot": 1,
+              "expected_kind": "number",
+              "expected_decimal_places": 2,
+              "unit_must_be_omitted": true,
+              "allowed_input_unit_suffixes": []
+            }
+          ],
+          "raw": {
+            "type": "计算题",
+            "answer_format": "freeform",
+            "split": "B"
+          }
+        },
+        "classification": {
+          "labels": ["calculation"],
+          "reasons": {"fixture": "frozen"}
+        },
+        "evidence_bundle": {
+          "candidates": [
+            {
+              "domain": "financial_reports",
+              "doc_id": "fin_fixture_001",
+              "source": "fixture://fin_fixture_001#p1",
+              "text": "指标a=100，指标b=200。",
+              "score": 1.0,
+              "retriever": "offline_fixture"
+            }
+          ],
+          "prompt_context": "[DOC:fin_fixture_001]\n指标a=100，指标b=200。",
+          "estimated_tokens": 50,
+          "metadata": {"fixture": "bb_p0_04c"}
+        },
+        "retrieval": {
+          "mode": "frozen_fixture",
+          "candidate_doc_ids": ["fin_fixture_001"],
+          "retriever": "offline_fixture"
+        },
+        "verification": {"mode": "none_fixed_output_fixture"}
+      },
+      "arms": [
+        {
+          "name": "A",
+          "prompt_id": "calculation.freeform",
+          "version": "1.0.0",
+          "model_output": "{\"qid\":\"bb04c_calc_fixture_001\",\"answers\":[{\"value\":\"300.00\",\"kind\":\"number\",\"formula_text\":\"\",\"variables\":{},\"computed_result\":\"\",\"evidence_refs\":[]}],\"used_doc_ids\":[\"fin_fixture_001\"],\"confidence\":0.8}"
+        },
+        {
+          "name": "B",
+          "prompt_id": "calculation.freeform",
+          "version": "1.1.0-offline",
+          "model_output": "{\"qid\":\"bb04c_calc_fixture_001\",\"answers\":[{\"value\":\"300.00\",\"kind\":\"number\",\"formula_text\":\"a + b\",\"variables\":{\"a\":100,\"b\":200},\"computed_result\":\"300\",\"evidence_refs\":[\"fin_fixture_001\"]}],\"used_doc_ids\":[\"fin_fixture_001\"],\"confidence\":0.8}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,228 @@
+{
+  "schema_version": "question_strategy_matrix_v2",
+  "policy_version": "bb-p0-11-20260723-v1",
+  "production_enabled": false,
+  "low_confidence_threshold": 0.75,
+  "recognized_domains": [
+    "financial_contracts",
+    "financial_reports",
+    "insurance",
+    "regulatory",
+    "research"
+  ],
+  "defaults": {
+    "doc_top_k_hint": 5,
+    "window_top_k_hint": 16,
+    "prompt_chars": 18000,
+    "completion_tokens": 4500,
+    "solver_hint": "direct",
+    "verification_requirements": ["self_check"],
+    "retrieval_depth_hint": "standard"
+  },
+  "base_policies": {
+    "single_choice": {
+      "priority": 20,
+      "patch": {
+        "window_top_k_hint": 18,
+        "prompt_chars": 22000,
+        "solver_hint": "direct",
+        "verification_requirements": ["option_fact_binding"]
+      }
+    },
+    "multi_choice": {
+      "priority": 25,
+      "patch": {
+        "doc_top_k_hint": 6,
+        "window_top_k_hint": 28,
+        "prompt_chars": 32000,
+        "completion_tokens": 5500,
+        "solver_hint": "multi_choice",
+        "verification_requirements": ["option_fact_binding", "evidence_sufficiency"]
+      }
+    },
+    "judgement": {
+      "priority": 20,
+      "patch": {
+        "window_top_k_hint": 18,
+        "prompt_chars": 22000,
+        "solver_hint": "direct",
+        "verification_requirements": ["claim_fact_binding"]
+      }
+    },
+    "calculation": {
+      "priority": 40,
+      "patch": {
+        "doc_top_k_hint": 6,
+        "window_top_k_hint": 30,
+        "prompt_chars": 42000,
+        "completion_tokens": 6500,
+        "solver_hint": "calculation",
+        "verification_requirements": ["calculation_grounding"],
+        "retrieval_depth_hint": "deep"
+      }
+    },
+    "extraction": {
+      "priority": 30,
+      "patch": {
+        "doc_top_k_hint": 6,
+        "window_top_k_hint": 24,
+        "prompt_chars": 28000,
+        "completion_tokens": 5000,
+        "solver_hint": "freeform",
+        "verification_requirements": ["claim_fact_binding", "answer_contract_gate"]
+      }
+    },
+    "unknown": {
+      "priority": 90,
+      "patch": {
+        "doc_top_k_hint": 10,
+        "window_top_k_hint": 36,
+        "prompt_chars": 42000,
+        "completion_tokens": 6500,
+        "solver_hint": "direct",
+        "verification_requirements": ["evidence_sufficiency", "answer_contract_gate"],
+        "retrieval_depth_hint": "deep"
+      }
+    }
+  },
+  "trait_policies": {
+    "temporal_scope": {
+      "priority": 45,
+      "patch": {
+        "window_top_k_hint": 22,
+        "verification_requirements": ["temporal_binding"]
+      }
+    },
+    "comparison": {
+      "priority": 50,
+      "patch": {
+        "doc_top_k_hint": 6,
+        "window_top_k_hint": 28,
+        "prompt_chars": 34000,
+        "verification_requirements": ["comparison_completeness"]
+      }
+    },
+    "ranking": {
+      "priority": 55,
+      "patch": {
+        "doc_top_k_hint": 6,
+        "window_top_k_hint": 30,
+        "prompt_chars": 36000,
+        "verification_requirements": ["ranking_completeness"]
+      }
+    },
+    "negation": {
+      "priority": 60,
+      "patch": {
+        "window_top_k_hint": 30,
+        "prompt_chars": 36000,
+        "verification_requirements": ["negation_check"]
+      }
+    },
+    "exception_or_condition": {
+      "priority": 65,
+      "patch": {
+        "window_top_k_hint": 32,
+        "prompt_chars": 38000,
+        "verification_requirements": ["condition_exception_check"]
+      }
+    },
+    "multi_slot": {
+      "priority": 68,
+      "patch": {
+        "window_top_k_hint": 34,
+        "prompt_chars": 40000,
+        "completion_tokens": 6000,
+        "verification_requirements": ["multi_slot_completeness"]
+      }
+    },
+    "cross_document": {
+      "priority": 70,
+      "patch": {
+        "doc_top_k_hint": 8,
+        "window_top_k_hint": 36,
+        "prompt_chars": 44000,
+        "completion_tokens": 6000,
+        "solver_hint": "cross_doc",
+        "verification_requirements": ["cross_doc_completeness", "evidence_sufficiency"],
+        "retrieval_depth_hint": "deep"
+      }
+    },
+    "calculation": {
+      "priority": 80,
+      "patch": {
+        "doc_top_k_hint": 7,
+        "window_top_k_hint": 34,
+        "prompt_chars": 48000,
+        "completion_tokens": 6500,
+        "solver_hint": "calculation",
+        "verification_requirements": ["calculation_grounding"],
+        "retrieval_depth_hint": "deep"
+      }
+    },
+    "low_confidence": {
+      "priority": 100,
+      "patch": {
+        "doc_top_k_hint": 10,
+        "window_top_k_hint": 40,
+        "prompt_chars": 52000,
+        "completion_tokens": 7000,
+        "verification_requirements": ["evidence_sufficiency", "classification_uncertainty_check"],
+        "retrieval_depth_hint": "deep"
+      }
+    }
+  },
+  "combination_policies": [
+    {
+      "id": "negation_condition",
+      "when_all": ["negation", "exception_or_condition"],
+      "priority": 88,
+      "patch": {
+        "window_top_k_hint": 34,
+        "prompt_chars": 40000,
+        "verification_requirements": ["negation_check", "condition_exception_check"]
+      }
+    },
+    {
+      "id": "multi_cross_document",
+      "when_all": ["base:multi_choice", "cross_document"],
+      "priority": 90,
+      "patch": {
+        "doc_top_k_hint": 8,
+        "window_top_k_hint": 38,
+        "prompt_chars": 48000,
+        "completion_tokens": 6500,
+        "solver_hint": "multi_choice",
+        "verification_requirements": ["cross_doc_completeness", "option_fact_binding"],
+        "retrieval_depth_hint": "deep"
+      }
+    },
+    {
+      "id": "calculation_ranking",
+      "when_all": ["calculation", "ranking"],
+      "priority": 92,
+      "patch": {
+        "window_top_k_hint": 38,
+        "prompt_chars": 50000,
+        "completion_tokens": 7000,
+        "solver_hint": "calculation",
+        "verification_requirements": ["calculation_grounding", "ranking_completeness"],
+        "retrieval_depth_hint": "deep"
+      }
+    },
+    {
+      "id": "calculation_cross_document",
+      "when_all": ["calculation", "cross_document"],
+      "priority": 95,
+      "patch": {
+        "doc_top_k_hint": 9,
+        "window_top_k_hint": 42,
+        "prompt_chars": 54000,
+        "completion_tokens": 7000,
+        "solver_hint": "composite",
+        "verification_requirements": ["cross_doc_completeness", "calculation_grounding", "evidence_sufficiency"],
+        "retrieval_depth_hint": "deep"
+      }
+    }
+  ]
+}

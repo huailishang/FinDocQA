@@ -1,0 +1,102 @@
+{
+  "version": "cross_document_completeness_v1",
+  "auto_apply_submission": false,
+  "cases": [
+    {
+      "qid": "case_013",
+      "required_docs": [
+        "1",
+        "2",
+        "15",
+        "16"
+      ],
+      "retrieved_docs": [
+        "1",
+        "2",
+        "15",
+        "16"
+      ],
+      "used_docs": [
+        "1",
+        "2",
+        "15",
+        "16"
+      ],
+      "target_field": "death_benefit_amount",
+      "fields_by_doc": {
+        "1": 900000,
+        "2": 1440000,
+        "15": 800000,
+        "16": 850000
+      },
+      "complete": true
+    },
+    {
+      "qid": "case_029",
+      "required_docs": [
+        "pack2_text04",
+        "pack2_text09"
+      ],
+      "retrieved_docs": [
+        "pack2_text04",
+        "pack2_text09"
+      ],
+      "used_docs": [
+        "pack2_text04",
+        "pack2_text09"
+      ],
+      "target_field": "option_level_claims",
+      "fields_by_doc": {
+        "pack2_text04": [
+          "B",
+          "D"
+        ],
+        "pack2_text09": [
+          "A",
+          "C"
+        ]
+      },
+      "complete": true
+    },
+    {
+      "qid": "missing_document_guard",
+      "required_docs": [
+        "doc_a",
+        "doc_b"
+      ],
+      "retrieved_docs": [
+        "doc_a"
+      ],
+      "used_docs": [
+        "doc_a"
+      ],
+      "target_field": "comparison_value",
+      "fields_by_doc": {
+        "doc_a": 100
+      },
+      "complete": false,
+      "incomplete_reason": "missing_required_document"
+    },
+    {
+      "qid": "missing_field_guard",
+      "required_docs": [
+        "doc_a",
+        "doc_b"
+      ],
+      "retrieved_docs": [
+        "doc_a",
+        "doc_b"
+      ],
+      "used_docs": [
+        "doc_a"
+      ],
+      "target_field": "comparison_value",
+      "fields_by_doc": {
+        "doc_a": 100,
+        "doc_b": null
+      },
+      "complete": false,
+      "incomplete_reason": "missing_required_field"
+    }
+  ]
+}

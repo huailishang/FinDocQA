@@ -1,0 +1,97 @@
+[
+  {
+    "qid": "case_002",
+    "description": "add_option risk: weak related evidence must not replace baseline",
+    "baseline_answer": "B",
+    "proposed_answer": "AB",
+    "option_payloads": {
+      "A": {
+        "option_text": "新增选项 A",
+        "status": "supported",
+        "claim_route": "weak_related_evidence",
+        "term_equivalence_required": true,
+        "evidence_refs": ["weak-related-ref"]
+      },
+      "B": {
+        "option_text": "原基线选项 B",
+        "status": "supported",
+        "claim_route": "direct_evidence",
+        "term_equivalence_confirmed": true,
+        "evidence_refs": ["baseline-ref"]
+      }
+    },
+    "expected_accepted_for_replacement": false,
+    "expected_block_reason_contains": "add_option_A_missing_direct_evidence_or_term_equivalence"
+  },
+  {
+    "qid": "case_023",
+    "description": "remove_option risk: scope-only exclusion must not delete a factually true baseline option",
+    "baseline_answer": "ACD",
+    "proposed_answer": "AC",
+    "option_payloads": {
+      "A": {
+        "status": "supported",
+        "claim_route": "exact_clause",
+        "term_equivalence_confirmed": true,
+        "evidence_refs": ["clause-a"]
+      },
+      "C": {
+        "status": "supported",
+        "claim_route": "exact_clause",
+        "term_equivalence_confirmed": true,
+        "evidence_refs": ["clause-c"]
+      },
+      "D": {
+        "status": "contradicted",
+        "claim_route": "question_scope_exclusion",
+        "scope_mismatch": true,
+        "factual_statement_true": true,
+        "evidence_refs": ["scope-only-d"]
+      }
+    },
+    "expected_accepted_for_replacement": false,
+    "expected_block_reason_contains": "remove_option_D_scope_only_no_contradiction"
+  },
+  {
+    "qid": "case_004",
+    "description": "calculation route: direct deterministic calculation can support replacement when removed option is directly contradicted",
+    "baseline_answer": "B",
+    "proposed_answer": "A",
+    "option_payloads": {
+      "A": {
+        "status": "supported",
+        "claim_route": "deterministic_calculation",
+        "term_equivalence_required": false,
+        "calculation_refs": ["calc-result-a"]
+      },
+      "B": {
+        "status": "contradicted",
+        "claim_route": "direct_contradiction",
+        "factual_statement_true": false,
+        "calculation_refs": ["calc-result-b"]
+      },
+      "C": {
+        "status": "contradicted",
+        "claim_route": "direct_contradiction",
+        "factual_statement_true": false,
+        "calculation_refs": ["calc-result-c"]
+      },
+      "D": {
+        "status": "contradicted",
+        "claim_route": "direct_contradiction",
+        "factual_statement_true": false,
+        "calculation_refs": ["calc-result-d"]
+      }
+    },
+    "calculation_grounding": {
+      "calculation_complete": true,
+      "option_match_unique": true,
+      "zero_match": false,
+      "multi_match": false,
+      "unresolved_variables": false,
+      "coverage_gap": false
+    },
+    "expected_accepted_for_replacement": true,
+    "expected_block_reason_contains": ""
+  }
+]

@@ -1,0 +1,5 @@
+# Ignore submission CSV files (large generated artifacts)
+*.csv
+# But track README and SHA files
+!README.md
+!*.sha256

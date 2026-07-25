@@ -1,0 +1,24 @@
+{
+  "schema_version": "answer_slot_contract_v1",
+  "template_sample_values_used_as_truth": false,
+  "template_sample_values_used_as_kind_authority": false,
+  "qids": {
+    "case_001": {
+      "slots": [
+        {
+          "qid": "case_001",
+          "slot_index": 1,
+          "expected_kind": "selection",
+          "expected_decimal_places": null,
+          "percent_suffix_required": false,
+          "unit_must_be_omitted": true,
+          "percentage_result_semantics": null,
+          "ordering_delimiter": null,
+          "date_format": null,
+          "allowed_input_unit_suffixes": [],
+          "contract_source": "public_example"
+        }
+      ]
+    }
+  }
+}

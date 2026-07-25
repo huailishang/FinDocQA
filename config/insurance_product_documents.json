@@ -1,0 +1,222 @@
+{
+  "metadata": {
+    "CATALOG_TYPE": "INSURANCE_PRODUCT_DOCUMENT_IDENTITY",
+    "PRODUCTION_INPUT_ALLOWED": "YES",
+    "CONTAINS_QID": "NO",
+    "CONTAINS_OPTION_TEXT": "NO",
+    "CONTAINS_VERDICT": "NO",
+    "catalog_version": "insurance_product_documents.v1"
+  },
+  "documents": [
+    {
+      "document_id": "1",
+      "canonical_product_id": "pingan_zhiying_jinsheng",
+      "product_name": "平安智盈金生专属商业养老保险",
+      "product_type": "commercial_annuity",
+      "insurer": "平安人寿",
+      "source_relpath": "insurance/1/auto/1.md",
+      "aliases": [
+        "平安智盈金生专属商业养老保险",
+        "平安智盈金生",
+        "智盈金生"
+      ]
+    },
+    {
+      "document_id": "2",
+      "canonical_product_id": "guoshou_zengyibao",
+      "product_name": "国寿增益宝终身寿险（万能型）（2025版）",
+      "product_type": "universal_whole_life",
+      "insurer": "中国人寿",
+      "source_relpath": "insurance/2/auto/2.md",
+      "aliases": [
+        "国寿增益宝终身寿险（万能型）（2025版）",
+        "国寿增益宝",
+        "增益宝"
+      ]
+    },
+    {
+      "document_id": "3",
+      "canonical_product_id": "zhongan_leukemia",
+      "product_name": "众安个人急性白血病复发医疗保险",
+      "product_type": "medical",
+      "insurer": "众安保险",
+      "source_relpath": "insurance/3/auto/3.md",
+      "aliases": [
+        "众安个人急性白血病复发医疗保险",
+        "众安白血病医疗险",
+        "白血病医疗险"
+      ]
+    },
+    {
+      "document_id": "4",
+      "canonical_product_id": "pingan_anyoufu",
+      "product_name": "平安安佑福重大疾病保险",
+      "product_type": "critical_illness",
+      "insurer": "平安人寿",
+      "source_relpath": "insurance/4/auto/4.md",
+      "aliases": [
+        "平安安佑福重大疾病保险",
+        "平安安佑福重疾险",
+        "平安安佑福",
+        "安佑福"
+      ]
+    },
+    {
+      "document_id": "5",
+      "canonical_product_id": "pingan_eshengbao",
+      "product_name": "平安e生保住院7.0医疗保险A款",
+      "product_type": "medical",
+      "insurer": "平安健康",
+      "source_relpath": "insurance/5/auto/5.md",
+      "aliases": [
+        "平安e生保住院7.0医疗保险A款",
+        "平安e生保住院7.0",
+        "平安e生保",
+        "e生保"
+      ]
+    },
+    {
+      "document_id": "6",
+      "canonical_product_id": "cpic_group_million",
+      "product_name": "太保团体百万医疗保险（2022版）",
+      "product_type": "group_medical",
+      "insurer": "太保寿险",
+      "source_relpath": "insurance/6/auto/6.md",
+      "aliases": [
+        "太保团体百万医疗保险（2022版）",
+        "太保团体百万医疗",
+        "团体百万医疗"
+      ]
+    },
+    {
+      "document_id": "7",
+      "canonical_product_id": "pingan_vaccine_accident",
+      "product_name": "平安产险预防接种意外伤害保险E款",
+      "product_type": "accident",
+      "insurer": "平安产险",
+      "source_relpath": "insurance/7/auto/7.md",
+      "aliases": [
+        "平安产险预防接种意外伤害保险E款",
+        "平安预防接种意外险",
+        "预防接种意外险"
+      ]
+    },
+    {
+      "document_id": "8",
+      "canonical_product_id": "zhongan_transport_accident",
+      "product_name": "众安营运交通工具团体意外伤害保险",
+      "product_type": "transport_accident",
+      "insurer": "众安保险",
+      "source_relpath": "insurance/8/auto/8.md",
+      "aliases": [
+        "众安营运交通工具团体意外伤害保险",
+        "众安营运交通意外险",
+        "营运交通意外险"
+      ]
+    },
+    {
+      "document_id": "9",
+      "canonical_product_id": "pingan_special_vehicle",
+      "product_name": "平安特种车商业保险示范条款",
+      "product_type": "vehicle",
+      "insurer": "平安产险",
+      "source_relpath": "insurance/9/auto/9.md",
+      "aliases": [
+        "平安特种车商业保险示范条款",
+        "平安特种车商业保险",
+        "平安特种车险"
+      ]
+    },
+    {
+      "document_id": "10",
+      "canonical_product_id": "zhongan_special_vehicle",
+      "product_name": "众安特种车商业保险示范条款",
+      "product_type": "vehicle",
+      "insurer": "众安保险",
+      "source_relpath": "insurance/10/auto/10.md",
+      "aliases": [
+        "众安特种车商业保险示范条款",
+        "众安特种车商业保险",
+        "众安特种车险"
+      ]
+    },
+    {
+      "document_id": "11",
+      "canonical_product_id": "pingan_home_property",
+      "product_name": "平安产险家庭财产保险",
+      "product_type": "property",
+      "insurer": "平安产险",
+      "source_relpath": "insurance/11/auto/11.md",
+      "aliases": [
+        "平安产险家庭财产保险",
+        "平安家庭财产保险",
+        "平安家财险"
+      ]
+    },
+    {
+      "document_id": "12",
+      "canonical_product_id": "zhongan_home_property",
+      "product_name": "众安家庭财产综合保险",
+      "product_type": "property",
+      "insurer": "众安保险",
+      "source_relpath": "insurance/12/auto/12.md",
+      "aliases": [
+        "众安家庭财产综合保险",
+        "众安家财险"
+      ]
+    },
+    {
+      "document_id": "13",
+      "canonical_product_id": "zhongan_food_liability",
+      "product_name": "众安食品安全责任保险",
+      "product_type": "liability",
+      "insurer": "众安保险",
+      "source_relpath": "insurance/13/auto/13.md",
+      "aliases": [
+        "众安食品安全责任保险",
+        "众安食品安全责任险",
+        "众安食责险"
+      ]
+    },
+    {
+      "document_id": "14",
+      "canonical_product_id": "pingan_food_liability",
+      "product_name": "平安食品安全责任保险",
+      "product_type": "liability",
+      "insurer": "平安产险",
+      "source_relpath": "insurance/14/auto/14.md",
+      "aliases": [
+        "平安食品安全责任保险",
+        "平安食品安全责任险",
+        "平安食责险"
+      ]
+    },
+    {
+      "document_id": "15",
+      "canonical_product_id": "guoshou_xinxiang",
+      "product_name": "国寿鑫享添盈养老年金保险",
+      "product_type": "annuity",
+      "insurer": "中国人寿",
+      "source_relpath": "insurance/15/auto/15.md",
+      "aliases": [
+        "国寿鑫享添盈养老年金保险",
+        "国寿鑫享添盈",
+        "鑫享添盈"
+      ]
+    },
+    {
+      "document_id": "16",
+      "canonical_product_id": "pingan_fuhong",
+      "product_name": "平安富鸿金生（悦享版）养老年金保险",
+      "product_type": "annuity",
+      "insurer": "平安人寿",
+      "source_relpath": "insurance/16/auto/16.md",
+      "aliases": [
+        "平安富鸿金生（悦享版）养老年金保险",
+        "平安富鸿金生悦享版",
+        "平安富鸿金生",
+        "富鸿金生"
+      ]
+    }
+  ]
+}

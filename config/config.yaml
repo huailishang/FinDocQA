@@ -1,0 +1,127 @@
+# FinDocQA default configuration.
+# Secrets remain in environment variables; do not put API keys in this file.
+
+model:
+  name: xopqwen36v35b
+  base_url: https://maas-api.cn-huabei-1.xf-yun.com/v2
+  temperature: 0.0
+  timeout_s: 120
+  fallback_model:
+    name: Qwen/Qwen3.5-35B-A3B
+    base_url: https://api.siliconflow.cn/v1
+    api_key_env: LLM_API_KEY2
+    temperature: 0.0
+    timeout_s: 120
+
+paths:
+  questions_dir: ""
+  submission_template: ""
+  answer_slot_contracts: ""
+  question_group: group_a
+  raw_dataset: ../data/raw_dataset
+  raw_pdfs: ../data/raw_dataset/raw
+  processed_docs: ../data/processed_mineru_retrieval
+  output_dir: output
+
+submission:
+  mode: legacy_single
+
+# Runtime calls are fail-closed by default.
+runtime:
+  fallback_enabled: false
+
+pipeline:
+  classifier: rule_based
+  retriever: lexical_hybrid
+  assembler: grouped_context
+  solver: routed
+  verifier: high_risk_only
+  fallback: direct_placeholder
+
+retrieval:
+  # These parameters control retrieval inside an already selected document set.
+  # Document-level candidate discovery is separate from in-document retrieval.
+  fallback_processed_docs:
+    - ../data/processed_pymupdf4llm
+  top_k_per_doc: 5
+  windows_per_page: 3
+  context_flank_chars: 600
+  context_flank_chars_by_domain:
+    regulatory: 300
+  top_k_per_doc_by_domain:
+    insurance: 4
+    financial_contracts: 4
+
+document_scope:
+  enabled: true
+  strategy: deterministic_lexical_v2
+  top_k: 5
+  max_top_k: 10
+  recall_pool_size: 12
+  min_score: 1
+  weak_scope_min_score: 18
+  weak_scope_min_margin: 2
+  insurance_product_catalog: config/insurance_product_documents.json
+  # Reserved switch for a later Evaluator-authorized package. BB-P0-02 is zero-API.
+  qwen_rerank_enabled: false
+
+evidence:
+  prompt_compaction:
+    enabled: true
+    model: qwen3.7-max
+    max_context_chars: 30000
+    max_candidates: 20
+    min_candidates_per_doc: 1
+    main_doc_max_candidates: 7
+    other_doc_max_candidates: 5
+    near_duplicate_overlap: 0.72
+    target_total_tokens: 38000
+    hard_cap_tokens: 45000
+  structured_tables:
+    verification_enabled: true
+    prompt_injection_enabled: false
+    root: ../data/processed_mineru
+    max_rows_per_doc: 12
+  insurance_clauses:
+    verification_enabled: true
+    full_text_root: ../data/processed_mineru
+    product_catalog: config/insurance_product_documents.json
+  insurance_calculations:
+    verification_enabled: true
+    full_text_root: ../data/processed_mineru
+    product_catalog: config/insurance_product_documents.json
+  regulatory_options:
+    verification_enabled: true
+    data_root: ../data
+  contract_exact_fields:
+    verification_enabled: true
+    full_text_root: ../data/processed_mineru
+    retrieval_root: ../data/processed_mineru_retrieval
+    max_windows_per_field_doc: 3
+  token_budgets:
+    default: 10000
+    fact_lookup: 10000
+    clause_lookup: 20000
+    multi_option: 35000
+    cross_doc: 40000
+    calculation: 50000
+
+# Kept for backward compatibility with code that still reads the legacy block.
+budgets:
+  default_tokens: 10000
+  clause_lookup_tokens: 20000
+  multi_option_tokens: 35000
+  cross_doc_tokens: 40000
+  calculation_tokens: 50000
+
+# Disabled unless explicitly enabled by a later multi-slot decision.
+composite:
+  enable_c1: false
+
+verification:
+  self_check:
+    enabled: true
+    min_term_match_ratio: 0.4
+    enable_correction_proposal: true
+  production_integrity:
+    enabled: true

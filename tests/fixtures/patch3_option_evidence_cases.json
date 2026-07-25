@@ -1,0 +1,169 @@
+{
+  "schema_version": "1.0",
+  "purpose": "expanded option-level evidence closure regression",
+  "auto_apply_submission": false,
+  "cases": [
+    {
+      "qid": "case_021",
+      "answer_format": "multi",
+      "expected_answer": "ABC",
+      "source_version": "中华人民共和国反洗钱法（2024修订，2025-01-01施行）及金融机构客户受益所有人识别管理办法（中国人民银行令〔2025〕第12号）",
+      "options": {
+        "A": {
+          "state": "supported",
+          "source": "../data/raw_dataset/raw/regulatory/txt/strict_v3_017_中华人民共和国反洗钱法.txt",
+          "location": "Article 34 / line 85",
+          "evidence": "客户身份资料在业务关系结束后、客户交易信息在交易结束后，应当至少保存十年。"
+        },
+        "B": {
+          "state": "supported",
+          "source": "../data/raw_dataset/raw/regulatory/txt/strict_v3_008_中国人民银行令〔2025〕第12号（金融机构客户受益所有人识别管理办法）.txt",
+          "location": "Article 27 / line 106",
+          "evidence": "差异重大的，应当在发现差异之日起30个工作日内提交差异报告。"
+        },
+        "C": {
+          "state": "supported",
+          "source": "../data/raw_dataset/raw/regulatory/txt/strict_v3_017_中华人民共和国反洗钱法.txt",
+          "location": "Article 7 / line 19",
+          "evidence": "非依法律规定，不得向任何单位和个人提供。"
+        },
+        "D": {
+          "state": "contradicted",
+          "source": "../data/raw_dataset/raw/regulatory/txt/strict_v3_008_中国人民银行令〔2025〕第12号（金融机构客户受益所有人识别管理办法）.txt",
+          "location": "Article 39 / line 154",
+          "evidence": "自本办法施行之日起2年内完成全部存量客户的受益所有人识别核实工作。"
+        }
+      }
+    },
+    {
+      "qid": "case_022",
+      "answer_format": "multi",
+      "expected_answer": "ABC",
+      "source_version": "非银行支付机构监督管理条例实施细则（中国人民银行令〔2024〕第4号）及金融机构客户受益所有人识别管理办法（中国人民银行令〔2025〕第12号）",
+      "options": {
+        "A": {
+          "state": "supported",
+          "source": "../data/raw_dataset/raw/regulatory/txt/strict_v3_018_中国人民银行令〔2024〕第4号（非银行支付机构监督管理条例实施细则）.txt",
+          "location": "line 219",
+          "evidence": "高级管理人员在同一非银行支付机构内调任其他高级管理人员职位的，无需提交变更申请，但应当于变更完成后10日内报告。"
+        },
+        "B": {
+          "state": "supported",
+          "source": "../data/raw_dataset/raw/regulatory/txt/strict_v3_008_中国人民银行令〔2025〕第12号（金融机构客户受益所有人识别管理办法）.txt",
+          "location": "line 73",
+          "evidence": "留存的受益所有人身份信息应当至少包括……可以用于身份识别的照片。"
+        },
+        "C": {
+          "state": "supported",
+          "source": "../data/raw_dataset/raw/regulatory/txt/strict_v3_018_中国人民银行令〔2024〕第4号（非银行支付机构监督管理条例实施细则）.txt",
+          "location": "Article 62 / line 324",
+          "evidence": "调整支付业务的收费项目或者收费标准的，原则上应当至少于调整施行前30个自然日进行持续公示。"
+        },
+        "D": {
+          "state": "contradicted",
+          "source": "../data/raw_dataset/raw/regulatory/txt/strict_v3_008_中国人民银行令〔2025〕第12号（金融机构客户受益所有人识别管理办法）.txt",
+          "location": "Article 29 / lines 114-119",
+          "evidence": "属于非重大差异，金融机构无需提交差异报告；30个工作日内要求的是记录分析核实情况。"
+        }
+      }
+    },
+    {
+      "qid": "case_029",
+      "answer_format": "multi",
+      "expected_answer": "ABD",
+      "source_version": "research corpus snapshot used by score-56 baseline",
+      "options": {
+        "A": {
+          "state": "supported",
+          "source": "../data/processed_mineru/research/pack2_text09/auto/pack2_text09.md",
+          "location": "around line 444, 2024 IP market-share table",
+          "evidence": "2024年市占率表列示芯原股份2024年IP授权业务收入1.04、市场份额1.5%，排名第9。"
+        },
+        "B": {
+          "state": "supported",
+          "source": "../data/processed_mineru/research/pack2_text04/auto/pack2_text04.md",
+          "location": "around line 647",
+          "evidence": "若考虑后续新投产能，看28-29年，15万碳酸锂价格下，权益资源利润对应PE估值5-10x。"
+        },
+        "C": {
+          "state": "contradicted",
+          "source": "../data/processed_mineru/research/pack2_text09/auto/pack2_text09.md",
+          "location": "lines 7 and 431",
+          "evidence": "FY27 AI芯片千亿收入预测的主体是博通，报告原文并未将该预测归属于芯原股份。"
+        },
+        "D": {
+          "state": "supported",
+          "source": "../data/processed_mineru/research/pack2_text04/auto/pack2_text04.md",
+          "location": "line 19",
+          "evidence": "原文明确写“26年1-3月国内累计销量296万辆，同比-3.6%”，与选项D表述一致。"
+        }
+      }
+    },
+    {
+      "qid": "case_002",
+      "answer_format": "multi",
+      "expected_answer": "AB",
+      "patch_auto_approval": true,
+      "source_version": "financial contract corpus snapshot used by score-56 baseline",
+      "options": {
+        "A": {
+          "state": "supported",
+          "source": "../data/processed_mineru/financial_contracts/text03/auto/text03.md",
+          "location": "penalty calculation clause referenced in evidence closure",
+          "evidence": "违约金计算以应付未付本金及利息为基数，支持选项A。"
+        },
+        "B": {
+          "state": "supported",
+          "source": "../data/processed_mineru/financial_contracts/text08/auto/text08.md",
+          "location": "10-day notification clause",
+          "evidence": "条款明确约定相关事项应在10日内通知，支持选项B。"
+        },
+        "C": {
+          "state": "contradicted",
+          "source": "../data/processed_mineru/financial_contracts/text03/auto/text03.md",
+          "location": "lines 299-305 and 337-341",
+          "evidence": "正常到期日为2036-04-23；2031-04-23仅在回售/赎回行权时适用。"
+        },
+        "D": {
+          "state": "contradicted",
+          "source": "../data/processed_mineru/financial_contracts/text08/auto/text08.md",
+          "location": "10-day notification clause",
+          "evidence": "通知期限为10日，不是5日。"
+        }
+      }
+    },
+    {
+      "qid": "case_001",
+      "answer_format": "multi",
+      "expected_answer": null,
+      "patch_auto_approval": false,
+      "source_version": "financial contract corpus snapshot used by score-56 baseline",
+      "options": {
+        "A": {
+          "state": "contradicted",
+          "source": "../data/processed_mineru/financial_contracts/text02/auto/text02.md",
+          "location": "lines 514-518",
+          "evidence": "发行规模不超过5亿元，并非10亿元。"
+        },
+        "B": {
+          "state": "supported",
+          "source": "../data/processed_mineru/financial_contracts/text03/auto/text03.md",
+          "location": "around line 2562",
+          "evidence": "违约金公式明确使用150%系数。"
+        },
+        "C": {
+          "state": "contradicted",
+          "source": "../data/processed_mineru/financial_contracts/text02/auto/text02.md",
+          "location": "line 462",
+          "evidence": "发行人评级为AA+，并非AAA。"
+        },
+        "D": {
+          "state": "unresolved",
+          "source": "../data/processed_mineru/financial_contracts/text03/auto/text03.md",
+          "location": "issuer identity section",
+          "evidence": "可确认主体为厦门金圆投资集团有限公司，但“无任何其他信息冲突”的绝对表述无法由现有证据闭合。"
+        }
+      }
+    }
+  ]
+}

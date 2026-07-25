@@ -1,0 +1,36 @@
+[
+  [
+    {
+      "type": "title",
+      "content": {"title_content": [{"type": "text", "content": "保险条款"}]},
+      "level": 1
+    },
+    {
+      "type": "paragraph",
+      "content": {"paragraph_content": [{"type": "text", "content": "第一条 本合同适用以下条款。"}]}
+    },
+    {
+      "type": "table",
+      "table_body": "<table><tr><td>项目</td><td>金额</td></tr><tr><td>保费</td><td>100</td></tr></table>"
+    }
+  ],
+  [
+    {
+      "type": "image",
+      "content": {
+        "image_source": {"path": "images/p2.png"},
+        "image_caption": [{"type": "text", "content": "图1 赔付趋势"}]
+      }
+    }
+  ],
+  [
+    {
+      "type": "paragraph",
+      "content": {"paragraph_content": [{"type": "text", "content": "附录：本条款解释权归保险公司所有。"}]}
+    },
+    {
+      "type": "equation",
+      "content": {"equation_content": [{"type": "text", "content": "赔付金额 = 保费 \\times 赔付比例"}]}
+    }
+  ]
+]
