@@ -68,6 +68,24 @@ def retrieval_doc_ids(question: Question) -> tuple[str, ...]:
     return tuple(str(value) for value in question.candidate_doc_ids if str(value))
 
 
+def question_answer_slot_count(question: Question) -> int:
+    """Return generic answer-value cardinality with legacy compatibility.
+
+    A normal single-answer question has one answer value. Historical multi-slot
+    datasets may carry an explicit output-slot count; expose that information
+    through a generic API so new solvers do not depend on submission naming.
+    """
+    legacy = question.submission_slot_count
+    if isinstance(legacy, int) and not isinstance(legacy, bool) and legacy > 0:
+        return legacy
+    return 1
+
+
+def question_answer_slot_contracts(question: Question) -> tuple[Mapping[str, Any], ...]:
+    """Return per-answer-value contracts independent of external output format."""
+    return tuple(dict(item) for item in question.submission_slot_contracts or ())
+
+
 @dataclass(frozen=True)
 class DocumentPage:
     domain: str
@@ -161,10 +179,26 @@ class PipelineResult:
     fallback_used: bool = False
     error: Optional[str] = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
-    # multi-slot output may require 1-4 independent answer columns.  This field is
-    # intentionally separate from ``answer`` so values are never collapsed into
-    # a delimiter-joined string.  legacy callers can leave it empty.
+    # Generic answer-value collection. Single-answer tasks usually contain one
+    # value; structured/multi-value tasks may contain several independent values.
+    # Core modules should prefer this field over any output-format-specific name.
+    answer_values: Sequence[str] = field(default_factory=tuple)
+    # Legacy competition/output compatibility. New code should use
+    # ``answer_values``; this field remains temporarily so historical workflows
+    # can migrate without a flag-day rewrite.
     submission_answers: Sequence[str] = field(default_factory=tuple)
+
+
+def result_answer_values(result: PipelineResult) -> tuple[str, ...]:
+    """Return generic answer values with backward-compatible fallbacks."""
+    generic = tuple(str(value).strip() for value in result.answer_values if str(value).strip())
+    if generic:
+        return generic
+    legacy = tuple(str(value).strip() for value in result.submission_answers if str(value).strip())
+    if legacy:
+        return legacy
+    answer = str(result.answer or "").strip()
+    return (answer,) if answer else ()
 
 
 class QuestionLoader(Protocol):

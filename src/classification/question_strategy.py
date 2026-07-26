@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 from typing import Any, Mapping, Sequence
 
-from contracts import Question
+from contracts import Question, question_answer_slot_count
 
 
 _OFFICIAL_TYPE_TO_BASE = {
@@ -191,8 +191,9 @@ class QuestionStrategyMatrix:
         if condition_hits:
             add("exception_or_condition", "terms=" + ",".join(condition_hits[:4]))
 
-        if int(question.submission_slot_count or 0) > 1:
-            add("multi_slot", f"submission_slot_count={int(question.submission_slot_count or 0)}")
+        answer_slot_count = question_answer_slot_count(question)
+        if answer_slot_count > 1:
+            add("multi_slot", f"answer_slot_count={answer_slot_count}")
 
         temporal_hits = self._hits(text, _TEMPORAL_TERMS)
         if temporal_hits or _YEAR_RE.search(text) or _DATE_RE.search(text):

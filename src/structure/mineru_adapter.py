@@ -450,6 +450,96 @@ def _extract_image_info(item: Mapping[str, Any]) -> Tuple[str, str]:
     return img_path, caption_text
 
 
+@dataclass(frozen=True)
+class MinerUContentItem:
+    """Stable public view of one MinerU structured content item.
+
+    This deliberately exposes only fields useful to parser adapters.  Raw
+    parser-specific payload is retained as metadata, while callers no longer
+    need to depend on MinerU's changing nested JSON layout.
+    """
+
+    page_index: int
+    item_type: str
+    text: str
+    heading_level: Optional[int]
+    table_html: str = ""
+    table_caption: str = ""
+    table_footnote: str = ""
+    image_path: str = ""
+    image_caption: str = ""
+    raw: Mapping[str, Any] = field(default_factory=dict)
+
+
+def load_content_items(
+    mineru_dir: Path,
+    doc_id: Optional[str] = None,
+) -> Tuple[MinerUContentItem, ...]:
+    """Load MinerU content_list as a stable, flattened structured-item view.
+
+    Returns an empty tuple when no readable content_list is available.  This is
+    a read-only helper; it does not write retrieval corpus files or change the
+    existing ``adapt_document`` behavior.
+    """
+
+    content_list_path = _find_content_list(Path(mineru_dir), doc_id)
+    if content_list_path is None:
+        return ()
+    try:
+        raw_payload = json.loads(content_list_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ()
+    flattened = _flatten_content_list(raw_payload)
+    result: List[MinerUContentItem] = []
+    for raw_item in flattened:
+        item_type = _extract_item_type(raw_item)
+        content = raw_item.get("content") if isinstance(raw_item.get("content"), Mapping) else {}
+        table_html = ""
+        table_caption = ""
+        table_footnote = ""
+        image_path = ""
+        image_caption = ""
+        if item_type in _TABLE_TYPES:
+            table_html = str(
+                raw_item.get("table_body")
+                or raw_item.get("html")
+                or content.get("table_body")
+                or content.get("html")
+                or ""
+            )
+            table_caption = _extract_nested_text(
+                raw_item.get("table_caption")
+                or raw_item.get("caption")
+                or content.get("table_caption")
+                or content.get("caption")
+                or ""
+            )
+            table_footnote = _extract_nested_text(
+                raw_item.get("table_footnote")
+                or raw_item.get("footnote")
+                or content.get("table_footnote")
+                or content.get("footnote")
+                or ""
+            )
+        elif item_type in _IMAGE_TYPES:
+            image_path, image_caption = _extract_image_info(raw_item)
+        result.append(
+            MinerUContentItem(
+                page_index=_extract_page_idx(raw_item),
+                item_type=item_type,
+                text=_extract_item_text(raw_item),
+                heading_level=_extract_level(raw_item),
+                table_html=table_html,
+                table_caption=table_caption,
+                table_footnote=table_footnote,
+                image_path=image_path,
+                image_caption=image_caption,
+                raw=dict(raw_item),
+            )
+        )
+    return tuple(result)
+
+
 def _item_to_markdown(item: Mapping[str, Any], warnings: List[str]) -> str:
     """Render one content_list item as a Markdown fragment."""
     item_type = _extract_item_type(item)
