@@ -49,6 +49,10 @@ FinDocQA 是一个面向金融长文档问答的工程基线，覆盖金融合�
 
 FinDocQA 最初来自 AFAC 2026 金融长文档问答实践，之后已将逐轮比赛任务、排行榜专用逻辑、Provider 运行产物和提交历史从公开代码快照中剥离。少量能力演进背景保留在 docs/history/。
 
+## Evaluation
+
+FinDocQA 在没有外部排行榜时采用固定 Gold Set、分阶段指标和错误簇回归进行本地评测。详细规范见 `docs/evaluation/local-benchmark.md`。
+
 ## License
 
-当前仓库尚未声明开源许可证。公开使用前请由仓库所有者选择并添加适合的 LICENSE（例如 MIT 或 Apache-2.0）。
+本项目采用 Apache License 2.0，详见根目录 `LICENSE`。
