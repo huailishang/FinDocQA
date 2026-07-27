@@ -19,6 +19,7 @@ from contracts import (
 from evidence.assembler import GroupedEvidenceAssembler
 from run import load_checkpoint, save_checkpoint
 from solvers.calculation import CalculationSolver
+from runtime_safety import current_attempt_context, set_attempt_context
 from utils.llm_client import ChatResult, ChatUsage
 from verification.production_integrity import assess_final_state
 
@@ -122,6 +123,50 @@ def test_missing_freeform_slot_contract_blocks_before_provider_call() -> None:
         _workflow(client).process_one(_question(slot_count=None))
 
     assert client.call_count == 0
+
+
+class ContextCapturingSolver:
+    name = "context_capture"
+
+    def __init__(self) -> None:
+        self.context = ("", "")
+
+    def solve(self, bundle) -> SolverResult:
+        self.context = current_attempt_context()
+        return SolverResult(
+            qid=bundle.question.qid,
+            answer="A",
+            solver=self.name,
+            metadata={"provider_call_count": 0},
+        )
+
+
+def test_workflow_sets_runtime_qid_context_before_generic_solver() -> None:
+    solver = ContextCapturingSolver()
+    set_attempt_context("stale-qid", "stale-stage")
+    workflow = EnhancedBaselineWorkflow(
+        classifier=RuleBasedQuestionClassifier(),
+        retriever=FixtureRetriever(),
+        assembler=GroupedEvidenceAssembler(),
+        solver=solver,
+        verifier=None,
+        self_check_verifier=None,
+        fallback_solver=None,
+        enforce_production_integrity=False,
+    )
+    question = Question(
+        qid="context_q",
+        domain="financial_reports",
+        text="请选择正确选项。",
+        options={"A": "正确", "B": "错误"},
+        answer_format="multi",
+        doc_ids=(),
+    )
+
+    workflow.process_one(question)
+
+    assert solver.context[0] == "context_q"
+    assert solver.context[1] == "workflow_solver"
 
 
 def _solver_result(*, answer: str, truncated: bool = False, llm_error: bool = False) -> SolverResult:

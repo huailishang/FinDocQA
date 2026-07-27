@@ -669,6 +669,7 @@ def _write_document_structure(
         "domain": domain,
         "doc_id": doc_id,
         "parser": "mineru",
+        "adapter_fingerprint": adapter_fingerprint(),
         "reconstruction_mode": reconstruction_mode,
         "degraded": degraded,
         "page_count": page_count,
@@ -818,7 +819,27 @@ def adapt_document(
 # The manifest is a single JSON file at ``<target_root>/<domain>/_adapt_manifest.json``.
 # It is the only resume state; there is no per-file lock or database.
 
-_MANIFEST_VERSION = 1
+_MANIFEST_VERSION = 2
+
+
+def adapter_fingerprint() -> str:
+    """Fingerprint the adapter implementation that produced derived page files.
+
+    Source MinerU files can stay unchanged while adapter fixes change the
+    reconstructed page text.  Resume therefore needs both source signatures and
+    an adapter fingerprint; otherwise stale derived corpora can survive code
+    upgrades indefinitely.
+    """
+    return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+
+
+def _empty_manifest(domain: str) -> Dict[str, Any]:
+    return {
+        "version": _MANIFEST_VERSION,
+        "adapter_fingerprint": adapter_fingerprint(),
+        "domain": str(domain),
+        "docs": {},
+    }
 
 
 def _sha256_file(path: Path) -> str:
@@ -834,13 +855,19 @@ def _manifest_path(target_root: Path, domain: str) -> Path:
 def _load_manifest(target_root: Path, domain: str) -> Dict[str, Any]:
     p = _manifest_path(target_root, domain)
     if not p.is_file():
-        return {"version": _MANIFEST_VERSION, "domain": domain, "docs": {}}
+        return _empty_manifest(domain)
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return {"version": _MANIFEST_VERSION, "domain": domain, "docs": {}}
+        return _empty_manifest(domain)
     if not isinstance(data, dict) or not isinstance(data.get("docs"), dict):
-        return {"version": _MANIFEST_VERSION, "domain": domain, "docs": {}}
+        return _empty_manifest(domain)
+    if (
+        data.get("version") != _MANIFEST_VERSION
+        or str(data.get("domain") or "") != str(domain)
+        or data.get("adapter_fingerprint") != adapter_fingerprint()
+    ):
+        return _empty_manifest(domain)
     return data
 
 
@@ -926,9 +953,7 @@ def adapt_corpus(
             p.name for p in domain_dir.iterdir() if p.is_dir() and not p.name.startswith("_")
         )
 
-    manifest = _load_manifest(target_root, domain) if resume else {
-        "version": _MANIFEST_VERSION, "domain": domain, "docs": {}
-    }
+    manifest = _load_manifest(target_root, domain) if resume else _empty_manifest(domain)
     docs_meta: Dict[str, Any] = manifest.setdefault("docs", {})
 
     results: List[AdaptationResult] = []

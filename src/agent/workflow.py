@@ -34,6 +34,7 @@ from runtime_safety import (
     ProviderCallBudgetExceeded,
     current_attempt_context,
     record_pre_call_blocked,
+    set_attempt_context,
 )
 
 
@@ -143,6 +144,7 @@ class EnhancedBaselineWorkflow:
         ))
 
     def process_one(self, question: Question) -> PipelineResult:
+        set_attempt_context(question.qid, "workflow_solver")
         classification = None
         candidates = []
         bundle = None

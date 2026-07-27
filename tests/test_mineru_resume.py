@@ -59,7 +59,8 @@ def test_resume_writes_manifest(tmp_path: Path):
     adapt_corpus(mineru_root, target, domain="insurance", resume=True)
 
     manifest = _load_manifest(target, "insurance")
-    assert manifest["version"] == 1
+    assert manifest["version"] == 2
+    assert len(manifest["adapter_fingerprint"]) == 64
     assert manifest["domain"] == "insurance"
     assert "a" in manifest["docs"]
     entry = manifest["docs"]["a"]
@@ -175,7 +176,8 @@ def test_manifest_is_valid_json_on_disk(tmp_path: Path):
     raw = _manifest_path(target, "insurance").read_text(encoding="utf-8")
     # Must be parseable and contain the expected top-level keys.
     data = json.loads(raw)
-    assert data["version"] == 1
+    assert data["version"] == 2
+    assert len(data["adapter_fingerprint"]) == 64
     assert data["domain"] == "insurance"
     assert isinstance(data["docs"], dict)
 
@@ -191,3 +193,22 @@ def test_skipped_result_has_same_source_files(tmp_path: Path):
     a1 = next(r for r in r1 if r.doc_id == "a")
     a2 = next(r for r in r2 if r.doc_id == "a")
     assert a2.source_files == a1.source_files
+
+
+def test_resume_invalidates_cache_when_adapter_fingerprint_changes(tmp_path: Path):
+    mineru_root = _make_mineru_corpus(tmp_path, "insurance", ["a"])
+    target = tmp_path / "target"
+    adapt_corpus(mineru_root, target, domain="insurance", resume=True)
+
+    page = target / "insurance" / "a" / "page_0001.md"
+    page.write_text("STALE-CACHED-OUTPUT\n", encoding="utf-8")
+    manifest_path = _manifest_path(target, "insurance")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["adapter_fingerprint"] = "stale-adapter"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    adapt_corpus(mineru_root, target, domain="insurance", resume=True)
+
+    assert "STALE-CACHED-OUTPUT" not in page.read_text(encoding="utf-8")
+    refreshed = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert refreshed["adapter_fingerprint"] != "stale-adapter"

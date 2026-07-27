@@ -224,8 +224,12 @@ FinDocQA 应分层评分。
 
 - Claim SUPPORT / REFUTE / UNRESOLVED 准确率
 - Claim Evidence Binding 准确率
-- 错误证据放行率（应尽量低）
-- 正确答案被错误 Gate 阻断率
+- 错误证据放行率（False Accept Rate，应尽量低）
+- 正确答案被错误 Gate 阻断率（False Reject Rate，应尽量低）
+- Correct-but-Blocked 数量：答案正确但生产门禁拒绝
+- Incorrect-but-Accepted 数量：答案错误但生产门禁放行
+
+最终答案正确率和生产门禁可靠性必须分开统计：门禁阻断不等于模型没有产出答案，模型答对也不等于可以安全放行。
 
 ### 4.5 工程指标
 
