@@ -45,6 +45,12 @@ retrieval:
     - ../data/processed_pymupdf4llm
   top_k_per_doc: 5
   windows_per_page: 3
+  # Shadow candidate: enabled only when pipeline.retriever=canonical_lexical.
+  canonical_raw_root: ../data/processed_mineru
+  canonical_document_top_k: 8
+  canonical_top_k_per_doc: 5
+  canonical_window_chars: 1800
+  canonical_context_flank_chars: 600
   context_flank_chars: 600
   context_flank_chars_by_domain:
     regulatory: 300

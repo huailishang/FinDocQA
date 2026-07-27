@@ -4,7 +4,10 @@ from contracts import ClassificationResult, Question, QuestionLabel
 from document import CanonicalDocument, CanonicalPage
 from document.adapters.text import canonical_from_markdown_file
 from document.store import InMemoryDocumentStore
-from retrieval.canonical_lexical import CanonicalLexicalEvidenceRetriever
+from retrieval.canonical_lexical import (
+    CanonicalDocumentRetriever,
+    CanonicalLexicalEvidenceRetriever,
+)
 
 
 def test_canonical_retriever_reads_store_not_page_files(tmp_path: Path) -> None:
@@ -122,3 +125,44 @@ def test_evidence_window_prefers_dense_claim_terms_over_early_generic_terms() ->
     assert "核爆炸" in candidates[0].text
     assert "核辐射" in candidates[0].text
     assert "核污染" in candidates[0].text
+
+
+def test_explicit_candidate_scope_is_not_truncated_by_document_top_k() -> None:
+    documents = [
+        CanonicalDocument(
+            document_id=doc_id,
+            domain="research",
+            title=f"报告 {doc_id}",
+            source_type="fixture",
+            source_uri=f"fixture://{doc_id}",
+            parser_name="fixture",
+            parser_version="1",
+            pages=(
+                CanonicalPage(
+                    page_number=1,
+                    text=f"{doc_id} 的市场规模数据。",
+                    blocks=(),
+                ),
+            ),
+        )
+        for doc_id in ("doc_a", "doc_b", "doc_c")
+    ]
+    store = InMemoryDocumentStore.from_documents(documents)
+    retriever = CanonicalDocumentRetriever(top_k=1)
+    question = Question(
+        qid="explicit-scope",
+        domain="research",
+        text="比较三份报告的市场规模。",
+        options={},
+        answer_format="free_text",
+        doc_ids=(),
+        candidate_doc_ids=("doc_a", "doc_b", "doc_c"),
+    )
+
+    hits = retriever.retrieve_documents(
+        question,
+        ClassificationResult(labels=(QuestionLabel.CROSS_DOC,)),
+        store,
+    )
+
+    assert {hit.document_id for hit in hits} == {"doc_a", "doc_b", "doc_c"}

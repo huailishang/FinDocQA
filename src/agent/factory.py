@@ -16,9 +16,20 @@ from evidence.assembler import GroupedEvidenceAssembler
 from evidence.enhanced_assembler import EnhancedEvidenceAssembler
 from evidence.structure_aware import StructureAwareEvidenceAssembler
 from evaluation.writer import SubmissionTemplate, CsvSubmissionWriter
+from document.store import (
+    AdaptedPageDocumentStore,
+    FallbackDocumentStore,
+    RawMineruDocumentStore,
+)
+from retrieval.canonical_lexical import (
+    CanonicalDocumentRetriever,
+    CanonicalLexicalEvidenceRetriever,
+)
 from retrieval.document_catalog import DocumentCatalog
 from retrieval.document_scope import DocumentScopeResolver
 from retrieval.hybrid import LexicalHybridRetriever
+from retrieval.interfaces import StoreBoundEvidenceRetriever
+from retrieval.scope_aware import ScopeAwareEvidenceRetriever
 from solvers.calculation import CalculationSolver
 from solvers.cross_doc import CrossDocSolver
 from solvers.direct import DirectSolver
@@ -147,15 +158,70 @@ class PipelineFactory:
             weak_scope_min_margin=float(scope_cfg.get("weak_scope_min_margin", 2.0)),
         )
 
-    def build_retriever(self) -> LexicalHybridRetriever:
-        """Build the lexical-hybrid retriever from config (offline, no LLM).
+    def build_retriever(self) -> StoreBoundEvidenceRetriever:
+        """Build the configured offline evidence retriever.
 
-        Mirrors the pre-refactor wiring that used to live inline in
-        ``build_workflow``, so the zero-evidence diagnostic can run real
-        retrieval without pulling in the LLM solver/clients that
-        ``build_workflow`` eagerly constructs.
+        ``lexical_hybrid`` remains the production-compatible default.
+        ``canonical_lexical`` is a parser-agnostic candidate that reuses the
+        same DocumentScopeResolver and retriever-scope audit contract.
         """
         retrieval_cfg = self.config.get("retrieval", {})
+        pipeline_cfg = self.config.get("pipeline", {})
+        raw_mode = (
+            pipeline_cfg.get("retriever") if isinstance(pipeline_cfg, dict) else ""
+        )
+        mode = str(raw_mode or "lexical_hybrid").strip().lower()
+
+        if mode == "canonical_lexical":
+            canonical_stores = [
+                RawMineruDocumentStore(
+                    self._resolve_path(
+                        str(
+                            retrieval_cfg.get("canonical_raw_root")
+                            or "../data/processed_mineru"
+                        )
+                    )
+                )
+            ]
+            adapted_roots = [
+                self._resolve_path(
+                    self._path_config(
+                        "processed_docs", "../data/processed_mineru_retrieval"
+                    )
+                ),
+                *[
+                    self._resolve_path(str(value))
+                    for value in retrieval_cfg.get("fallback_processed_docs", [])
+                    if str(value).strip()
+                ],
+            ]
+            seen_roots = {canonical_stores[0].root.resolve()}
+            for root in adapted_roots:
+                resolved = root.resolve()
+                if resolved in seen_roots:
+                    continue
+                seen_roots.add(resolved)
+                canonical_stores.append(AdaptedPageDocumentStore(root))
+            store = FallbackDocumentStore(canonical_stores)
+            delegate = CanonicalLexicalEvidenceRetriever(
+                store=store,
+                document_retriever=CanonicalDocumentRetriever(
+                    top_k=int(retrieval_cfg.get("canonical_document_top_k", 8))
+                ),
+                top_k_per_doc=int(retrieval_cfg.get("canonical_top_k_per_doc", 5)),
+                window_chars=int(retrieval_cfg.get("canonical_window_chars", 1800)),
+                context_flank_chars=int(
+                    retrieval_cfg.get("canonical_context_flank_chars", 600)
+                ),
+            )
+            return ScopeAwareEvidenceRetriever(
+                delegate=delegate,
+                document_scope_resolver=self.build_document_scope_resolver(),
+            )
+
+        if mode != "lexical_hybrid":
+            raise ValueError(f"unsupported pipeline retriever: {mode!r}")
+
         fallback_roots = [
             self._resolve_path(str(value))
             for value in retrieval_cfg.get("fallback_processed_docs", [])

@@ -15,6 +15,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, 
 
 from contracts import ClassificationResult, EvidenceCandidate, Question, QuestionLabel, retrieval_doc_ids
 from retrieval.document_scope import DocumentScopeResolver, DocumentScopeResult
+from retrieval.scope_audit import AuditedEvidenceCandidates, RetrievalScopeAudit
 from retrieval.financial_target_page_locator import locate_financial_target_pages
 from retrieval.focused_exact_pages import focused_page_candidates
 
@@ -26,52 +27,6 @@ _NUMERIC_PATTERNS = [
     (r"\d+\.?\d*\s*元", 5.0),       # yuan amounts: 100元
 ]
 _NUMERIC_WEIGHT = 6.0
-
-
-@dataclass(frozen=True)
-class RetrievalScopeAudit:
-    """Truth recorded at the retriever call boundary.
-
-    The evidence protocol historically returns only a ``Sequence``.  multi-slot
-    auditing still needs the request lineage when retrieval returns zero
-    candidates, so the audit is carried both by the returned sequence object
-    and by every candidate's metadata.
-    """
-
-    scope_candidate_doc_ids: tuple[str, ...]
-    retriever_requested_doc_ids: tuple[str, ...]
-    retriever_resolved_doc_ids: tuple[str, ...]
-    retriever_missing_doc_ids: tuple[str, ...]
-    retrieved_doc_ids: tuple[str, ...]
-    request_source: str
-    provider_calls: int
-    scope_expansion_reasons: Mapping[str, str]
-
-    def to_metadata(self) -> dict[str, Any]:
-        return {
-            "scope_candidate_doc_ids": list(self.scope_candidate_doc_ids),
-            "retriever_requested_doc_ids": list(self.retriever_requested_doc_ids),
-            "retriever_resolved_doc_ids": list(self.retriever_resolved_doc_ids),
-            "retriever_missing_doc_ids": list(self.retriever_missing_doc_ids),
-            "retrieved_doc_ids": list(self.retrieved_doc_ids),
-            "retriever_scope_request_source": self.request_source,
-            "retriever_scope_audit_source": "retriever_call_boundary",
-            "retriever_scope_provider_calls": int(self.provider_calls),
-            "scope_expansion_reasons": dict(self.scope_expansion_reasons),
-        }
-
-
-class AuditedEvidenceCandidates(tuple):
-    """Evidence sequence that retains retriever truth even when empty."""
-
-    def __new__(
-        cls,
-        candidates: Sequence[EvidenceCandidate],
-        audit_metadata: Mapping[str, Any],
-    ) -> "AuditedEvidenceCandidates":
-        instance = super().__new__(cls, tuple(candidates))
-        instance.audit_metadata = dict(audit_metadata)
-        return instance
 
 
 class LexicalHybridRetriever:

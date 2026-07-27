@@ -192,7 +192,12 @@ class CanonicalDocumentRetriever(DocumentRetriever):
                     )
                 )
         hits.sort(key=lambda hit: (-hit.score, hit.document_id))
-        return tuple(hits[: max(0, int(self.top_k))])
+        # An explicit required/candidate scope is already the upstream document
+        # selection decision. Do not silently drop scoped documents because of a
+        # second document-retrieval top_k. The limit only applies to full-corpus
+        # discovery when no explicit scope exists.
+        limit = len(explicit) if explicit else max(0, int(self.top_k))
+        return tuple(hits[:limit])
 
 
 @dataclass
