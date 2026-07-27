@@ -82,11 +82,14 @@ class CanonicalEmbeddingIndex:
         domain: str | None = None,
         document_ids: Sequence[str] = (),
         batch_size: int = 16,
+        max_chars_per_page: int = 12000,
     ) -> "CanonicalEmbeddingIndex":
         if max_pages < 1:
             raise ValueError("max_pages must be >= 1; full-corpus indexing must be explicitly budgeted")
         if batch_size < 1:
             raise ValueError("batch_size must be >= 1")
+        if max_chars_per_page < 1:
+            raise ValueError("max_chars_per_page must be >= 1")
         allowed_docs = {str(value) for value in document_ids if str(value)}
 
         candidates: list[EvidenceCandidate] = []
@@ -95,9 +98,10 @@ class CanonicalEmbeddingIndex:
             if allowed_docs and document.document_id not in allowed_docs:
                 continue
             for page in document.pages:
-                text = canonical_page_embedding_text(page).strip()
-                if not text:
+                full_text = canonical_page_embedding_text(page).strip()
+                if not full_text:
                     continue
+                text = full_text[:max_chars_per_page]
                 page_number = page.page_number
                 source = (
                     f"canonical://{document.domain}/{document.document_id}/page/{page_number}"
@@ -116,6 +120,9 @@ class CanonicalEmbeddingIndex:
                             "page_number": page_number,
                             "canonical_document": True,
                             "embedding_indexed": True,
+                            "embedding_text_chars": len(text),
+                            "embedding_source_chars": len(full_text),
+                            "embedding_text_truncated": len(text) < len(full_text),
                         },
                     )
                 )

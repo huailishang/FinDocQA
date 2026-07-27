@@ -7,6 +7,7 @@ E2 parity evaluation should decide when it is safe to replace the legacy path.
 from __future__ import annotations
 
 import re
+from bisect import bisect_left
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
@@ -73,6 +74,11 @@ def _evidence_terms(question: Question) -> tuple[str, ...]:
     return terms or _question_terms(question)
 
 
+def _term_weight(term: str) -> float:
+    numeric = any(ch.isdigit() for ch in term)
+    return 6.0 if numeric else 4.0 if len(term) >= 4 else 2.0
+
+
 def _score_text(text: str, terms: Sequence[str]) -> tuple[float, tuple[str, ...]]:
     lowered = (text or "").lower()
     matched: list[str] = []
@@ -82,9 +88,7 @@ def _score_text(text: str, terms: Sequence[str]) -> tuple[float, tuple[str, ...]
         if not count:
             continue
         matched.append(term)
-        numeric = any(ch.isdigit() for ch in term)
-        weight = 6.0 if numeric else 4.0 if len(term) >= 4 else 2.0
-        score += min(count, 5) * weight
+        score += min(count, 5) * _term_weight(term)
     return score, tuple(matched)
 
 
@@ -97,9 +101,40 @@ def _window(
     if not text:
         return "", "", "", 0.0, ()
     lowered = text.lower()
-    positions = [lowered.find(term) for term in terms if lowered.find(term) >= 0]
-    center = min(positions) if positions else 0
-    start = max(0, center - size // 4)
+    hits: list[tuple[int, float]] = []
+    for term in terms:
+        position = lowered.find(term)
+        if position >= 0:
+            hits.append((position, _term_weight(term)))
+
+    start = 0
+    if hits:
+        hits.sort(key=lambda item: item[0])
+        positions = [position for position, _ in hits]
+        prefix = [0.0]
+        for _, weight in hits:
+            prefix.append(prefix[-1] + weight)
+
+        best_support = -1.0
+        best_hit_count = -1
+        best_start = 0
+        for position, _ in hits:
+            candidate_start = max(0, position - size // 4)
+            candidate_end = candidate_start + size
+            left = bisect_left(positions, candidate_start)
+            right = bisect_left(positions, candidate_end)
+            support = prefix[right] - prefix[left]
+            hit_count = right - left
+            if (support, hit_count, -candidate_start) > (
+                best_support,
+                best_hit_count,
+                -best_start,
+            ):
+                best_support = support
+                best_hit_count = hit_count
+                best_start = candidate_start
+        start = best_start
+
     end = min(len(text), start + size)
     snippet = text[start:end].strip()
     score, matched = _score_text(snippet, terms)

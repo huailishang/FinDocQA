@@ -79,3 +79,46 @@ def test_evidence_retrieval_does_not_overweight_document_title() -> None:
     assert candidates
     assert candidates[0].metadata["page_number"] == 2
     assert "评估增值率" in candidates[0].text
+
+
+def test_evidence_window_prefers_dense_claim_terms_over_early_generic_terms() -> None:
+    long_prefix = "保险产品说明与投保须知。" * 250
+    document = CanonicalDocument(
+        document_id="insurance_doc",
+        domain="insurance",
+        title="保险产品条款",
+        source_type="fixture",
+        source_uri="insurance.pdf",
+        parser_name="fixture",
+        parser_version="1",
+        pages=(
+            CanonicalPage(
+                page_number=1,
+                text=long_prefix + "责任免除：核爆炸、核辐射或核污染造成的损失不承担保险责任。",
+                blocks=(),
+            ),
+        ),
+    )
+    store = InMemoryDocumentStore.from_documents([document])
+    retriever = CanonicalLexicalEvidenceRetriever(
+        store=store,
+        top_k_per_doc=1,
+        window_chars=320,
+        context_flank_chars=80,
+    )
+    question = Question(
+        qid="local_dense_window",
+        domain="insurance",
+        text="该保险产品是否明确列明核爆炸、核辐射或核污染免责？",
+        options={},
+        answer_format="free_text",
+        doc_ids=("insurance_doc",),
+    )
+    classification = ClassificationResult(labels=(QuestionLabel.CLAUSE_LOOKUP,))
+
+    candidates = retriever.retrieve(question, classification)
+
+    assert candidates
+    assert "核爆炸" in candidates[0].text
+    assert "核辐射" in candidates[0].text
+    assert "核污染" in candidates[0].text

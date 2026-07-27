@@ -102,3 +102,29 @@ def test_embedding_index_requires_explicit_page_budget() -> None:
         assert "max_pages" in str(exc)
     else:
         raise AssertionError("expected explicit max_pages budget validation")
+
+
+def test_embedding_index_bounds_page_payload_and_records_truncation() -> None:
+    class RecordingEmbedder(FixtureEmbedder):
+        def __init__(self) -> None:
+            self.payloads = []
+
+        def embed(self, texts):
+            items = [texts] if isinstance(texts, str) else list(texts)
+            self.payloads.extend(items)
+            return super().embed(items)
+
+    store = _store()
+    embedder = RecordingEmbedder()
+    index = CanonicalEmbeddingIndex.build(
+        store,
+        embedder,
+        max_pages=2,
+        batch_size=2,
+        max_chars_per_page=8,
+    )
+
+    assert embedder.payloads
+    assert all(len(text) <= 8 for text in embedder.payloads)
+    assert index.entries[0].candidate.metadata["embedding_text_truncated"] is True
+    assert index.entries[0].candidate.metadata["embedding_source_chars"] > 8

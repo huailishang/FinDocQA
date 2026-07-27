@@ -92,10 +92,18 @@ class SiliconFlowEvidenceReranker:
         *,
         model: str = "Qwen/Qwen3-Reranker-8B",
         instruction: str | None = None,
+        max_query_chars: int = 8000,
+        max_document_chars: int = 12000,
     ) -> None:
+        if max_query_chars < 1:
+            raise ValueError("max_query_chars must be >= 1")
+        if max_document_chars < 1:
+            raise ValueError("max_document_chars must be >= 1")
         self.client = client
         self.model = model
         self.instruction = instruction
+        self.max_query_chars = int(max_query_chars)
+        self.max_document_chars = int(max_document_chars)
 
     def rerank(
         self,
@@ -107,10 +115,11 @@ class SiliconFlowEvidenceReranker:
         items = tuple(candidates)
         if not items:
             return ()
+        query = "\n".join([question.text, *question.options.values()]).strip()
         payload: dict[str, Any] = {
             "model": self.model,
-            "query": question.text,
-            "documents": [candidate.text for candidate in items],
+            "query": query[: self.max_query_chars],
+            "documents": [candidate.text[: self.max_document_chars] for candidate in items],
             "return_documents": False,
             "top_n": min(len(items), int(top_k)) if top_k is not None else len(items),
         }
