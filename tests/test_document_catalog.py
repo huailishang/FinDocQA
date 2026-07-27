@@ -89,3 +89,32 @@ def test_catalog_extracts_short_names_and_mixed_cover_identity_aliases(tmp_path:
     assert "招商银行" in reports["annual_cmb_2025_report"].title_aliases
     assert "普联软件" in contracts["text11"].title_aliases
     assert "金融机构监督管理办法" not in regulatory["reg1"].title_aliases
+
+
+def test_catalog_lexical_profile_uses_full_budget_for_long_single_page(tmp_path: Path) -> None:
+    primary = tmp_path / "retrieval"
+    marker_a = "开头识别信息"
+    marker_b = "中段处罚时效事实"
+    marker_c = "尾段行政处罚结论"
+    long_text = chr(10).join(
+        [
+            f"# {marker_a}",
+            "甲" * 12000,
+            marker_b,
+            "乙" * 12000,
+            marker_c,
+            "丙" * 6000,
+        ]
+    )
+    _write_doc(primary, "regulatory", "long_web", long_text)
+
+    catalog = DocumentCatalog.from_roots(
+        primary,
+        max_lexical_chars=50000,
+        lexical_chars_per_page=2400,
+    )
+    profile = catalog.entries_for_domain("regulatory")[0].lexical_profile
+
+    assert marker_a in profile
+    assert marker_b in profile
+    assert marker_c in profile

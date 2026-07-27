@@ -138,6 +138,40 @@ def test_financial_contract_normalizes_explicit_document_references() -> None:
     assert {"text01", "text04"} <= set(result.matched_identity_terms)
     assert sum(group["kind"] == "explicit_document_reference" for group in result.coverage_groups) == 2
 
+def test_financial_contract_identity_ignores_generic_front_page_labels() -> None:
+    catalog = DocumentCatalog(
+        [
+            _entry(
+                "generic",
+                "financial_contracts",
+                "募集说明书",
+                aliases=("发行人", "发行金额", "募集说明书"),
+            ),
+            _entry(
+                "named",
+                "financial_contracts",
+                "安克创新募集说明书",
+                aliases=("安克创新", "募集说明书"),
+            ),
+        ]
+    )
+    resolver = DocumentScopeResolver(catalog, top_k=2, max_top_k=5)
+    question = Question(
+        qid="contract-generic-labels",
+        domain="financial_contracts",
+        text="关于发行人信息，以下说法正确的是？",
+        options={"A": "安克创新", "B": "发行金额为10亿元"},
+        answer_format="multi",
+        doc_ids=(),
+    )
+
+    result = resolver.resolve(question, _classification(QuestionLabel.CROSS_DOC))
+
+    assert "安克创新" in result.matched_identity_terms
+    assert "发行人" not in result.matched_identity_terms
+    assert "发行金额" not in result.matched_identity_terms
+
+
 def test_financial_contract_identity_preserves_multiple_named_issuers() -> None:
     catalog = DocumentCatalog(
         [
@@ -253,6 +287,138 @@ def test_research_claim_coverage_uses_body_topic_ngrams_for_paraphrases() -> Non
 
     assert result.candidate_doc_ids[0] == "target"
     assert any(group["kind"] == "claim_fragment" for group in result.coverage_groups)
+
+def test_research_comparison_decomposes_both_sides_for_document_coverage() -> None:
+    catalog = DocumentCatalog(
+        [
+            _entry(
+                "silver",
+                "research",
+                "寿险行业报告",
+                lexical_profile="韩国寿险银保渠道近二十年复合增速持续增长。",
+            ),
+            _entry(
+                "rfid",
+                "research",
+                "RFID行业报告",
+                lexical_profile="远望谷新兴赛道RFID标签出货量复合增速较高。",
+            ),
+            _entry("noise", "research", "综合行业报告", lexical_profile="行业市场规模持续增长。"),
+        ]
+    )
+    resolver = DocumentScopeResolver(catalog, top_k=2, max_top_k=4)
+    question = Question(
+        qid="research-comparison",
+        domain="research",
+        text="判断以下陈述是否正确：韩国寿险银保渠道近20年的复合增速低于远望谷在新兴赛道的RFID标签出货量复合增速。",
+        options={"A": "正确", "B": "错误"},
+        answer_format="single",
+        doc_ids=(),
+    )
+
+    result = resolver.resolve(question, _classification(QuestionLabel.CROSS_DOC))
+
+    assert {"silver", "rfid"} <= set(result.candidate_doc_ids[:2])
+
+
+def test_research_rare_entity_grams_preserve_specific_document_in_scope() -> None:
+    catalog = DocumentCatalog(
+        [
+            _entry(
+                "target",
+                "research",
+                "银行IT行业报告",
+                lexical_profile="宇信科技银行IT业务持续增长，金融信创市场持续扩容，宇信科技银行IT业务营收保持增长。",
+            ),
+            _entry(
+                "generic",
+                "research",
+                "2025年金融市场研究",
+                lexical_profile="2025年金融市场规模预计增长，行业营收同比改善。",
+            ),
+            _entry(
+                "noise",
+                "research",
+                "综合行业研究",
+                lexical_profile="市场规模、行业营收和年度增速持续变化。",
+            ),
+        ]
+    )
+    resolver = DocumentScopeResolver(catalog, top_k=2, max_top_k=3)
+    question = Question(
+        qid="research-rare-entity",
+        domain="research",
+        text="下列说法是否正确？",
+        options={"A": "宇信科技银行IT业务2025年营收同比增长8.47%"},
+        answer_format="single",
+        doc_ids=(),
+    )
+
+    result = resolver.resolve(question, _classification(QuestionLabel.FACT_LOOKUP))
+
+    assert "target" in result.candidate_doc_ids[:2]
+
+
+def test_regulatory_identity_extracts_quoted_official_title() -> None:
+    catalog = DocumentCatalog(
+        [
+            _entry(
+                "target",
+                "regulatory",
+                "关于修改《证券公司分类监管规定》的决定",
+                aliases=("关于修改《证券公司分类监管规定》的决定",),
+            ),
+            _entry("noise", "regulatory", "银行卡清算机构管理办法"),
+        ]
+    )
+    resolver = DocumentScopeResolver(catalog, top_k=1, max_top_k=3)
+    question = Question(
+        qid="reg-book-title",
+        domain="regulatory",
+        text="证券公司分类监管规定的施行时间是什么？",
+        options={},
+        answer_format="freeform",
+        doc_ids=(),
+    )
+
+    result = resolver.resolve(question, _classification(QuestionLabel.CLAUSE_LOOKUP))
+
+    assert result.candidate_doc_ids[0] == "target"
+    assert "证券公司分类监管规定" in result.matched_identity_terms
+
+
+def test_regulatory_claim_coverage_uses_document_body_clause_overlap() -> None:
+    catalog = DocumentCatalog(
+        [
+            _entry(
+                "target",
+                "regulatory",
+                "上市公司信息披露管理办法",
+                lexical_profile="第十七条 定期报告内容应当经上市公司董事会审议通过。未经董事会审议通过的定期报告不得披露。",
+            ),
+            _entry(
+                "noise",
+                "regulatory",
+                "保险公司信息披露特别规定",
+                lexical_profile="保险公司应当遵守定期报告和临时公告等信息披露规定。",
+            ),
+        ]
+    )
+    resolver = DocumentScopeResolver(catalog, top_k=1, max_top_k=3)
+    question = Question(
+        qid="reg-body-clause",
+        domain="regulatory",
+        text="判断下列说法。",
+        options={"A": "上市公司定期报告在未经董事会审议通过前不得披露"},
+        answer_format="single",
+        doc_ids=(),
+    )
+
+    result = resolver.resolve(question, _classification(QuestionLabel.CLAUSE_LOOKUP))
+
+    assert result.candidate_doc_ids[0] == "target"
+    assert any(group["kind"] == "claim_fragment" for group in result.coverage_groups)
+
 
 def test_title_alias_can_recall_insurance_product() -> None:
     catalog = DocumentCatalog(

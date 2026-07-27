@@ -254,38 +254,35 @@ def _build_document_profile(
 ) -> tuple[str, str]:
     """Build a bounded, document-wide lexical profile and profile fingerprint.
 
-    The profile uses only deterministic corpus text: up to ``chars_per_page``
-    cleaned characters from successive parsed pages. This broadens recall for
-    research reports whose cover page is generic without creating any
-    question-oriented summary. Only a bounded prefix of each page is read, so
-    catalog construction does not scan the full corpus on every process start.
+    Multi-page parser outputs contribute a bounded prefix per page so the catalog
+    stays cheap to build. Some regulatory crawler outputs put the whole source in
+    one long page_0001.md; for those single-page documents use the full document
+    budget so facts near the end are still visible to document-scope discovery.
     """
     snippets: list[str] = []
     used = 0
-    for page in sorted(doc_dir.glob("page_*.md")):
+    pages = [page for page in sorted(doc_dir.glob("page_*.md")) if page.is_file()]
+    single_page = len(pages) == 1
+    for page in pages:
         if used >= max_chars:
             break
-        if not page.is_file():
-            continue
-        # Markdown image URLs and boilerplate can expand raw input substantially;
-        # read a bounded multiple of the desired cleaned excerpt instead of the
-        # entire page file.
-        raw_read_chars = max(chars_per_page * 4, chars_per_page + 2000)
+        clean_budget = (
+            max_chars - used
+            if single_page
+            else min(chars_per_page, max_chars - used)
+        )
+        raw_read_chars = max(clean_budget * 4, clean_budget + 2000)
         with page.open("r", encoding="utf-8", errors="ignore") as handle:
             raw_text = handle.read(raw_read_chars)
         if not raw_text:
             continue
-        cleaned = _clean_identity_text(
-            raw_text,
-            max_chars=min(chars_per_page, max_chars - used),
-        )
+        cleaned = _clean_identity_text(raw_text, max_chars=clean_budget)
         if cleaned:
             snippets.append(cleaned)
             used += len(cleaned)
-    profile = "\n".join(snippets)[:max_chars]
+    profile = chr(10).join(snippets)[:max_chars]
     fingerprint = hashlib.sha256(profile.encode("utf-8")).hexdigest() if profile else ""
     return profile, fingerprint
-
 
 def _clean_identity_text(text: str, *, max_chars: int) -> str:
     text = _IMAGE_RE.sub(" ", text)

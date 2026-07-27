@@ -32,7 +32,9 @@ _TOPIC_SPLIT_RE = re.compile(r"(?:以及|并且|同时|分别|及|与|和|、|�
 _EXPLICIT_TEXT_REF_RE = re.compile(r"(?<![A-Za-z0-9])(?:[A-Za-z]+_)?text_?0*(\d+)(?![A-Za-z0-9])", re.IGNORECASE)
 _CATALOG_TEXT_ID_RE = re.compile(r"(?:^|_)text0*(\d+)$", re.IGNORECASE)
 _CLAIM_FRAGMENT_SPLIT_RE = re.compile(r"(?:[；;。]|，(?=并且|同时|而且|且|而|但|以及)|(?:并且|同时|而且|且|而))")
+_RESEARCH_COMPARISON_SPLIT_RE = re.compile(r"(?:不低于|不高于|低于|高于|大于|小于|超过|少于)")
 _TRIVIAL_OPTION_VALUES = {"正确", "错误", "是", "否"}
+_REGULATORY_BOOK_TITLE_RE = re.compile(r"《([^》]{4,48})》")
 _REGULATORY_TITLE_SUFFIXES = (
     "管理办法",
     "实施办法",
@@ -78,6 +80,20 @@ _CONTRACT_IDENTITY_NOISE = (
     "注册稿",
     "草案",
 )
+_CONTRACT_GENERIC_IDENTITY_ALIASES = {
+    "发行人",
+    "发行金额",
+    "住所",
+    "第一期",
+    "第二期",
+    "牵头主承销商",
+    "联席主承销商",
+    "簿记管理人",
+    "受托管理人",
+    "上市地点",
+    "签署日",
+    "签署日期",
+}
 
 _GENERIC_TERMS = {
     "根据", "结合", "依据", "关于", "以下", "下列", "哪些", "哪个", "判断", "描述",
@@ -450,7 +466,20 @@ def _claim_fragments(question: Question) -> tuple[str, ...]:
     ]
     if not fragments or len(question_parts) >= 2:
         fragments.extend(question_parts)
-    return _dedup(fragments)[:6]
+    if question.domain == "research":
+        expanded: list[str] = []
+        for fragment in fragments:
+            parts = [
+                part.strip()
+                for part in _RESEARCH_COMPARISON_SPLIT_RE.split(fragment)
+                if len(_compact(part.strip())) >= 6
+            ]
+            if len(parts) >= 2:
+                expanded.extend(parts)
+            else:
+                expanded.append(fragment)
+        fragments = expanded
+    return _dedup(fragments)[:8]
 
 
 def _research_claim_ngrams(fragment: str) -> set[str]:
@@ -470,6 +499,53 @@ def _research_profile_overlap_score(
     return containment * 6.0 + min(hit, 20) * 0.1
 
 
+def _research_rare_gram_scores(
+    fragment: str,
+    profiles: Mapping[str, str],
+) -> dict[str, float]:
+    """Weight corpus-rare 4/5-char phrases such as company or product names."""
+    compact = re.sub(r"\d+%?", "", _compact(fragment))
+    grams = _char_ngrams(compact, sizes=(4, 5))
+    if not grams:
+        return {}
+    doc_freq = {
+        gram: sum(1 for profile in profiles.values() if gram in profile)
+        for gram in grams
+    }
+    scores: dict[str, float] = {}
+    for doc_id, profile in profiles.items():
+        score = 0.0
+        for gram, freq in doc_freq.items():
+            if gram not in profile:
+                continue
+            if freq == 1:
+                score += 3.0
+            elif freq == 2:
+                score += 1.5
+            elif freq <= 5:
+                score += 0.5
+        if score > 0:
+            scores[doc_id] = score
+    return scores
+
+
+def _regulatory_claim_ngrams(fragment: str) -> set[str]:
+    """Longer body grams are reliable for near-verbatim legal clauses."""
+    compact = re.sub(r"\d+%?", "", _compact(fragment))
+    return _char_ngrams(compact, sizes=(4, 5))
+
+
+def _regulatory_profile_overlap_score(
+    grams: set[str],
+    lexical_profile_compact: str,
+) -> float:
+    if not grams or not lexical_profile_compact:
+        return 0.0
+    hit = sum(1 for gram in grams if gram in lexical_profile_compact)
+    containment = hit / len(grams)
+    return containment * 24.0 + min(hit, 30) * 0.2
+
+
 def _claim_fragment_coverage(
     question: Question,
     entries: Sequence[DocumentCatalogEntry],
@@ -487,9 +563,9 @@ def _claim_fragment_coverage(
 
     bonuses: dict[str, float] = {}
     groups: list[Mapping[str, object]] = []
-    research_profiles = (
+    claim_profiles = (
         {entry.doc_id: _compact(entry.lexical_profile) for entry in entries}
-        if question.domain == "research"
+        if question.domain in {"research", "regulatory"}
         else {}
     )
     for fragment in _claim_fragments(question):
@@ -513,6 +589,16 @@ def _claim_fragment_coverage(
             if question.domain == "research"
             else set()
         )
+        regulatory_grams = (
+            _regulatory_claim_ngrams(fragment)
+            if question.domain == "regulatory"
+            else set()
+        )
+        research_rare_scores = (
+            _research_rare_gram_scores(fragment, claim_profiles)
+            if question.domain == "research"
+            else {}
+        )
         ranked: list[tuple[float, str]] = []
         for entry in entries:
             score, _, _ = _score_entry(
@@ -525,8 +611,15 @@ def _claim_fragment_coverage(
             if research_grams:
                 score += _research_profile_overlap_score(
                     research_grams,
-                    research_profiles.get(entry.doc_id, ""),
+                    claim_profiles.get(entry.doc_id, ""),
                 )
+            if regulatory_grams:
+                score += _regulatory_profile_overlap_score(
+                    regulatory_grams,
+                    claim_profiles.get(entry.doc_id, ""),
+                )
+            if research_rare_scores:
+                score += min(18.0, research_rare_scores.get(entry.doc_id, 0.0))
             if score > 0:
                 ranked.append((score, entry.doc_id))
         ranked.sort(key=lambda item: (-item[0], item[1]))
@@ -538,10 +631,24 @@ def _claim_fragment_coverage(
         margin = best_score - second_score
         ratio = best_score / max(second_score, 0.1)
         selected: list[str] = []
-        if margin >= 3.0 or ratio >= 1.3:
+        if research_rare_scores:
+            rare_ranked = sorted(
+                ((score, doc_id) for doc_id, score in research_rare_scores.items()),
+                key=lambda item: (-item[0], item[1]),
+            )
+            best_rare = rare_ranked[0][0] if rare_ranked else 0.0
+            strong_rare = [
+                doc_id
+                for rare_score, doc_id in rare_ranked
+                if rare_score >= 6.0 and rare_score >= best_rare * 0.65
+            ][:2]
+            for doc_id in strong_rare:
+                bonuses[doc_id] = bonuses.get(doc_id, 0.0) + 18.0
+                selected.append(doc_id)
+        if not selected and (margin >= 3.0 or ratio >= 1.3):
             bonuses[best_doc] = bonuses.get(best_doc, 0.0) + 24.0
             selected.append(best_doc)
-        elif (
+        elif not selected and (
             len(ranked) >= 2
             and second_score >= 5.0
             and second_score / best_score >= 0.85
@@ -797,6 +904,8 @@ def _financial_contract_identity_plan(
             compact_alias = _compact(alias)
             if len(compact_alias) < 3 or compact_alias not in query:
                 continue
+            if compact_alias in _CONTRACT_GENERIC_IDENTITY_ALIASES:
+                continue
             if any(noise in compact_alias for noise in _CONTRACT_IDENTITY_NOISE):
                 continue
             identities.append(compact_alias)
@@ -874,6 +983,10 @@ def _regulatory_identity_plan(
             alias = _compact(raw_alias)
             if not alias:
                 continue
+            for quoted_title in _REGULATORY_BOOK_TITLE_RE.findall(str(raw_alias)):
+                quoted = _compact(quoted_title)
+                if len(quoted) >= 4 and quoted in query:
+                    identities.append(quoted)
             for suffix in _REGULATORY_TITLE_SUFFIXES:
                 if alias.endswith(suffix) and len(alias) > len(suffix) + 2:
                     stem = alias[: -len(suffix)]
