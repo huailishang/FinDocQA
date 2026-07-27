@@ -9,6 +9,7 @@ def _entry(
     title: str,
     identity: str | None = None,
     aliases: tuple[str, ...] | None = None,
+    lexical_profile: str = "",
 ) -> DocumentCatalogEntry:
     return DocumentCatalogEntry(
         doc_id=doc_id,
@@ -18,11 +19,13 @@ def _entry(
         title=title,
         title_aliases=aliases or (title,),
         identity_text=identity or title,
+        lexical_profile=lexical_profile,
     )
 
 
 def _classification(*labels: QuestionLabel) -> ClassificationResult:
     return ClassificationResult(labels=labels or (QuestionLabel.FACT_LOOKUP,))
+
 
 
 def test_entity_and_year_rank_single_document_first() -> None:
@@ -110,6 +113,31 @@ def test_financial_report_identity_ignores_low_information_ocr_aliases() -> None
     assert "年年" not in result.matched_identity_terms
 
 
+
+def test_financial_contract_normalizes_explicit_document_references() -> None:
+    catalog = DocumentCatalog(
+        [
+            _entry("text01", "financial_contracts", "第一份募集说明书"),
+            _entry("text04", "financial_contracts", "第四份募集说明书"),
+            _entry("text09", "financial_contracts", "其他募集说明书"),
+        ]
+    )
+    resolver = DocumentScopeResolver(catalog, top_k=2, max_top_k=5)
+    question = Question(
+        qid="contract-explicit-ref",
+        domain="financial_contracts",
+        text="文档 fc_text_001 和 fc_text_004 是否都包含债券持有人保护条款？",
+        options={"A": "正确", "B": "错误"},
+        answer_format="single",
+        doc_ids=(),
+    )
+
+    result = resolver.resolve(question, _classification(QuestionLabel.CROSS_DOC))
+
+    assert set(result.candidate_doc_ids[:2]) == {"text01", "text04"}
+    assert {"text01", "text04"} <= set(result.matched_identity_terms)
+    assert sum(group["kind"] == "explicit_document_reference" for group in result.coverage_groups) == 2
+
 def test_financial_contract_identity_preserves_multiple_named_issuers() -> None:
     catalog = DocumentCatalog(
         [
@@ -149,6 +177,82 @@ def test_financial_contract_identity_preserves_multiple_named_issuers() -> None:
     assert {"text04", "text05", "text11"} <= set(result.candidate_doc_ids[:3])
     assert {"安克创新", "本川智", "普联软件"} <= set(result.matched_identity_terms)
 
+
+
+def test_claim_fragment_coverage_preserves_distinct_document_topics() -> None:
+    catalog = DocumentCatalog(
+        [
+            _entry(
+                "report_a",
+                "research",
+                "行业报告甲",
+                lexical_profile="韩国寿险银保渠道保费贡献率达到56%，银保渠道长期增长。",
+            ),
+            _entry(
+                "report_b",
+                "research",
+                "行业报告乙",
+                lexical_profile="银行IT与金融信创市场规模预计接近2500亿元。",
+            ),
+            _entry(
+                "report_noise",
+                "research",
+                "综合金融行业报告",
+                lexical_profile="金融市场行业规模增长，年度报告与行业研究。",
+            ),
+        ]
+    )
+    resolver = DocumentScopeResolver(catalog, top_k=2, max_top_k=5)
+    question = Question(
+        qid="claim-coverage",
+        domain="research",
+        text="结合两份报告，以下哪些判断正确？",
+        options={
+            "A": "韩国寿险银保渠道保费贡献率达到56%",
+            "B": "金融信创市场规模预计接近2500亿元",
+        },
+        answer_format="multi",
+        doc_ids=(),
+    )
+
+    result = resolver.resolve(question, _classification(QuestionLabel.CROSS_DOC))
+
+    assert {"report_a", "report_b"} <= set(result.candidate_doc_ids[:2])
+    assert sum(group["kind"] == "claim_fragment" for group in result.coverage_groups) >= 2
+    assert result.matched_identity_terms == ()
+
+
+def test_research_claim_coverage_uses_body_topic_ngrams_for_paraphrases() -> None:
+    catalog = DocumentCatalog(
+        [
+            _entry(
+                "target",
+                "research",
+                "行业深度报告",
+                lexical_profile="韩国寿险银保渠道长期发展，韩国寿险银保渠道保费贡献率已经超过50%。",
+            ),
+            _entry(
+                "noise",
+                "research",
+                "综合金融报告",
+                lexical_profile="金融行业规模增长，保险与银行业务持续发展。",
+            ),
+        ]
+    )
+    resolver = DocumentScopeResolver(catalog, top_k=1, max_top_k=3)
+    question = Question(
+        qid="research-paraphrase",
+        domain="research",
+        text="判断下列说法。",
+        options={"A": "韩国寿险银保渠道的保费贡献超过50%"},
+        answer_format="single",
+        doc_ids=(),
+    )
+
+    result = resolver.resolve(question, _classification(QuestionLabel.FACT_LOOKUP))
+
+    assert result.candidate_doc_ids[0] == "target"
+    assert any(group["kind"] == "claim_fragment" for group in result.coverage_groups)
 
 def test_title_alias_can_recall_insurance_product() -> None:
     catalog = DocumentCatalog(

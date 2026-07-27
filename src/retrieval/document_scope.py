@@ -29,6 +29,10 @@ _FINANCIAL_REPORT_DOC_RE = re.compile(
     re.IGNORECASE,
 )
 _TOPIC_SPLIT_RE = re.compile(r"(?:以及|并且|同时|分别|及|与|和|、|；|;|，|,)")
+_EXPLICIT_TEXT_REF_RE = re.compile(r"(?<![A-Za-z0-9])(?:[A-Za-z]+_)?text_?0*(\d+)(?![A-Za-z0-9])", re.IGNORECASE)
+_CATALOG_TEXT_ID_RE = re.compile(r"(?:^|_)text0*(\d+)$", re.IGNORECASE)
+_CLAIM_FRAGMENT_SPLIT_RE = re.compile(r"(?:[；;。]|，(?=并且|同时|而且|且|而|但|以及)|(?:并且|同时|而且|且|而))")
+_TRIVIAL_OPTION_VALUES = {"正确", "错误", "是", "否"}
 _REGULATORY_TITLE_SUFFIXES = (
     "管理办法",
     "实施办法",
@@ -240,6 +244,10 @@ class DocumentScopeResolver:
             )
 
         identity_plan = self._build_identity_scope_plan(question, signals, entries)
+        claim_bonus_by_doc, claim_coverage_groups = _claim_fragment_coverage(
+            question,
+            entries,
+        )
         phrase_doc_freq = _phrase_document_frequency(entries, signals)
         scored: list[tuple[float, DocumentCatalogEntry, tuple[str, ...], tuple[str, ...]]] = []
         for entry in entries:
@@ -251,8 +259,10 @@ class DocumentScopeResolver:
                 domain_doc_count=len(entries),
             )
             identity_bonus = float(identity_plan.score_bonus_by_doc.get(entry.doc_id, 0.0))
+            claim_bonus = float(claim_bonus_by_doc.get(entry.doc_id, 0.0))
+            if identity_bonus or claim_bonus:
+                score += identity_bonus + claim_bonus
             if identity_bonus:
-                score += identity_bonus
                 matched_title_terms = _dedup(
                     [
                         *matched_title_terms,
@@ -326,7 +336,7 @@ class DocumentScopeResolver:
             adaptive_scope=identity_plan.adaptive_scope,
             confidence=confidence,
             matched_identity_terms=identity_plan.matched_identity_terms,
-            coverage_groups=identity_plan.coverage_groups,
+            coverage_groups=tuple([*identity_plan.coverage_groups, *claim_coverage_groups]),
         )
 
     def _build_identity_scope_plan(
@@ -385,7 +395,6 @@ def extract_query_signals(
 
     years = _dedup(_YEAR_RE.findall(joined))
     codes = _dedup(_CODE_RE.findall(joined))
-
     chunks: list[str] = []
     for part in parts:
         for raw_chunk in _SPLIT_RE.split(str(part)):
@@ -423,6 +432,132 @@ def extract_query_signals(
         codes=codes,
         chunks=_dedup(chunks)[:60],
     )
+
+
+def _claim_fragments(question: Question) -> tuple[str, ...]:
+    """Return query-visible subclaims that may require different documents."""
+    fragments: list[str] = []
+    for value in question.options.values():
+        text = str(value).strip()
+        compact = _compact(text)
+        if len(compact) >= 6 and compact not in _TRIVIAL_OPTION_VALUES:
+            fragments.append(text)
+
+    question_parts = [
+        part.strip()
+        for part in _CLAIM_FRAGMENT_SPLIT_RE.split(question.text or "")
+        if len(_compact(part.strip())) >= 8
+    ]
+    if not fragments or len(question_parts) >= 2:
+        fragments.extend(question_parts)
+    return _dedup(fragments)[:6]
+
+
+def _research_claim_ngrams(fragment: str) -> set[str]:
+    """Return short semantic grams for research-claim body matching."""
+    compact = re.sub(r"\d+%?", "", _compact(fragment))
+    return _char_ngrams(compact, sizes=(3, 4))
+
+
+def _research_profile_overlap_score(
+    grams: set[str],
+    lexical_profile_compact: str,
+) -> float:
+    if not grams or not lexical_profile_compact:
+        return 0.0
+    hit = sum(1 for gram in grams if gram in lexical_profile_compact)
+    containment = hit / len(grams)
+    return containment * 6.0 + min(hit, 20) * 0.1
+
+
+def _claim_fragment_coverage(
+    question: Question,
+    entries: Sequence[DocumentCatalogEntry],
+) -> tuple[dict[str, float], tuple[Mapping[str, object], ...]]:
+    """Nominate documents for distinct claim fragments before global truncation.
+
+    Whole-question scoring can let one strong topic dominate a cross-document
+    question. This layer gives a bounded bonus to documents that are clearly
+    preferred by an individual option/subclaim. Ambiguous fragments may preserve
+    two close candidates. The bonuses affect coverage only: they do not become
+    identity terms and therefore cannot upgrade scope confidence.
+    """
+    if question.domain not in {"financial_contracts", "regulatory", "research"}:
+        return {}, ()
+
+    bonuses: dict[str, float] = {}
+    groups: list[Mapping[str, object]] = []
+    research_profiles = (
+        {entry.doc_id: _compact(entry.lexical_profile) for entry in entries}
+        if question.domain == "research"
+        else {}
+    )
+    for fragment in _claim_fragments(question):
+        pseudo = Question(
+            qid=question.qid,
+            domain=question.domain,
+            text=fragment,
+            options={},
+            answer_format=question.answer_format,
+            doc_ids=(),
+            raw={
+                key: question.raw.get(key)
+                for key in ("type", "_raw_type")
+                if question.raw.get(key) is not None
+            },
+        )
+        signals = extract_query_signals(pseudo, ClassificationResult(labels=()))
+        phrase_doc_freq = _phrase_document_frequency(entries, signals)
+        research_grams = (
+            _research_claim_ngrams(fragment)
+            if question.domain == "research"
+            else set()
+        )
+        ranked: list[tuple[float, str]] = []
+        for entry in entries:
+            score, _, _ = _score_entry(
+                entry,
+                pseudo,
+                signals,
+                phrase_doc_freq=phrase_doc_freq,
+                domain_doc_count=len(entries),
+            )
+            if research_grams:
+                score += _research_profile_overlap_score(
+                    research_grams,
+                    research_profiles.get(entry.doc_id, ""),
+                )
+            if score > 0:
+                ranked.append((score, entry.doc_id))
+        ranked.sort(key=lambda item: (-item[0], item[1]))
+        if not ranked or ranked[0][0] < 6.0:
+            continue
+
+        best_score, best_doc = ranked[0]
+        second_score = ranked[1][0] if len(ranked) >= 2 else 0.0
+        margin = best_score - second_score
+        ratio = best_score / max(second_score, 0.1)
+        selected: list[str] = []
+        if margin >= 3.0 or ratio >= 1.3:
+            bonuses[best_doc] = bonuses.get(best_doc, 0.0) + 24.0
+            selected.append(best_doc)
+        elif (
+            len(ranked) >= 2
+            and second_score >= 5.0
+            and second_score / best_score >= 0.85
+        ):
+            for _, doc_id in ranked[:2]:
+                bonuses[doc_id] = bonuses.get(doc_id, 0.0) + 10.0
+                selected.append(doc_id)
+        if selected:
+            groups.append(
+                {
+                    "kind": "claim_fragment",
+                    "identity": fragment[:120],
+                    "doc_ids": list(_dedup(selected)),
+                }
+            )
+    return bonuses, tuple(groups)
 
 
 def _empty_identity_plan(base_top_k: int) -> _IdentityScopePlan:
@@ -625,11 +760,36 @@ def _financial_contract_identity_plan(
     sharing boilerplate such as ``募集说明书``. Treat exact issuer/short-name
     aliases as document identity, analogous to insurance product aliases.
     """
-    query = _compact(_question_visible_text(question))
+    visible_text = _question_visible_text(question)
+    query = _compact(visible_text)
     score_bonus: dict[str, float] = {}
     identity_by_doc: dict[str, tuple[str, ...]] = {}
     matched_terms: list[str] = []
     coverage_groups: list[Mapping[str, object]] = []
+
+    # Some datasets expose stable document references directly in the question
+    # text (for example fc_text_002) while the corpus directory is text02.
+    # This is question-visible identity, not answer leakage, so normalize the
+    # numeric suffix and give every explicitly named document its own coverage
+    # slot before semantic scoring.
+    explicit_numbers = _dedup(_EXPLICIT_TEXT_REF_RE.findall(visible_text))
+    entry_by_number: dict[str, DocumentCatalogEntry] = {}
+    for entry in entries:
+        match = _CATALOG_TEXT_ID_RE.search(entry.doc_id)
+        if match is not None:
+            entry_by_number[str(int(match.group(1)))] = entry
+    for raw_number in explicit_numbers:
+        number = str(int(raw_number))
+        entry = entry_by_number.get(number)
+        if entry is None:
+            continue
+        identity = f"text{int(number):02d}"
+        score_bonus[entry.doc_id] = max(score_bonus.get(entry.doc_id, 0.0), 240.0)
+        identity_by_doc[entry.doc_id] = _dedup([*identity_by_doc.get(entry.doc_id, ()), identity])
+        matched_terms.append(identity)
+        coverage_groups.append(
+            {"kind": "explicit_document_reference", "identity": identity, "doc_ids": [entry.doc_id]}
+        )
 
     for entry in entries:
         identities: list[str] = []
@@ -643,8 +803,8 @@ def _financial_contract_identity_plan(
         if not identities:
             continue
         identity = max(_dedup(identities), key=lambda value: (len(value), value))
-        score_bonus[entry.doc_id] = 140.0
-        identity_by_doc[entry.doc_id] = (identity,)
+        score_bonus[entry.doc_id] = max(score_bonus.get(entry.doc_id, 0.0), 140.0)
+        identity_by_doc[entry.doc_id] = _dedup([*identity_by_doc.get(entry.doc_id, ()), identity])
         matched_terms.append(identity)
         coverage_groups.append(
             {"kind": "contract_issuer", "identity": identity, "doc_ids": [entry.doc_id]}
