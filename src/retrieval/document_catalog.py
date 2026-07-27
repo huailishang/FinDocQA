@@ -18,6 +18,11 @@ _IMAGE_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 _HTML_RE = re.compile(r"<[^>]+>")
 _SPACE_RE = re.compile(r"\s+")
 _HEADING_RE = re.compile(r"^#{1,6}\s*(.+?)\s*$")
+_SHORT_NAME_RE = re.compile(
+    r"(?:公司简称|股票简称|证券简称)\s*[:：]\s*([A-Za-z0-9\u4e00-\u9fff]{2,32})",
+    re.IGNORECASE,
+)
+_CJK_RUN_RE = re.compile(r"[\u4e00-\u9fff]{2,24}")
 _ANNUAL_REPORT_SUFFIX_RE = re.compile(
     r"(?:19|20)\d{2}\s*年?\s*年?度报告(?:全文)?(?:.*)?$",
     re.IGNORECASE,
@@ -37,6 +42,43 @@ _COMPANY_SUFFIXES = (
 _ENTITY_NOISE_SUFFIXES = (
     "新能源科技",
     "科技创新",
+)
+_IDENTITY_FRAGMENT_NOISE = {
+    "公司简称",
+    "股票简称",
+    "证券简称",
+    "股票代码",
+    "证券代码",
+    "年度报告",
+    "募集说明书",
+    "注册稿",
+}
+# MinerU/OCR may preserve Traditional Chinese on bilingual covers. Keep this
+# deliberately small and identity-oriented; it is not a general text converter.
+_IDENTITY_TRADITIONAL_TRANSLATION = str.maketrans(
+    {
+        "國": "国",
+        "築": "筑",
+        "銀": "银",
+        "聯": "联",
+        "軟": "软",
+        "體": "体",
+        "團": "团",
+        "醫": "医",
+        "療": "疗",
+        "險": "险",
+        "證": "证",
+        "業": "业",
+        "產": "产",
+        "發": "发",
+        "電": "电",
+        "網": "网",
+        "資": "资",
+        "訊": "讯",
+        "華": "华",
+        "東": "东",
+        "萬": "万",
+    }
 )
 
 
@@ -168,6 +210,7 @@ class DocumentCatalog:
                         chars_per_page=lexical_chars_per_page,
                     )
                     title, aliases = _extract_title_and_aliases(
+                        domain=domain,
                         doc_id=doc_dir.name,
                         identity_text=identity_text,
                     )
@@ -263,7 +306,12 @@ def _clean_identity_text(text: str, *, max_chars: int) -> str:
     return "\n".join(lines)[:max_chars]
 
 
-def _extract_title_and_aliases(*, doc_id: str, identity_text: str) -> tuple[str, tuple[str, ...]]:
+def _extract_title_and_aliases(
+    *,
+    domain: str,
+    doc_id: str,
+    identity_text: str,
+) -> tuple[str, tuple[str, ...]]:
     lines = [line.strip() for line in identity_text.splitlines() if line.strip()]
     title_lines: list[str] = []
     for line in lines[:18]:
@@ -279,6 +327,24 @@ def _extract_title_and_aliases(*, doc_id: str, identity_text: str) -> tuple[str,
     title = " / ".join(title_lines[:3]) if title_lines else doc_id
     raw_aliases: list[str] = [doc_id, doc_id.replace("_", " ")]
     raw_aliases.extend(title_lines)
+
+    if domain in {"financial_reports", "financial_contracts"}:
+        # These two domains commonly use bilingual company covers and issuer
+        # short-name labels. Other domains retain the legacy alias behavior so
+        # fragmented regulation/research headings cannot become false identity.
+        for line in title_lines:
+            for match in _SHORT_NAME_RE.finditer(line):
+                raw_aliases.extend(_identity_variants(match.group(1)))
+            for fragment in _CJK_RUN_RE.findall(line):
+                for variant in _identity_variants(fragment):
+                    compact = _compact(variant)
+                    if compact and compact not in _IDENTITY_FRAGMENT_NOISE:
+                        raw_aliases.append(variant)
+
+        # Preserve a normalized identity variant for mixed Traditional/Simplified
+        # cover pages before later legal-suffix derivation.
+        for value in list(raw_aliases):
+            raw_aliases.extend(_identity_variants(value))
 
     # Strict-v3 doc ids already contain a high-confidence official title.
     if "（" in doc_id and "）" in doc_id:
@@ -333,6 +399,14 @@ def _source_paths(*, domain: str, doc_id: str, retrieval_dir: Path, raw_root: Pa
                 if source.is_file():
                     paths.append(str(source))
     return tuple(dict.fromkeys(paths))
+
+
+def _identity_variants(value: str) -> tuple[str, ...]:
+    raw = str(value or "").strip()
+    if not raw:
+        return ()
+    normalized = raw.translate(_IDENTITY_TRADITIONAL_TRANSLATION)
+    return (raw,) if normalized == raw else (raw, normalized)
 
 
 def _compact(value: str) -> str:

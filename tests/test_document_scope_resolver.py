@@ -3,14 +3,20 @@ from retrieval.document_catalog import DocumentCatalog, DocumentCatalogEntry
 from retrieval.document_scope import DocumentScopeResolver
 
 
-def _entry(doc_id: str, domain: str, title: str, identity: str | None = None) -> DocumentCatalogEntry:
+def _entry(
+    doc_id: str,
+    domain: str,
+    title: str,
+    identity: str | None = None,
+    aliases: tuple[str, ...] | None = None,
+) -> DocumentCatalogEntry:
     return DocumentCatalogEntry(
         doc_id=doc_id,
         domain=domain,
         retrieval_dir=f"/tmp/{domain}/{doc_id}",
         source_paths=(f"/tmp/{domain}/{doc_id}",),
         title=title,
-        title_aliases=(title,),
+        title_aliases=aliases or (title,),
         identity_text=identity or title,
     )
 
@@ -68,6 +74,80 @@ def test_cross_document_question_recalls_both_entities() -> None:
     result = resolver.resolve(question, _classification(QuestionLabel.CROSS_DOC))
 
     assert {"annual_byd_2024_report", "annual_midea_2025_report"} <= set(result.candidate_doc_ids)
+
+
+def test_financial_report_identity_ignores_low_information_ocr_aliases() -> None:
+    catalog = DocumentCatalog(
+        [
+            _entry(
+                "annual_cscec_2025_report",
+                "financial_reports",
+                "中国建筑股份有限公司 2025 年年度报告",
+                aliases=("中国建筑股份有限公司", "中国建筑"),
+            ),
+            _entry(
+                "annual_midea_2025_report",
+                "financial_reports",
+                "2025 年年 的集团股份有限公司",
+                aliases=("年年", "年年的集团"),
+            ),
+        ]
+    )
+    resolver = DocumentScopeResolver(catalog, top_k=2)
+    question = Question(
+        qid="report-identity-noise",
+        domain="financial_reports",
+        text="根据中国建筑 2025 年年度报告，现金分红金额是多少？",
+        options={},
+        answer_format="free_text",
+        doc_ids=(),
+    )
+
+    result = resolver.resolve(question, _classification(QuestionLabel.FACT_LOOKUP))
+
+    assert result.candidate_doc_ids[0] == "annual_cscec_2025_report"
+    assert "中国建筑" in result.matched_identity_terms
+    assert "年年" not in result.matched_identity_terms
+
+
+def test_financial_contract_identity_preserves_multiple_named_issuers() -> None:
+    catalog = DocumentCatalog(
+        [
+            _entry(
+                "text04",
+                "financial_contracts",
+                "安克创新募集说明书",
+                aliases=("安克创新", "募集说明书"),
+            ),
+            _entry(
+                "text05",
+                "financial_contracts",
+                "本川智能募集说明书",
+                aliases=("本川智", "募集说明书"),
+            ),
+            _entry(
+                "text11",
+                "financial_contracts",
+                "普联软件募集说明书",
+                aliases=("普联软件", "募集说明书"),
+            ),
+            _entry("noise", "financial_contracts", "其他公司募集说明书"),
+        ]
+    )
+    resolver = DocumentScopeResolver(catalog, top_k=3, max_top_k=5)
+    question = Question(
+        qid="contract-multi-issuer",
+        domain="financial_contracts",
+        text="关于募投项目新增折旧摊销，以下哪些公司披露了定量测算？",
+        options={"A": "普联软件", "B": "本川智能", "C": "安克创新"},
+        answer_format="multi",
+        doc_ids=(),
+    )
+
+    result = resolver.resolve(question, _classification(QuestionLabel.CROSS_DOC))
+
+    assert {"text04", "text05", "text11"} <= set(result.candidate_doc_ids[:3])
+    assert {"安克创新", "本川智", "普联软件"} <= set(result.matched_identity_terms)
 
 
 def test_title_alias_can_recall_insurance_product() -> None:

@@ -51,3 +51,41 @@ def test_catalog_primary_root_wins_and_fallback_can_add_missing_doc(tmp_path: Pa
     assert "主目录产品" in entries["1"].identity_text
     assert "备用目录产品" not in entries["1"].identity_text
     assert "新增备用产品" in entries["2"].identity_text
+
+
+def test_catalog_extracts_short_names_and_mixed_cover_identity_aliases(tmp_path: Path) -> None:
+    primary = tmp_path / "retrieval"
+    _write_doc(
+        primary,
+        "financial_reports",
+        "annual_cscec_2025_report",
+        "# CSCEc 中國建築CHINA STATE CONSTRUCTION\n",
+    )
+    _write_doc(
+        primary,
+        "financial_reports",
+        "annual_cmb_2025_report",
+        "# 招商银行CHINA MERCHANTS BANK招商银行股份有限公司股票代码：600036\n",
+    )
+    _write_doc(
+        primary,
+        "financial_contracts",
+        "text11",
+        "# 股票简称：普联软件\n\n# 证券代码：300996\n",
+    )
+    _write_doc(
+        primary,
+        "regulatory",
+        "reg1",
+        "# ABC 金融机构监督管理办法 DEF\n",
+    )
+
+    catalog = DocumentCatalog.from_roots(primary)
+    reports = {entry.doc_id: entry for entry in catalog.entries_for_domain("financial_reports")}
+    contracts = {entry.doc_id: entry for entry in catalog.entries_for_domain("financial_contracts")}
+    regulatory = {entry.doc_id: entry for entry in catalog.entries_for_domain("regulatory")}
+
+    assert "中国建筑" in reports["annual_cscec_2025_report"].title_aliases
+    assert "招商银行" in reports["annual_cmb_2025_report"].title_aliases
+    assert "普联软件" in contracts["text11"].title_aliases
+    assert "金融机构监督管理办法" not in regulatory["reg1"].title_aliases

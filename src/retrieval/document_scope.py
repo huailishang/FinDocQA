@@ -50,7 +50,30 @@ _IDENTITY_ALIAS_NOISE = {
     "有限公司",
     "集团",
     "公司",
+    "股票简称",
+    "证券简称",
+    "公司简称",
+    "股票代码",
+    "证券代码",
+    "募集说明书",
+    "向不特定对象发行可转换公司债券",
+    "保荐人",
+    "主承销商",
 }
+_IDENTITY_GENERIC_CHARS_RE = re.compile(r"[年度报告全文股份有限公司集团]")
+_CONTRACT_IDENTITY_NOISE = (
+    "募集说明书",
+    "公司债券",
+    "可转换公司债券",
+    "保荐",
+    "主承销",
+    "股票简称",
+    "证券简称",
+    "股票代码",
+    "证券代码",
+    "注册稿",
+    "草案",
+)
 
 _GENERIC_TERMS = {
     "根据", "结合", "依据", "关于", "以下", "下列", "哪些", "哪个", "判断", "描述",
@@ -320,6 +343,13 @@ class DocumentScopeResolver:
                 base_top_k=self.top_k,
                 max_top_k=self.max_top_k,
             )
+        if question.domain == "financial_contracts":
+            return _financial_contract_identity_plan(
+                question,
+                entries,
+                base_top_k=self.top_k,
+                max_top_k=self.max_top_k,
+            )
         if question.domain == "insurance":
             return _insurance_identity_plan(
                 question,
@@ -476,8 +506,10 @@ def _derive_entity_aliases(entry: DocumentCatalogEntry) -> tuple[str, ...]:
     aliases: list[str] = []
     for value in values:
         compact = _compact(value)
+        identity_core = _IDENTITY_GENERIC_CHARS_RE.sub("", compact)
         if (
             2 <= len(compact) <= 24
+            and len(identity_core) >= 2
             and re.search(r"[\u4e00-\u9fff]", compact)
             and not re.search(r"\d", compact)
             and compact not in _IDENTITY_ALIAS_NOISE
@@ -576,6 +608,56 @@ def _financial_report_identity_plan(
         coverage_groups=tuple(coverage_groups),
         effective_top_k=effective,
         adaptive_scope=adaptive,
+    )
+
+
+def _financial_contract_identity_plan(
+    question: Question,
+    entries: Sequence[DocumentCatalogEntry],
+    *,
+    base_top_k: int,
+    max_top_k: int,
+) -> _IdentityScopePlan:
+    """Promote contract documents whose corpus-derived issuer aliases are named.
+
+    Prospectus questions often name several issuers/products in the options. The
+    generic lexical score can still crowd one named document out with documents
+    sharing boilerplate such as ``募集说明书``. Treat exact issuer/short-name
+    aliases as document identity, analogous to insurance product aliases.
+    """
+    query = _compact(_question_visible_text(question))
+    score_bonus: dict[str, float] = {}
+    identity_by_doc: dict[str, tuple[str, ...]] = {}
+    matched_terms: list[str] = []
+    coverage_groups: list[Mapping[str, object]] = []
+
+    for entry in entries:
+        identities: list[str] = []
+        for alias in _derive_entity_aliases(entry):
+            compact_alias = _compact(alias)
+            if len(compact_alias) < 3 or compact_alias not in query:
+                continue
+            if any(noise in compact_alias for noise in _CONTRACT_IDENTITY_NOISE):
+                continue
+            identities.append(compact_alias)
+        if not identities:
+            continue
+        identity = max(_dedup(identities), key=lambda value: (len(value), value))
+        score_bonus[entry.doc_id] = 140.0
+        identity_by_doc[entry.doc_id] = (identity,)
+        matched_terms.append(identity)
+        coverage_groups.append(
+            {"kind": "contract_issuer", "identity": identity, "doc_ids": [entry.doc_id]}
+        )
+
+    effective = max(base_top_k, min(max_top_k, len(score_bonus)))
+    return _IdentityScopePlan(
+        score_bonus_by_doc=score_bonus,
+        identity_terms_by_doc=identity_by_doc,
+        matched_identity_terms=_dedup(matched_terms),
+        coverage_groups=tuple(coverage_groups),
+        effective_top_k=effective,
+        adaptive_scope=len(score_bonus) > 1,
     )
 
 
