@@ -11,8 +11,8 @@ from data.loader import JsonQuestionLoader
 from evaluation.writer import SubmissionTemplate, CsvSubmissionWriter
 
 
-B_QUESTIONS_DIR = Path("../data/upload_b/question_b")
-B_TEMPLATE = Path("../data/upload_b/submit.csv")
+B_QUESTIONS_DIR = Path("data/upload_b/question_b")
+B_TEMPLATE = Path("data/upload_b/submit.csv")
 
 
 def _result(question, answers: tuple[str, ...]) -> PipelineResult:

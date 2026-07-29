@@ -238,8 +238,8 @@ class _LocalTextCorpus:
         for doc_id in question.doc_ids:
             by_source: dict[str, tuple[str, ...]] = {}
             roots = (
-                self.repo_root.parent / "data/processed_mineru_retrieval" / question.domain / str(doc_id),
-                self.repo_root.parent / "data/processed_mineru" / question.domain / str(doc_id) / "auto",
+                self.repo_root / "data/processed_mineru_retrieval" / question.domain / str(doc_id),
+                self.repo_root / "data/processed_mineru" / question.domain / str(doc_id) / "auto",
             )
             seen: set[str] = set()
             for root in roots:
@@ -351,7 +351,7 @@ class FinancialRatioBridge:
         self.initial_candidates = tuple(initial_candidates)
         # Retrieval-only store.  Decision methods never access this object.
         self._retrieval_ledger = FinancialMetricLedger.from_documents(
-            self.repo_root.parent / "data/processed_mineru", question.domain, question.doc_ids
+            self.repo_root / "data/processed_mineru", question.domain, question.doc_ids
         )
         self._requirements: dict[str, BridgeRequirement] = {}
         self._requirements_by_id: dict[str, BridgeRequirement] = {}

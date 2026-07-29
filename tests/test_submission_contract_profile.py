@@ -14,8 +14,8 @@ from evaluation.writer import SubmissionTemplate, CsvSubmissionWriter
 from solvers.base import validate_submission_answer
 
 
-B_QUESTIONS_DIR = Path("../data/upload_b/question_b")
-B_SUBMISSION_TEMPLATE = Path("../data/upload_b/submit.csv")
+B_QUESTIONS_DIR = Path("data/upload_b/question_b")
+B_SUBMISSION_TEMPLATE = Path("data/upload_b/submit.csv")
 B_HEADER = (
     "qid",
     "answer_1",

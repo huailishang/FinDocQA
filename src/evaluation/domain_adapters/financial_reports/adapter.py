@@ -21,7 +21,7 @@ CAPABILITY = "financial_metric_period_unit_policy_stage_v1"
 
 
 def _doc_files(repo_root: Path, doc_id: str) -> list[Path]:
-    data = repo_root.parent / "data"
+    data = repo_root / "data"
     candidates = [
         data / "processed_mineru" / "financial_reports" / doc_id / "auto" / f"{doc_id}.md",
         data / "processed_mineru" / "financial_reports" / doc_id / f"{doc_id}.md",

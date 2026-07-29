@@ -175,7 +175,7 @@ def _document_text_files(repo_root: Path, domain: str, doc_id: str) -> tuple[Pat
     units.  The full MinerU markdown is a fallback when no retrieval pages exist.
     """
     root = Path(repo_root).resolve()
-    data_root = root.parent / "data"
+    data_root = root / "data"
     retrieval_dir = data_root / "processed_mineru_retrieval" / str(domain) / str(doc_id)
     retrieval_files = tuple(sorted(path for path in retrieval_dir.glob("*.md") if path.is_file()))
     if retrieval_files:

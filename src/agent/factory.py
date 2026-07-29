@@ -30,6 +30,7 @@ from retrieval.document_scope import DocumentScopeResolver
 from retrieval.hybrid import LexicalHybridRetriever
 from retrieval.interfaces import StoreBoundEvidenceRetriever
 from retrieval.scope_aware import ScopeAwareEvidenceRetriever
+from question.preparation import PreparedQuestion, QuestionPreparationPipeline
 from solvers.calculation import CalculationSolver
 from solvers.cross_doc import CrossDocSolver
 from solvers.direct import DirectSolver
@@ -99,7 +100,7 @@ class PipelineFactory:
                     require_submission_slot_contract=require_slot_contract,
                 )
 
-        raw_dataset = self._resolve_path(self._path_config("raw_dataset", "../data/raw_dataset"))
+        raw_dataset = self._resolve_path(self._path_config("raw_dataset", "data/raw_dataset"))
         question_group = self._path_config("question_group", "group_a").strip() or "group_a"
         questions_dir = raw_dataset / "questions" / question_group
         return JsonQuestionLoader(
@@ -108,6 +109,14 @@ class PipelineFactory:
             submission_slot_contracts_by_qid=slot_contracts_by_qid,
             require_submission_slot_contract=require_slot_contract,
         )
+
+    def build_question_preparation_pipeline(self) -> QuestionPreparationPipeline:
+        """Build C0+C1 for either benchmark rows or plain natural-language queries."""
+        return QuestionPreparationPipeline()
+
+    def prepare_question(self, payload: str | Mapping[str, Any]) -> PreparedQuestion:
+        """Normalize and understand one question before retrieval/solver routing."""
+        return self.build_question_preparation_pipeline().prepare(payload)
 
     def build_classifier(self) -> RuleBasedQuestionClassifier:
         """Offline rule-based classifier (no LLM, no I/O)."""
@@ -130,10 +139,10 @@ class PipelineFactory:
             if str(value).strip()
         ]
         processed_root = self._resolve_path(
-            self._path_config("processed_docs", "../data/processed_pymupdf4llm")
+            self._path_config("processed_docs", "data/processed_pymupdf4llm")
         )
         raw_root = self._resolve_path(
-            self._path_config("raw_pdfs", "../data/raw_dataset/raw")
+            self._path_config("raw_pdfs", "data/raw_dataset/raw")
         )
         catalog = DocumentCatalog.from_roots(
             processed_root,
@@ -178,7 +187,7 @@ class PipelineFactory:
                     self._resolve_path(
                         str(
                             retrieval_cfg.get("canonical_raw_root")
-                            or "../data/processed_mineru"
+                            or "data/processed_mineru"
                         )
                     )
                 )
@@ -186,7 +195,7 @@ class PipelineFactory:
             adapted_roots = [
                 self._resolve_path(
                     self._path_config(
-                        "processed_docs", "../data/processed_mineru_retrieval"
+                        "processed_docs", "data/processed_mineru_retrieval"
                     )
                 ),
                 *[
@@ -229,7 +238,7 @@ class PipelineFactory:
         ]
         return LexicalHybridRetriever(
             processed_docs_dir=self._resolve_path(
-                self._path_config("processed_docs", "../data/processed_pymupdf4llm")
+                self._path_config("processed_docs", "data/processed_pymupdf4llm")
             ),
             top_k_per_doc=int(retrieval_cfg.get("top_k_per_doc", 5)),
             windows_per_page=int(retrieval_cfg.get("windows_per_page", 3)),
@@ -298,32 +307,32 @@ class PipelineFactory:
             table_cfg.get("prompt_injection_enabled", False)
         )
         table_root = self._resolve_path(
-            str(table_cfg.get("root") or "../data/processed_mineru")
+            str(table_cfg.get("root") or "data/processed_mineru")
         )
         insurance_clause_cfg = evidence_cfg.get("insurance_clauses", {})
         insurance_clause_full_root = self._resolve_path(
-            str(insurance_clause_cfg.get("full_text_root") or "../data/processed_mineru")
+            str(insurance_clause_cfg.get("full_text_root") or "data/processed_mineru")
         )
         insurance_clause_product_catalog = self._resolve_path(
             str(insurance_clause_cfg.get("product_catalog") or "config/insurance_product_documents.json")
         )
         insurance_calculation_cfg = evidence_cfg.get("insurance_calculations", {})
         insurance_calculation_full_root = self._resolve_path(
-            str(insurance_calculation_cfg.get("full_text_root") or "../data/processed_mineru")
+            str(insurance_calculation_cfg.get("full_text_root") or "data/processed_mineru")
         )
         insurance_calculation_product_catalog = self._resolve_path(
             str(insurance_calculation_cfg.get("product_catalog") or "config/insurance_product_documents.json")
         )
         regulatory_cfg = evidence_cfg.get("regulatory_options", {})
         regulatory_data_root = self._resolve_path(
-            str(regulatory_cfg.get("data_root") or "../data")
+            str(regulatory_cfg.get("data_root") or "data")
         )
         exact_field_cfg = evidence_cfg.get("contract_exact_fields", {})
         exact_field_full_root = self._resolve_path(
-            str(exact_field_cfg.get("full_text_root") or "../data/processed_mineru")
+            str(exact_field_cfg.get("full_text_root") or "data/processed_mineru")
         )
         exact_field_retrieval_root = self._resolve_path(
-            str(exact_field_cfg.get("retrieval_root") or "../data/processed_mineru_retrieval")
+            str(exact_field_cfg.get("retrieval_root") or "data/processed_mineru_retrieval")
         )
         table_kwargs = {
             "structured_table_root": table_root,

@@ -28,9 +28,9 @@ def _doc_roots(repo_root: Path, doc_id: str, initial: Sequence[EvidenceCandidate
             roots.append(path.parent)
     roots.extend(
         [
-            repo_root.parent / "data/processed_mineru_retrieval/regulatory" / doc_id,
-            repo_root.parent / "data/processed_mineru/regulatory" / doc_id / "auto",
-            repo_root.parent / "data/processed_pymupdf4llm/regulatory" / doc_id,
+            repo_root / "data/processed_mineru_retrieval/regulatory" / doc_id,
+            repo_root / "data/processed_mineru/regulatory" / doc_id / "auto",
+            repo_root / "data/processed_pymupdf4llm/regulatory" / doc_id,
         ]
     )
     unique: list[Path] = []

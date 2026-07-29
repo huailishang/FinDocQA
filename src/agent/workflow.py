@@ -149,8 +149,20 @@ class EnhancedBaselineWorkflow:
         candidates = []
         bundle = None
         try:
+            generic_adapter_freeform = bool(
+                question.answer_format == "freeform"
+                and str(question.raw.get("_input_adapter") or "") == "canonical_question_v1"
+                and str(question.raw.get("split") or "").strip().upper() != "B"
+                and not question.options
+                and question.submission_slot_count is None
+                and not question.submission_slot_contracts
+            )
+            effective_submission_slot_count = (
+                1 if generic_adapter_freeform else question.submission_slot_count
+            )
             if (
                 question.answer_format == "freeform"
+                and not generic_adapter_freeform
                 and (
                     question.submission_slot_count not in {1, 2, 3, 4}
                     or (
@@ -267,7 +279,9 @@ class EnhancedBaselineWorkflow:
                     and not isinstance(raw_submission_answers, (str, bytes))
                     else ()
                 )
-                expected_slots = question.submission_slot_count
+                expected_slots = effective_submission_slot_count
+                if generic_adapter_freeform and not solver_submission_answers and str(solver_result.answer).strip():
+                    solver_submission_answers = (str(solver_result.answer).strip(),)
                 if len(solver_submission_answers) != expected_slots:
                     parse_reason = str(
                         solver_result.metadata.get("freeform_parse_reason")
@@ -421,7 +435,7 @@ class EnhancedBaselineWorkflow:
             meta["answer_contract"] = contract_to_dict(answer_contract)
             meta["solver_answer_validation"] = solver_answer_validation.to_dict()
             meta["submission_answers"] = list(solver_submission_answers)
-            meta["submission_slot_count"] = question.submission_slot_count
+            meta["submission_slot_count"] = effective_submission_slot_count
             if question.answer_format == "freeform":
                 meta["freeform_verifier_skipped"] = True
                 meta["freeform_option_integrity_skipped"] = True
@@ -477,7 +491,8 @@ class EnhancedBaselineWorkflow:
                     final_answer=final_answer,
                     answer_format=question.answer_format,
                     submission_answers=solver_submission_answers,
-                    expected_submission_slots=question.submission_slot_count,
+                    expected_submission_slots=effective_submission_slot_count,
+                    generic_open_qa=generic_adapter_freeform,
                 )
                 meta.update(integrity)
                 solver_used = list(integrity.get("solver_used_doc_ids") or [])
@@ -607,6 +622,7 @@ class EnhancedBaselineWorkflow:
                 total_tokens=token_meta["total_tokens"],
                 fallback_used=bool(solver_result.metadata.get("composite_fallback_used", False)),
                 metadata=meta,
+                answer_values=final_submission_answers,
                 submission_answers=final_submission_answers,
             )
         except (BlockingAnswerValidationError, LLMProviderBudgetExhausted):

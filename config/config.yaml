@@ -18,9 +18,9 @@ paths:
   submission_template: ""
   answer_slot_contracts: ""
   question_group: group_a
-  raw_dataset: ../data/raw_dataset
-  raw_pdfs: ../data/raw_dataset/raw
-  processed_docs: ../data/processed_mineru_retrieval
+  raw_dataset: data/raw_dataset
+  raw_pdfs: data/raw_dataset/raw
+  processed_docs: data/processed_mineru_retrieval
   output_dir: output
 
 submission:
@@ -42,11 +42,11 @@ retrieval:
   # These parameters control retrieval inside an already selected document set.
   # Document-level candidate discovery is separate from in-document retrieval.
   fallback_processed_docs:
-    - ../data/processed_pymupdf4llm
+    - data/processed_pymupdf4llm
   top_k_per_doc: 5
   windows_per_page: 3
   # Shadow candidate: enabled only when pipeline.retriever=canonical_lexical.
-  canonical_raw_root: ../data/processed_mineru
+  canonical_raw_root: data/processed_mineru
   canonical_document_top_k: 8
   canonical_top_k_per_doc: 5
   canonical_window_chars: 1800
@@ -86,23 +86,23 @@ evidence:
   structured_tables:
     verification_enabled: true
     prompt_injection_enabled: false
-    root: ../data/processed_mineru
+    root: data/processed_mineru
     max_rows_per_doc: 12
   insurance_clauses:
     verification_enabled: true
-    full_text_root: ../data/processed_mineru
+    full_text_root: data/processed_mineru
     product_catalog: config/insurance_product_documents.json
   insurance_calculations:
     verification_enabled: true
-    full_text_root: ../data/processed_mineru
+    full_text_root: data/processed_mineru
     product_catalog: config/insurance_product_documents.json
   regulatory_options:
     verification_enabled: true
-    data_root: ../data
+    data_root: data
   contract_exact_fields:
     verification_enabled: true
-    full_text_root: ../data/processed_mineru
-    retrieval_root: ../data/processed_mineru_retrieval
+    full_text_root: data/processed_mineru
+    retrieval_root: data/processed_mineru_retrieval
     max_windows_per_field_doc: 3
   token_budgets:
     default: 10000

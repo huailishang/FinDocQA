@@ -506,8 +506,8 @@ class LocalCorrectiveRetriever:
 
     def _doc_paths(self, domain: str, doc_id: str) -> list[Path]:
         roots = [
-            self.repo_root.parent / "data/processed_mineru" / domain / doc_id,
-            self.repo_root.parent / "data/processed_mineru_retrieval" / domain / doc_id,
+            self.repo_root / "data/processed_mineru" / domain / doc_id,
+            self.repo_root / "data/processed_mineru_retrieval" / domain / doc_id,
         ]
         paths: list[Path] = []
         for root in roots:

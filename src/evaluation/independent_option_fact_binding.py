@@ -380,7 +380,7 @@ def resolve_source_path(
 ) -> Path | None:
     path_text, _ = _source_and_anchor(source)
     normalized = path_text.replace("\\", "/")
-    data_root = repo_root.parent / "data"
+    data_root = repo_root / "data"
     candidates: list[Path] = []
     path = Path(path_text)
     if path_text:

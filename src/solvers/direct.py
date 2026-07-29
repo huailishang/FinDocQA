@@ -40,8 +40,12 @@ class DirectSolver:
                 },
             )
         try:
-            result = chat_with_fallback(self.llm_client, self.fallback_llm_client,
-                                        [{"role": "user", "content": prompt}], max_tokens=128)
+            result = chat_with_fallback(
+                self.llm_client,
+                self.fallback_llm_client,
+                [{"role": "user", "content": prompt}],
+                max_tokens=self._max_tokens(bundle),
+            )
         except LLMClientUnavailable as exc:
             return SolverResult(
                 qid=bundle.question.qid,
@@ -85,10 +89,49 @@ class DirectSolver:
         )
 
     def _build_prompt(self, bundle: EvidenceBundle) -> str:
+        if bundle.question.options:
+            role_and_policy = (
+                "你是金融长文档选择题答题器。只能根据给定证据回答，不要凭常识补充。\n"
+                "如果证据不足，也必须按题目合同选择最可能的答案。"
+            )
+        else:
+            role_and_policy = (
+                "你是金融长文档问答助手。只能根据给定证据回答，不要凭常识补充。\n"
+                "问题没有预设选项；请按问题本身回答。证据不足时明确说明无法从现有证据确认，不要编造答案。"
+            )
+        shape_instruction = self._shape_instruction(bundle)
         return (
-            "你是金融长文档选择题答题器。只能根据给定证据回答，不要凭常识补充。\n"
-            "如果证据不足，也必须选择最可能的答案。\n\n"
+            f"{role_and_policy}\n\n"
             f"{render_question(bundle)}\n\n"
             f"证据：\n{bundle.prompt_context}\n\n"
             f"{answer_format_instruction(bundle.question.answer_format)}"
+            f"{shape_instruction}"
         )
+
+    @staticmethod
+    def _answer_shape(bundle: EvidenceBundle) -> str:
+        understanding = bundle.question.raw.get("_query_understanding")
+        if isinstance(understanding, dict):
+            return str(understanding.get("answer_shape") or "").strip()
+        return ""
+
+    @classmethod
+    def _max_tokens(cls, bundle: EvidenceBundle) -> int:
+        if bundle.question.options:
+            return 128
+        return 384 if cls._answer_shape(bundle) == "long_text" else 256
+
+    @classmethod
+    def _shape_instruction(cls, bundle: EvidenceBundle) -> str:
+        if bundle.question.options:
+            return ""
+        shape = cls._answer_shape(bundle)
+        if shape == "number":
+            return "\n数值问题必须同时保留必要单位、百分号或日期口径。"
+        if shape == "boolean":
+            return "\n先明确回答是/否或成立/不成立，再用一句证据说明。"
+        if shape == "ordered_list":
+            return "\n按问题要求给出有序列表，并保持排序依据一致。"
+        if shape == "long_text":
+            return "\n先给结论，再用少量关键事实解释原因；每个事实必须能在给定证据中找到依据，整体尽量控制在300字以内。"
+        return ""

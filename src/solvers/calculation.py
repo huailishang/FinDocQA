@@ -131,6 +131,17 @@ class CalculationSolver:
         requires_authoritative_contract = (
             str(bundle.question.raw.get("split") or "").strip().upper() == "B"
         )
+        generic_single_freeform = bool(
+            not requires_authoritative_contract
+            and slot_count is None
+            and not slot_contracts
+            and not bundle.question.options
+        )
+        if generic_single_freeform:
+            # Real user queries do not carry competition submission-slot metadata.
+            # Treat one natural-language question as one answer value while keeping
+            # AFAC/B strict slot contracts unchanged.
+            slot_count = 1
         if (
             slot_count not in {1, 2, 3, 4}
             or (requires_authoritative_contract and len(slot_contracts) != slot_count)

@@ -453,7 +453,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         processed_root = Path(args.processed_root)
     else:
         processed_rel = config.get("paths", {}).get(
-            "processed_docs", "../data/processed_pymupdf4llm"
+            "processed_docs", "data/processed_pymupdf4llm"
         )
         processed_root = Path(processed_rel)
         if not processed_root.is_absolute():
