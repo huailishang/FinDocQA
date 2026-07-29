@@ -131,6 +131,7 @@ def _assess_freeform_final_state(
     final_answer: str,
     submission_answers: Sequence[str],
     expected_submission_slots: int | None,
+    generic_open_qa: bool = False,
 ) -> dict[str, Any]:
     solver_meta = dict(solver_result.metadata or {})
     solver_channel = solver_lineage(solver_meta)
@@ -169,19 +170,48 @@ def _assess_freeform_final_state(
         "unsupported_guess_truncated",
         "dry_run",
     }
-    parse_valid = solver_meta.get("freeform_parse_valid") is True
+    structured_freeform_metadata = any(
+        key in solver_meta
+        for key in (
+            "freeform_parse_valid",
+            "freeform_slot_bindings",
+            "freeform_all_slot_bindings_valid",
+            "freeform_binding_auditable",
+        )
+    )
+    parse_valid = (
+        solver_meta.get("freeform_parse_valid") is True
+        if structured_freeform_metadata
+        else bool(generic_open_qa)
+    )
     raw_slot_bindings = solver_meta.get("freeform_slot_bindings")
     slot_bindings = [
         dict(item)
         for item in raw_slot_bindings
         if isinstance(item, Mapping)
     ] if isinstance(raw_slot_bindings, Sequence) and not isinstance(raw_slot_bindings, (str, bytes)) else []
-    all_slot_formats_valid = solver_meta.get("freeform_all_slot_formats_valid") is True
-    all_slot_results_match = solver_meta.get("freeform_all_slot_results_match") is True
-    all_slot_bindings_valid = solver_meta.get("freeform_all_slot_bindings_valid") is True
+    all_slot_formats_valid = (
+        solver_meta.get("freeform_all_slot_formats_valid") is True
+        if structured_freeform_metadata
+        else bool(generic_open_qa and all(item.get("valid") for item in slot_validations))
+    )
+    all_slot_results_match = (
+        solver_meta.get("freeform_all_slot_results_match") is True
+        if structured_freeform_metadata
+        else bool(generic_open_qa)
+    )
+    all_slot_bindings_valid = (
+        solver_meta.get("freeform_all_slot_bindings_valid") is True
+        if structured_freeform_metadata
+        else bool(generic_open_qa and retrieved)
+    )
     binding_auditable = bool(
-        solver_meta.get("freeform_binding_auditable") is True
-        and all_slot_bindings_valid
+        (
+            solver_meta.get("freeform_binding_auditable") is True
+            and all_slot_bindings_valid
+        )
+        if structured_freeform_metadata
+        else (generic_open_qa and retrieved)
     )
     raw_binding_reasons = solver_meta.get("freeform_binding_blocking_reasons")
     binding_blocking_reasons = [
@@ -189,7 +219,11 @@ def _assess_freeform_final_state(
         for value in raw_binding_reasons
         if str(value).strip()
     ] if isinstance(raw_binding_reasons, Sequence) and not isinstance(raw_binding_reasons, (str, bytes)) else []
-    calculation_complete = solver_meta.get("computation_complete") is True
+    calculation_complete = (
+        solver_meta.get("computation_complete") is True
+        if structured_freeform_metadata or str(solver_result.solver) == "calculation"
+        else bool(generic_open_qa)
+    )
 
     blocking_reasons: list[str] = []
     if expected not in {1, 2, 3, 4}:
@@ -217,7 +251,13 @@ def _assess_freeform_final_state(
         blocking_reasons.append("truncation_risk")
     if llm_error:
         blocking_reasons.append("llm_error")
-    if not solver_channel.complete:
+    if generic_open_qa and not retrieved:
+        blocking_reasons.append("missing_evidence")
+    precise_lineage_required = bool(
+        not generic_open_qa
+        or str(solver_result.solver) in {"calculation", "cross_doc"}
+    )
+    if precise_lineage_required and not solver_channel.complete:
         blocking_reasons.append("used_doc_lineage_unknown")
     if used and not set(used) <= set(retrieved):
         blocking_reasons.append("used_doc_lineage_outside_retrieval")
@@ -228,7 +268,7 @@ def _assess_freeform_final_state(
     final_state = "blocked" if blocking_reasons else "accepted"
     return {
         "production_integrity_checked": True,
-        "production_integrity_path": "freeform",
+        "production_integrity_path": "generic_open_qa" if generic_open_qa else "freeform",
         "required_docs": required,
         "retrieved_docs": retrieved,
         "used_docs": used,
@@ -321,6 +361,7 @@ def assess_final_state(
     answer_format: str = "",
     submission_answers: Sequence[str] = (),
     expected_submission_slots: int | None = None,
+    generic_open_qa: bool = False,
 ) -> dict[str, Any]:
     """Derive production final-state metadata from real workflow objects."""
     effective_answer = str(final_answer if final_answer is not None else solver_result.answer or "")
@@ -332,6 +373,7 @@ def assess_final_state(
             final_answer=effective_answer,
             submission_answers=submission_answers,
             expected_submission_slots=expected_submission_slots,
+            generic_open_qa=generic_open_qa,
         )
 
     requested = [str(value) for value in requested_docs]

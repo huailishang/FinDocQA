@@ -26,12 +26,13 @@ import re
 from typing import Optional
 
 from contracts import EvidenceBundle, SolverResult
-from solvers.base import candidate_doc_ids, normalize_answer, render_question
+from solvers.base import candidate_doc_ids, dry_run_answer, normalize_answer, render_question
 from utils.llm_client import OpenAICompatibleClient, LLMClientUnavailable, chat_with_fallback
 
 
 # Match an explicit final-answer line, e.g. "最终答案: AC" / "最終答案：A".
 _ANSWER_LINE_RE = re.compile(r"最终答案\s*[:：]\s*([ABCD]+)", re.IGNORECASE)
+_FREEFORM_ANSWER_LINE_RE = re.compile(r"(?m)^\s*最终答案\s*[:：]\s*(.+?)\s*$")
 _DOC_SUMMARY_RE = re.compile(
     r"^\s*-?\s*文档\s+([^:：\s]+)\s*[:：]",
     re.IGNORECASE | re.MULTILINE,
@@ -56,7 +57,7 @@ class CrossDocSolver:
         prompt = self._build_prompt(bundle)
         if self.llm_client is None:
             return SolverResult(
-                bundle.question.qid, "A", self.name, "DRY_RUN_NO_LLM_CLIENT",
+                bundle.question.qid, dry_run_answer(bundle.question.answer_format), self.name, "DRY_RUN_NO_LLM_CLIENT",
                 metadata={
                     "dry_run": True,
                     "prompt_preview": prompt[:1200],
@@ -74,7 +75,7 @@ class CrossDocSolver:
                                         [{"role": "user", "content": prompt}], max_tokens=_MAX_TOKENS)
         except LLMClientUnavailable as exc:
             return SolverResult(
-                bundle.question.qid, "A", self.name, str(exc),
+                bundle.question.qid, dry_run_answer(bundle.question.answer_format), self.name, str(exc),
                 metadata={
                     "llm_error": True,
                     "prompt_preview": prompt[:1200],
@@ -124,11 +125,11 @@ class CrossDocSolver:
 
     @staticmethod
     def _extract_answer(raw: str, answer_format: str) -> str:
-        """Prefer the explicit ``最终答案:`` line; fall back to whole-text scan.
+        """Prefer the explicit ``最终答案:`` line; fall back to whole-text scan."""
+        if answer_format == "freeform":
+            match = _FREEFORM_ANSWER_LINE_RE.search(raw or "")
+            return match.group(1).strip() if match else normalize_answer(raw, answer_format)
 
-        Parsing the labelled line avoids mistaking option letters mentioned in
-        per-document summaries for the actual answer.
-        """
         m = _ANSWER_LINE_RE.search(raw)
         if m:
             letters = m.group(1).upper()
@@ -146,6 +147,12 @@ class CrossDocSolver:
         else:
             doc_ids = list(bundle.question.doc_ids)
         doc_headers = "\n".join(f"- 文档 {d}" for d in doc_ids)
+        if bundle.question.answer_format == "freeform":
+            final_answer_rule = "4. 最后单独一行给出自然语言最终答案，不要输出 A/B/C/D 选项字母。"
+            final_answer_template = "最终答案: <直接回答问题的短答案>"
+        else:
+            final_answer_rule = "4. 最后单独一行给出最终答案字母，多选按字母顺序排列（例如 AC）。"
+            final_answer_template = "最终答案: <字母>"
 
         return (
             "你是金融跨文档比较题答题器。问题涉及多个文档，输出必须紧凑，避免冗长分析导致截断。\n\n"
@@ -153,13 +160,13 @@ class CrossDocSolver:
             "1. 对每个文档独立提取要点——不要混淆不同文档的数据、假设或口径。\n"
             "2. 每个文档只用一句话概括关键事实（数值、年份、条件、否定词）。\n"
             "3. 所有文档概括完之后，再给出一句话比较结论。\n"
-            "4. 最后单独一行给出最终答案字母，多选按字母顺序排列（例如 AC）。\n\n"
+            f"{final_answer_rule}\n\n"
             "输出格式（严格遵循，保持紧凑，不要展开长段分析）：\n"
             "文档要点:\n"
             "- 文档 <doc_id>: <一句话>\n"
             "- 文档 <doc_id>: <一句话>\n"
             "比较结论: <一句话>\n"
-            "最终答案: <字母>\n\n"
+            f"{final_answer_template}\n\n"
             f"涉及的文档：\n{doc_headers}\n\n"
             f"{render_question(bundle)}\n\n"
             f"证据（按文档分组，不要混淆）：\n{bundle.prompt_context}\n\n"

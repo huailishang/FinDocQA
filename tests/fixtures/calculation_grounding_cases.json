@@ -5,13 +5,13 @@
     {
       "qid": "case_013",
       "pattern": "amount_ranking",
-      "question_source": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+      "question_source": "data/raw_dataset/questions/group_a/insurance_questions.json",
       "variables": {
         "zhiying_account_value": {
           "value": 900000,
           "normalized_value": 900000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_013.question",
           "evidence_text": "平安智盈金生（领取日前）保单账户价值90万元"
         },
@@ -19,7 +19,7 @@
           "value": 900000,
           "normalized_value": 900000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_013.question",
           "evidence_text": "国寿增益宝（一人，40岁）基本保额90万元"
         },
@@ -27,7 +27,7 @@
           "value": 850000,
           "normalized_value": 850000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_013.question",
           "evidence_text": "个人账户价值85万元"
         },
@@ -35,7 +35,7 @@
           "value": 1000000,
           "normalized_value": 1000000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_013.question",
           "evidence_text": "所有产品的已交保费均为100万元"
         },
@@ -43,7 +43,7 @@
           "value": 200000,
           "normalized_value": 200000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_013.question",
           "evidence_text": "国寿鑫享添盈已领养老年金20万元"
         },
@@ -51,7 +51,7 @@
           "value": 800000,
           "normalized_value": 800000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_013.question",
           "evidence_text": "所有产品现金价值均为80万元"
         },
@@ -59,7 +59,7 @@
           "value": 1000000,
           "normalized_value": 1000000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_013.question",
           "evidence_text": "所有产品的已交保费均为100万元"
         },
@@ -67,7 +67,7 @@
           "value": 150000,
           "normalized_value": 150000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_013.question",
           "evidence_text": "平安富鸿金生已领养老年金15万元"
         },
@@ -75,7 +75,7 @@
           "value": 800000,
           "normalized_value": 800000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_013.question",
           "evidence_text": "所有产品现金价值均为80万元"
         },
@@ -83,7 +83,7 @@
           "value": 1.6,
           "normalized_value": 1.6,
           "doc_id": "2",
-          "source_path": "../data/processed_mineru/insurance/2/auto/2.md",
+          "source_path": "data/processed_mineru/insurance/2/auto/2.md",
           "location": "lines 85-99",
           "evidence_text": "18周岁至41周岁前身故给付比例为160%，身故保险金额取比例乘基本保额与个人账户价值较大值"
         }
@@ -91,19 +91,19 @@
       "rules": [
         {
           "doc_id": "1",
-          "source_path": "../data/processed_mineru/insurance/1/auto/1.md",
+          "source_path": "data/processed_mineru/insurance/1/auto/1.md",
           "location": "lines 94-102",
           "evidence_text": "领取日前身故按保单账户价值给付"
         },
         {
           "doc_id": "15",
-          "source_path": "../data/processed_mineru/insurance/15/auto/15.md",
+          "source_path": "data/processed_mineru/insurance/15/auto/15.md",
           "location": "lines 66-72",
           "evidence_text": "身故保险金取已交保费减累计养老年金与现金价值较大值"
         },
         {
           "doc_id": "16",
-          "source_path": "../data/processed_mineru/insurance/16/auto/16.md",
+          "source_path": "data/processed_mineru/insurance/16/auto/16.md",
           "location": "lines 139-141",
           "evidence_text": "身故保险金取累计已交保费减累计养老保险金余额与现金价值较大值"
         }
@@ -143,13 +143,13 @@
     {
       "qid": "case_015",
       "pattern": "multi_policy_sum",
-      "question_source": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+      "question_source": "data/raw_dataset/questions/group_a/insurance_questions.json",
       "variables": {
         "self_paid": {
           "value": 50000,
           "normalized_value": 50000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_015.question",
           "evidence_text": "总费用8万元，医保报销3万元，自费5万元"
         },
@@ -157,7 +157,7 @@
           "value": 0,
           "normalized_value": 0,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_015.question",
           "evidence_text": "假设众安白血病医疗险免赔额为0，且为形态学复发"
         },
@@ -165,7 +165,7 @@
           "value": 5000,
           "normalized_value": 5000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_015.question",
           "evidence_text": "平安e生保（计划二，免赔额5000元）"
         },
@@ -173,7 +173,7 @@
           "value": 10000,
           "normalized_value": 10000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_015.question",
           "evidence_text": "太保团体百万医疗（免赔额1万元）"
         }
@@ -181,19 +181,19 @@
       "rules": [
         {
           "doc_id": "3",
-          "source_path": "../data/processed_mineru/insurance/3/auto/3.md",
+          "source_path": "data/processed_mineru/insurance/3/auto/3.md",
           "location": "lines 369-373",
           "evidence_text": "形态学复发按责任范围医疗费用扣除其他补偿和免赔额后依约定比例赔付"
         },
         {
           "doc_id": "5",
-          "source_path": "../data/processed_mineru/insurance/5/auto/5.md",
+          "source_path": "data/processed_mineru/insurance/5/auto/5.md",
           "location": "lines 53-69",
           "evidence_text": "免赔额由个人承担，抵扣完毕后按约定比例赔付"
         },
         {
           "doc_id": "6",
-          "source_path": "../data/processed_mineru/insurance/6/auto/6.md",
+          "source_path": "data/processed_mineru/insurance/6/auto/6.md",
           "location": "lines 158-176",
           "evidence_text": "医保结算后医疗费用扣除其他补偿及免赔额余额，按100%计算"
         }
@@ -232,13 +232,13 @@
     {
       "qid": "case_019",
       "pattern": "deductible_threshold",
-      "question_source": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+      "question_source": "data/raw_dataset/questions/group_a/insurance_questions.json",
       "variables": {
         "property_loss": {
           "value": 8000,
           "normalized_value": 8000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_019.question",
           "evidence_text": "水管爆裂造成地板损坏，维修费用8000元"
         },
@@ -246,7 +246,7 @@
           "value": 2000,
           "normalized_value": 2000,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_019.question",
           "evidence_text": "修理时摔伤，门诊费用2000元，医保未报销"
         },
@@ -254,7 +254,7 @@
           "value": 0,
           "normalized_value": 0,
           "doc_id": "question",
-          "source_path": "../data/raw_dataset/questions/group_a/insurance_questions.json",
+          "source_path": "data/raw_dataset/questions/group_a/insurance_questions.json",
           "location": "case_019.options",
           "evidence_text": "四个选项均将家财险赔付列为8000元，题目未另给免赔额"
         }
@@ -262,19 +262,19 @@
       "rules": [
         {
           "doc_id": "5",
-          "source_path": "../data/processed_mineru/insurance/5/auto/5.md",
+          "source_path": "data/processed_mineru/insurance/5/auto/5.md",
           "location": "lines 115-133",
           "evidence_text": "一般医疗指定门诊仅包括肾透析、肿瘤治疗、移植后抗排异和门诊手术；普通摔伤门诊不属于列明责任"
         },
         {
           "doc_id": "6",
-          "source_path": "../data/processed_mineru/insurance/6/auto/6.md",
+          "source_path": "data/processed_mineru/insurance/6/auto/6.md",
           "location": "lines 68-82",
           "evidence_text": "指定门诊仅包括肾透析、恶性肿瘤治疗、移植后抗排异和门诊手术"
         },
         {
           "doc_id": "12",
-          "source_path": "../data/processed_mineru/insurance/12/auto/12.md",
+          "source_path": "data/processed_mineru/insurance/12/auto/12.md",
           "location": "lines 249-251",
           "evidence_text": "按实际损失扣除免赔额后计算赔偿"
         }

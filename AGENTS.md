@@ -19,3 +19,11 @@ Keep FinDocQA reusable for financial long-document QA. Prefer generic capabiliti
 - Prefer deterministic preprocessing and verification before adding LLM calls.
 - Keep parser fallbacks narrow and page-scoped.
 - Historical competition conclusions belong in docs/history/, not in active code paths.
+
+## Local test environment
+
+- Run project tests with the Windows Conda `agent` environment by default.
+- Python: `D:\SoftWare\Anaconda\workspace\.conda\envs\agent\python.exe`
+- `pytest` is installed in this environment (verified version: 9.0.3 on 2026-07-27).
+- The standalone Windows Python at `D:\SoftWare\Python\install\python.exe` does not currently have `pytest`; do not use it for the project test suite unless its environment is explicitly updated.
+- Preferred command: `D:\SoftWare\Anaconda\workspace\.conda\envs\agent\python.exe -m pytest -q`

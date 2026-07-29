@@ -22,15 +22,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.getenv(
     "FINDOCQA_REGULATORY_OUTPUT_ROOT",
-    str(ROOT.parent / "data" / "processed_pymupdf4llm"),
+    str(ROOT / "data" / "processed_pymupdf4llm"),
 ))
 RAW_BASE = Path(os.getenv(
     "FINDOCQA_REGULATORY_RAW_ROOT",
-    str(ROOT.parent / "data" / "raw_dataset" / "raw" / "regulatory"),
+    str(ROOT / "data" / "raw_dataset" / "raw" / "regulatory"),
 ))
 QUESTIONS_FILE = Path(os.getenv(
     "FINDOCQA_REGULATORY_QUESTIONS",
-    str(ROOT.parent / "data" / "raw_dataset" / "questions" / "group_a" / "regulatory_questions.json"),
+    str(ROOT / "data" / "raw_dataset" / "questions" / "group_a" / "regulatory_questions.json"),
 ))
 
 

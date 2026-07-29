@@ -30,7 +30,7 @@ def compact(value: Any) -> str:
 def route_product_document(*, repo_root: Path, declared_doc_ids: Sequence[str], product_terms: Sequence[str]) -> dict[str, Any]:
     rows=[]
     for doc_id in map(str,declared_doc_ids):
-        roots=[repo_root.parent/'data/processed_mineru_retrieval/insurance'/doc_id,repo_root.parent/'data/processed_mineru/insurance'/doc_id]
+        roots=[repo_root/'data/processed_mineru_retrieval/insurance'/doc_id,repo_root/'data/processed_mineru/insurance'/doc_id]
         paths=[]
         for root in roots:
             if root.is_file(): paths.append(root)
@@ -57,7 +57,7 @@ def bind_exclusion(*, repo_root: Path, declared_doc_ids: Sequence[str], proposit
     if not route['matched']:
         return {'status':'UNRESOLVED','reason':route['reason'],'route':route,'proposition':proposition.to_dict(),'weak_keyword_only_rejected':True}
     selected_doc=route['selected']['doc_id']
-    roots=[repo_root.parent/'data/processed_mineru_retrieval/insurance'/selected_doc,repo_root.parent/'data/processed_mineru/insurance'/selected_doc]
+    roots=[repo_root/'data/processed_mineru_retrieval/insurance'/selected_doc,repo_root/'data/processed_mineru/insurance'/selected_doc]
     rows=[]
     for root in roots:
         if not root.exists(): continue

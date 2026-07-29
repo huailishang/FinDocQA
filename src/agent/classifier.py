@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Dict, Iterable, List
 
 from contracts import ClassificationResult, Question, QuestionLabel
+from question.understanding import RuleBasedQueryUnderstanding
 
 
 class RuleBasedQuestionClassifier:
@@ -38,11 +39,22 @@ class RuleBasedQuestionClassifier:
         "均", "同时", "关于", "变化", "横向",
     )
 
+    def __init__(self, query_understander: RuleBasedQueryUnderstanding | None = None) -> None:
+        self.query_understander = query_understander or RuleBasedQueryUnderstanding()
+
     def classify(self, question: Question) -> ClassificationResult:
         text = self._joined_text(question)
         qtype = str(question.raw.get("type", ""))
+        understanding = self.query_understander.understand(question)
+        effective_domain = understanding.domain if question.domain in {"", "unknown"} else question.domain
+        understanding_traits = set(understanding.traits)
         labels: List[QuestionLabel] = []
-        reasons: Dict[str, str] = {}
+        reasons: Dict[str, str] = {
+            "query_understanding": (
+                f"domain={understanding.domain};base_type={understanding.base_type};"
+                f"answer_shape={understanding.answer_shape}"
+            )
+        }
 
         if question.answer_format == "multi":
             self._add(labels, reasons, QuestionLabel.MULTI_OPTION, "answer_format=multi")
@@ -51,21 +63,28 @@ class RuleBasedQuestionClassifier:
         clause_hits = self._hits(text, self.clause_terms)
         fact_hits = self._hits(text, self.fact_terms) + self._hits(qtype, self.fact_type_terms)
         cross_hits = self._hits(text, self.cross_doc_terms)
+        structured_legacy_input = bool(question.options or qtype or question.doc_ids)
 
-        if len(question.doc_ids) >= 2 or cross_hits:
+        if "cross_document" in understanding_traits or (
+            structured_legacy_input and (len(question.doc_ids) >= 2 or cross_hits)
+        ):
             detail = [f"doc_ids={len(question.doc_ids)}"] if len(question.doc_ids) >= 2 else []
-            detail.extend(cross_hits[:6])
+            if "cross_document" in understanding_traits:
+                detail.append("query_understanding=cross_document")
+            elif structured_legacy_input:
+                detail.extend(cross_hits[:6])
             self._add(labels, reasons, QuestionLabel.CROSS_DOC, ", ".join(detail))
 
-        if self._is_calculation(question, calculation_hits):
-            self._add(labels, reasons, QuestionLabel.CALCULATION, ", ".join(calculation_hits[:8]))
+        if "calculation" in understanding_traits or self._is_calculation(question, calculation_hits):
+            detail = calculation_hits[:8] or ["query_understanding=calculation"]
+            self._add(labels, reasons, QuestionLabel.CALCULATION, ", ".join(detail))
 
-        if clause_hits or question.domain in {"regulatory", "financial_contracts"}:
-            detail = clause_hits[:8] or [f"domain={question.domain}"]
+        if clause_hits or effective_domain in {"regulatory", "financial_contracts", "insurance"}:
+            detail = clause_hits[:8] or [f"domain={effective_domain}"]
             self._add(labels, reasons, QuestionLabel.CLAUSE_LOOKUP, ", ".join(detail))
 
-        if fact_hits or question.domain in {"financial_reports", "research"}:
-            detail = fact_hits[:8] or [f"domain={question.domain}"]
+        if fact_hits or effective_domain in {"financial_reports", "research"}:
+            detail = fact_hits[:8] or [f"domain={effective_domain}"]
             self._add(labels, reasons, QuestionLabel.FACT_LOOKUP, ", ".join(detail))
 
         if not labels:

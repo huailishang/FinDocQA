@@ -9,7 +9,7 @@ from agent.factory import PipelineFactory
 from data.loader import JsonQuestionLoader
 
 
-B_QUESTIONS_DIR = Path("../data/upload_b/question_b")
+B_QUESTIONS_DIR = Path("data/upload_b/question_b")
 
 
 

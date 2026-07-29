@@ -91,11 +91,22 @@ def normalize_answer(raw: str, answer_format: str) -> str:
 
 def render_question(bundle: EvidenceBundle) -> str:
     question = bundle.question
-    options = "\n".join(f"{key}. {value}" for key, value in sorted(question.options.items()))
-    return f"题目ID：{question.qid}\n题目：{question.text}\n\n选项：\n{options}\n\n答案格式：{question.answer_format}"
+    parts = [f"题目ID：{question.qid}", f"题目：{question.text}"]
+    if question.options:
+        options = "\n".join(f"{key}. {value}" for key, value in sorted(question.options.items()))
+        parts.append(f"选项：\n{options}")
+    parts.append(f"答案格式：{question.answer_format}")
+    understanding = question.raw.get("_query_understanding") if isinstance(question.raw, Mapping) else None
+    if isinstance(understanding, Mapping):
+        answer_shape = str(understanding.get("answer_shape") or "").strip()
+        if answer_shape:
+            parts.append(f"答案形态：{answer_shape}")
+    return "\n\n".join(parts)
 
 
 def answer_format_instruction(answer_format: str) -> str:
+    if answer_format == "freeform":
+        return "直接输出与问题匹配的简洁答案；不要强行转换成 A/B/C/D。证据不足时明确说明无法从现有证据确认。"
     if answer_format == "multi":
         return "最终只输出多选答案字母，按字母顺序排列，例如 ABD。不要输出解释。"
     if answer_format == "tf":
@@ -104,7 +115,7 @@ def answer_format_instruction(answer_format: str) -> str:
 
 
 def dry_run_answer(answer_format: str) -> str:
-    return "A"
+    return "" if answer_format == "freeform" else "A"
 
 
 def candidate_doc_ids(bundle: EvidenceBundle) -> list[str]:
