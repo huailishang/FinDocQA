@@ -18,7 +18,39 @@ FinDocQA 不再围绕某一场比赛的 100 道题组织代码，而是变成一
 
 ---
 
-## 2. 总体结构：两条链，而不是一条大流水线
+## 2. 总体结构：两条业务链 + 一个横切可靠性面
+
+FinDocQA 的本体仍然是金融文档知识库 / 文档问答系统。Evaluation / Reliability 不作为第三条业务链，而是横切所有模块的质量保障面。
+
+```text
+                         FinDocQA
+              金融文档知识库 / 文档问答系统
+                              │
+             ┌────────────────┴────────────────┐
+             ↓                                 ↓
+      Document Production                QA Consumption
+          文档生产链                         问答消费链
+             │                                 │
+             └──────────────┬──────────────────┘
+                            ↓
+                    Canonical Contracts
+
+────────────────────────────────────────────────────
+              Evaluation / Reliability
+     Gold / Benchmark / Metric / Oracle / Gate
+     Regression / Property / Metamorphic / Mutation
+────────────────────────────────────────────────────
+```
+
+核心原则是：
+
+```text
+先建设知识库 / QA 能力
+→ 再用与风险匹配的测试方法证明可靠性
+→ Gate 足够后继续下一业务能力
+```
+
+不把测试体系本身变成项目主线，也不要求每个模块机械使用同一套测试技术。
 
 ### A. 文档生产链（Document Production Pipeline）
 

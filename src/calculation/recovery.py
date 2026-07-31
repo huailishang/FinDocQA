@@ -7,6 +7,8 @@ matching, cross-document stitching, or model-assisted formula repair.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
+import re
 from typing import Any, Iterable, Mapping, Sequence
 
 from calculation.contracts import (
@@ -15,6 +17,7 @@ from calculation.contracts import (
     FormulaGateStatus,
     FormulaSourceRef,
 )
+from calculation.compiler import SafeFormulaCompiler
 from calculation.material import FormulaEvidenceGate, LocalContextVariableBinder
 from document.contracts import (
     CanonicalBlock,
@@ -152,6 +155,20 @@ def _metadata_strings(metadata: Mapping[str, Any], *keys: str) -> tuple[str, ...
     return _unique_strings(values)
 
 
+class _CanonicalFormulaLookupStatus(str, Enum):
+    MISSING = "MISSING"
+    UNIQUE = "UNIQUE"
+    AMBIGUOUS = "AMBIGUOUS"
+
+
+@dataclass(frozen=True)
+class _CanonicalFormulaLookupResult:
+    status: _CanonicalFormulaLookupStatus
+    formula_id: str = ""
+    formula: CanonicalFormula | None = None
+    match_count: int = 0
+
+
 class FormulaContextRecovery:
     """Recover bounded formula context through canonical structural links only."""
 
@@ -224,11 +241,43 @@ class FormulaContextRecovery:
         if local_reason:
             review.append(local_reason)
         else:
+            try:
+                referenced = SafeFormulaCompiler.referenced_symbols(
+                    evidence.normalized_expression
+                )
+            except (TypeError, ValueError):
+                referenced = ()
+            anchor_order = anchor.reading_order
+            preceding_text = "\n".join(
+                block.text
+                for block in local_blocks
+                if anchor_order is not None
+                and block.reading_order is not None
+                and block.reading_order < anchor_order
+            )
+            preceding_has_complete_bindings = bool(referenced) and all(
+                re.search(rf"\b{re.escape(name)}\s*=", preceding_text)
+                for name in referenced
+            )
             local_refs: list[FormulaSourceRef] = []
             for block in local_blocks:
                 # Tables and neighboring formulas require explicit structural linkage;
                 # never pull them merely because they are physically nearby.
                 if block.block_id != anchor.block_id and block.block_type not in _CONTEXT_BLOCK_TYPES:
+                    continue
+                # Once all referenced variables are bound before the formula,
+                # later unlinked assignment blocks are physical neighbors, not
+                # competing bindings.
+                if (
+                    preceding_has_complete_bindings
+                    and anchor_order is not None
+                    and block.reading_order is not None
+                    and block.reading_order > anchor_order
+                    and any(
+                        re.search(rf"\b{re.escape(name)}\s*=", block.text)
+                        for name in referenced
+                    )
+                ):
                     continue
                 if block.text.strip():
                     context_parts.append(block.text.strip())
@@ -251,7 +300,11 @@ class FormulaContextRecovery:
                 )
             )
 
-        canonical_formula = self._resolve_unique_canonical_formula(evidence, page, anchor)
+        formula_lookup = self._lookup_canonical_formula(evidence, page, anchor)
+        if formula_lookup.status is _CanonicalFormulaLookupStatus.AMBIGUOUS:
+            review.append(f"canonical_formula_not_unique:{formula_lookup.formula_id}")
+            return self._finish(evidence, context_parts, refs, steps, review, fatal)
+        canonical_formula = formula_lookup.formula
         formula_metadata = canonical_formula.metadata if canonical_formula is not None else {}
 
         explicit_footnote_refs = _unique_strings(
@@ -496,16 +549,34 @@ class FormulaContextRecovery:
         )
 
     @staticmethod
-    def _resolve_unique_canonical_formula(
+    def _lookup_canonical_formula(
         evidence: FormulaEvidence,
         page: CanonicalPage,
         anchor: CanonicalBlock,
-    ) -> CanonicalFormula | None:
+    ) -> _CanonicalFormulaLookupResult:
         formula_id = str(anchor.formula_id or evidence.metadata.get("formula_id") or "").strip()
         if not formula_id:
-            return None
+            return _CanonicalFormulaLookupResult(
+                status=_CanonicalFormulaLookupStatus.MISSING,
+            )
         matches = [formula for formula in page.formulas if formula.formula_id == formula_id]
-        return matches[0] if len(matches) == 1 else None
+        if not matches:
+            return _CanonicalFormulaLookupResult(
+                status=_CanonicalFormulaLookupStatus.MISSING,
+                formula_id=formula_id,
+            )
+        if len(matches) == 1:
+            return _CanonicalFormulaLookupResult(
+                status=_CanonicalFormulaLookupStatus.UNIQUE,
+                formula_id=formula_id,
+                formula=matches[0],
+                match_count=1,
+            )
+        return _CanonicalFormulaLookupResult(
+            status=_CanonicalFormulaLookupStatus.AMBIGUOUS,
+            formula_id=formula_id,
+            match_count=len(matches),
+        )
 
     @staticmethod
     def _explicit_table_ids(
@@ -527,7 +598,8 @@ class FormulaContextRecovery:
             )
         )
         if canonical_formula is None:
-            canonical_formula = FormulaContextRecovery._resolve_unique_canonical_formula(evidence, page, anchor)
+            lookup = FormulaContextRecovery._lookup_canonical_formula(evidence, page, anchor)
+            canonical_formula = lookup.formula
         if canonical_formula is not None:
             ids.extend(
                 _metadata_strings(
