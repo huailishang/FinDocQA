@@ -860,3 +860,209 @@ def test_canonical_formula_cross_document_continuation_metadata_is_rejected():
     assert result.status is FormulaGateStatus.FAIL
     assert "cross_document_recovery_forbidden" in result.reasons
     assert result.ready_for_execution is False
+
+
+def test_duplicate_canonical_formula_identity_stays_review_even_without_metadata():
+    duplicate_formulas = (
+        CanonicalFormula("f1", 1, "expense * ratio", lineage=_lineage(1)),
+        CanonicalFormula("f1", 1, "expense * ratio", lineage=_lineage(1)),
+    )
+    page = CanonicalPage(
+        page_number=1,
+        text="expense = 100元\nratio = 80%\n赔付金额 = expense * ratio",
+        blocks=(
+            _block("vars", 1, 0, "expense = 100元\nratio = 80%"),
+            _block("formula", 1, 1, "赔付金额 = expense * ratio", block_type=CanonicalBlockType.FORMULA, formula_id="f1"),
+        ),
+        formulas=duplicate_formulas,
+        lineage=_lineage(1),
+    )
+
+    result = FormulaContextRecovery(
+        InMemoryDocumentStore.from_documents((_document(page),))
+    ).recover(_evidence())
+
+    assert result.status is FormulaGateStatus.REVIEW
+    assert "canonical_formula_not_unique:f1" in result.reasons
+    assert result.ready_for_execution is False
+
+
+def test_duplicate_canonical_formula_does_not_choose_between_linked_tables():
+    formulas = (
+        CanonicalFormula("f1", 1, "expense * ratio", lineage=_lineage(1), metadata={"linked_table_refs": ["t1"]}),
+        CanonicalFormula("f1", 1, "expense * ratio", lineage=_lineage(1), metadata={"linked_table_refs": ["t2"]}),
+    )
+    page = CanonicalPage(
+        page_number=1,
+        text="ratio = 80%\n赔付金额 = expense * ratio",
+        blocks=(
+            _block("ratio", 1, 0, "ratio = 80%"),
+            _block("formula", 1, 1, "赔付金额 = expense * ratio", block_type=CanonicalBlockType.FORMULA, formula_id="f1"),
+        ),
+        tables=(
+            CanonicalTable("t1", 1, markdown="expense = 100元", lineage=_lineage(1)),
+            CanonicalTable("t2", 1, markdown="expense = 999元", lineage=_lineage(1)),
+        ),
+        formulas=formulas,
+        lineage=_lineage(1),
+    )
+
+    result = FormulaContextRecovery(InMemoryDocumentStore.from_documents((_document(page),))).recover(_evidence())
+
+    assert result.status is FormulaGateStatus.REVIEW
+    assert "canonical_formula_not_unique:f1" in result.reasons
+    assert not any(step.action == "linked_table" for step in result.recovery_steps)
+    assert "expense = 100元" not in result.recovered_evidence.context_text
+    assert "expense = 999元" not in result.recovered_evidence.context_text
+
+
+def test_duplicate_canonical_formula_does_not_authorize_adjacent_page_continuation():
+    formulas = (
+        CanonicalFormula("f1", 1, "expense * ratio", lineage=_lineage(1), metadata={"continuation_block_id": "ratio_a"}),
+        CanonicalFormula("f1", 1, "expense * ratio", lineage=_lineage(1), metadata={"continuation_block_id": "ratio_b"}),
+    )
+    page1 = CanonicalPage(
+        page_number=1,
+        text="expense = 100元\n赔付金额 = expense * ratio",
+        blocks=(
+            _block("expense", 1, 0, "expense = 100元"),
+            _block("formula", 1, 1, "赔付金额 = expense * ratio", block_type=CanonicalBlockType.FORMULA, formula_id="f1"),
+        ),
+        formulas=formulas,
+        lineage=_lineage(1),
+    )
+    page2 = CanonicalPage(
+        page_number=2,
+        text="ratio = 80%\nratio = 70%",
+        blocks=(
+            _block("ratio_a", 2, 0, "ratio = 80%"),
+            _block("ratio_b", 2, 1, "ratio = 70%"),
+        ),
+        lineage=_lineage(2),
+    )
+
+    result = FormulaContextRecovery(InMemoryDocumentStore.from_documents((_document(page1, page2),))).recover(_evidence())
+
+    assert result.status is FormulaGateStatus.REVIEW
+    assert "canonical_formula_not_unique:f1" in result.reasons
+    assert not any(step.action == "adjacent_page_continuation" for step in result.recovery_steps)
+    assert result.ready_for_execution is False
+
+
+def test_zero_canonical_formula_keeps_block_level_recovery_available():
+    page = CanonicalPage(
+        page_number=1,
+        text="expense = 100元\nratio = 80%\n赔付金额 = expense * ratio",
+        blocks=(
+            _block("vars", 1, 0, "expense = 100元\nratio = 80%"),
+            _block("formula", 1, 1, "赔付金额 = expense * ratio", block_type=CanonicalBlockType.FORMULA, formula_id="f1"),
+        ),
+        formulas=(),
+        lineage=_lineage(1),
+    )
+
+    result = FormulaContextRecovery(InMemoryDocumentStore.from_documents((_document(page),))).recover(_evidence())
+
+    assert result.status is FormulaGateStatus.PASS
+    assert result.ready_for_execution is True
+    assert not any(reason.startswith("canonical_formula_not_unique:") for reason in result.reasons)
+
+
+def test_duplicate_canonical_formula_with_footnote_metadata_stays_identity_review():
+    formulas = (
+        CanonicalFormula("f1", 1, "expense * ratio", lineage=_lineage(1), metadata={"linked_footnote_ref": "fn1"}),
+        CanonicalFormula("f1", 1, "expense * ratio", lineage=_lineage(1), metadata={}),
+    )
+    page = CanonicalPage(
+        page_number=1,
+        text="expense = 100元\nratio = 80%\n赔付金额 = expense * ratio",
+        blocks=(
+            _block("vars", 1, 0, "expense = 100元\nratio = 80%"),
+            _block("formula", 1, 1, "赔付金额 = expense * ratio", block_type=CanonicalBlockType.FORMULA, formula_id="f1"),
+        ),
+        formulas=formulas,
+        lineage=_lineage(1),
+    )
+
+    result = FormulaContextRecovery(InMemoryDocumentStore.from_documents((_document(page),))).recover(_evidence())
+
+    assert result.status is FormulaGateStatus.REVIEW
+    assert "canonical_formula_not_unique:f1" in result.reasons
+    assert result.ready_for_execution is False
+
+
+def _recover_duplicate_formula_metadata(
+    first_metadata: dict,
+    second_metadata: dict,
+    *,
+    anchor_metadata: dict | None = None,
+):
+    formulas = (
+        CanonicalFormula("f1", 1, "expense * ratio", lineage=_lineage(1), metadata=first_metadata),
+        CanonicalFormula("f1", 1, "expense * ratio", lineage=_lineage(1), metadata=second_metadata),
+    )
+    page = CanonicalPage(
+        page_number=1,
+        text="expense = 100元\nratio = 80%\n赔付金额 = expense * ratio",
+        blocks=(
+            _block("vars", 1, 0, "expense = 100元\nratio = 80%"),
+            _block(
+                "formula",
+                1,
+                1,
+                "赔付金额 = expense * ratio",
+                block_type=CanonicalBlockType.FORMULA,
+                formula_id="f1",
+                metadata=anchor_metadata,
+            ),
+        ),
+        formulas=formulas,
+        lineage=_lineage(1),
+    )
+    return FormulaContextRecovery(InMemoryDocumentStore.from_documents((_document(page),))).recover(_evidence())
+
+
+def test_duplicate_formula_mixed_table_and_footnote_metadata_stays_review():
+    result = _recover_duplicate_formula_metadata(
+        {"linked_table_refs": ["t1"]},
+        {"linked_footnote_ref": "fn1"},
+    )
+
+    assert result.status is FormulaGateStatus.REVIEW
+    assert "canonical_formula_not_unique:f1" in result.reasons
+    assert not any(step.action == "linked_table" for step in result.recovery_steps)
+    assert result.ready_for_execution is False
+
+
+def test_duplicate_formula_with_cross_document_continuation_metadata_stays_identity_review():
+    result = _recover_duplicate_formula_metadata(
+        {"continuation_doc_id": "other_doc", "continuation_block_id": "ratio_cont"},
+        {},
+    )
+
+    assert result.status is FormulaGateStatus.REVIEW
+    assert "canonical_formula_not_unique:f1" in result.reasons
+    assert not any(step.action == "adjacent_page_continuation" for step in result.recovery_steps)
+    assert result.ready_for_execution is False
+
+
+def test_duplicate_formula_with_identical_metadata_is_still_ambiguous():
+    metadata = {"linked_table_refs": ["t1"]}
+    result = _recover_duplicate_formula_metadata(metadata, dict(metadata))
+
+    assert result.status is FormulaGateStatus.REVIEW
+    assert "canonical_formula_not_unique:f1" in result.reasons
+    assert result.ready_for_execution is False
+
+
+def test_unique_block_metadata_cannot_override_duplicate_formula_identity():
+    result = _recover_duplicate_formula_metadata(
+        {},
+        {},
+        anchor_metadata={"linked_table_refs": ["t1"]},
+    )
+
+    assert result.status is FormulaGateStatus.REVIEW
+    assert "canonical_formula_not_unique:f1" in result.reasons
+    assert not any(step.action == "linked_table" for step in result.recovery_steps)
+    assert result.ready_for_execution is False

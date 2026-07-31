@@ -16,10 +16,11 @@ FinDocQA 的正式文档只保留四类：项目架构、模块接口、评测�
 
 当前执行状态不写入 docs；以本地 `handoffs/evaluator_executor/state/CURRENT.md` 为唯一执行入口。
 
-## 3. 评测
+## 3. 评测与可靠性
 
 见 `evaluation/`：
 
+- `reliability-architecture.md`：Evaluation / Reliability 通用横切架构、公共合同、ReliabilityProfile / Gate 与现有 `src/evaluation/` 迁移方向。
 - `local-benchmark.md`：本地固定 Gold / 模块评测方法。
 - `external-benchmarks.md`：外部评测集与可借鉴方案。
 
