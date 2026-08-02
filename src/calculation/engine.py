@@ -8,6 +8,8 @@ from calculation.compiler import SafeFormulaCompiler
 from calculation.contracts import (
     BoundVariable,
     CalculationExecutionResult,
+    DeterministicExecutionGateInput,
+    DeterministicExecutionGateResult,
     FormulaGateStatus,
     FormulaProgram,
 )
@@ -157,6 +159,53 @@ class DeterministicCalculationEngine:
             gate_status=gate_status,
             audit_reasons=audit_reasons,
             source_refs=tuple(program.source_refs),
+        )
+
+    @staticmethod
+    def evaluate_execution_gate(
+        gate_input: DeterministicExecutionGateInput,
+    ) -> DeterministicExecutionGateResult:
+        facts = (
+            ("formula_evidence", gate_input.formula_evidence),
+            ("semantic_binding", gate_input.semantic_binding),
+            ("question_formula_match", gate_input.question_formula_match),
+        )
+        failed = tuple(name for name, fact in facts if fact.passed is not True)
+        detail_reasons = tuple(
+            reason
+            for _name, fact in facts
+            if fact.passed is not True
+            for reason in fact.reasons
+        )
+        return DeterministicExecutionGateResult(
+            ready=not failed,
+            failed_gates=failed,
+            reasons=(*failed, *detail_reasons),
+        )
+
+    def execute_gated_program(
+        self,
+        program: FormulaProgram,
+        bindings: Mapping[str, BoundVariable],
+        gate_input: DeterministicExecutionGateInput,
+    ) -> CalculationExecutionResult:
+        """Execute only after explicit formula, binding and question-match PASS facts."""
+
+        decision = self.evaluate_execution_gate(gate_input)
+        if not decision.ready:
+            return CalculationExecutionResult(
+                ok=False,
+                error="deterministic_execution_not_ready",
+                formula_program=program,
+                gate_status="NOT_READY",
+                audit_reasons=tuple(decision.reasons),
+                source_refs=tuple(program.source_refs),
+            )
+        return self.execute_program(
+            program,
+            bindings,
+            gate_status="PASS",
+            audit_reasons=(),
         )
 
     def execute_builtin(

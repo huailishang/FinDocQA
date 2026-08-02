@@ -19,6 +19,12 @@ import textwrap
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
+from calculation import (
+    BoundVariable,
+    DeterministicCalculationEngine,
+    DeterministicExecutionGateInput,
+    FormulaProgram,
+)
 from contracts import EvidenceBundle, SolverResult
 from solvers.base import (
     candidate_doc_lineage,
@@ -60,6 +66,77 @@ class CalculationSolver:
                  fallback_llm_client: Optional[OpenAICompatibleClient] = None) -> None:
         self.llm_client = llm_client
         self.fallback_llm_client = fallback_llm_client
+
+    def solve_deterministic_gated(
+        self,
+        bundle: EvidenceBundle,
+        program: FormulaProgram,
+        bindings: Mapping[str, BoundVariable],
+        gate_input: DeterministicExecutionGateInput,
+    ) -> SolverResult:
+        """Convert an explicitly authorized C3-D execution into a solver result.
+
+        This adapter deliberately does not infer a formula or binding from the
+        bundle and never delegates to ``solve``.  Production routing and any
+        recovery policy remain the caller's responsibility.
+        """
+        execution = DeterministicCalculationEngine().execute_gated_program(
+            program,
+            bindings,
+            gate_input,
+        )
+        source_lineage = [source_ref.to_dict() for source_ref in execution.source_refs]
+        metadata: dict[str, Any] = {
+            "provider_call_count": 0,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "legacy_execution_invoked": False,
+            "formula_program": program.to_dict(),
+            "result_trace": [dict(step) for step in execution.trace],
+            "source_lineage": source_lineage,
+            "source_refs": source_lineage,
+            "gate_status": execution.gate_status,
+            "audit_reasons": list(execution.audit_reasons),
+        }
+        if execution.ok:
+            metadata.update(
+                {
+                    "answer_source": "c3_deterministic_gate",
+                    "computation_status": "completed",
+                }
+            )
+            return SolverResult(
+                qid=bundle.question.qid,
+                answer=str(execution.value),
+                solver=self.name,
+                confidence=1.0,
+                metadata=metadata,
+            )
+
+        metadata.update(
+            {
+                "answer_source": (
+                    "c3_deterministic_execution_not_ready"
+                    if execution.error == "deterministic_execution_not_ready"
+                    else "c3_deterministic_execution_failed"
+                ),
+                "computation_status": (
+                    "blocked"
+                    if execution.error == "deterministic_execution_not_ready"
+                    else "failed"
+                ),
+                "error": execution.error,
+            }
+        )
+        return SolverResult(
+            qid=bundle.question.qid,
+            answer="",
+            solver=self.name,
+            raw_output=execution.error,
+            confidence=0.0,
+            metadata=metadata,
+        )
 
     def solve(self, bundle: EvidenceBundle) -> SolverResult:
         if bundle.question.answer_format == "freeform":

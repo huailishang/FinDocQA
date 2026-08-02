@@ -13,6 +13,10 @@ from calculation.contracts import (
     FormulaGateResult,
     FormulaGateStatus,
     FormulaSourceRef,
+    SemanticBindingCandidate,
+    SemanticBindingRequest,
+    SemanticBindingResult,
+    SemanticBindingStatus,
 )
 from contracts import EvidenceCandidate
 
@@ -276,6 +280,145 @@ class LocalContextVariableBinder:
                 confidence="local_explicit",
             )
         return bindings
+
+
+def _semantic_normalize(value: str) -> str:
+    return " ".join(str(value or "").strip().casefold().split())
+
+
+def _semantic_unit_category(unit: str) -> str | None:
+    value = str(unit or "").strip()
+    if value in _PERCENT_UNITS or value == "ratio":
+        return "ratio"
+    if value in {"元", "万", "万元", "亿", "亿元"}:
+        return "CNY"
+    return None
+
+
+class SemanticVariableBinder:
+    """Bind a variable only from one exact, same-document semantic candidate."""
+
+    @staticmethod
+    def _lineage_valid(candidate: SemanticBindingCandidate) -> bool:
+        ref = candidate.source_ref
+        return bool(
+            ref is not None
+            and str(ref.doc_id or "").strip()
+            and str(ref.source or "").strip()
+            and str(candidate.document_id or "").strip()
+            and ref.doc_id == candidate.document_id
+        )
+
+    def bind(
+        self,
+        request: SemanticBindingRequest,
+        candidates: Sequence[SemanticBindingCandidate],
+    ) -> SemanticBindingResult:
+        required = (
+            request.name,
+            request.metric,
+            request.entity,
+            request.period,
+            request.document_id,
+        )
+        if not all(_semantic_normalize(value) for value in required):
+            return SemanticBindingResult(
+                status=SemanticBindingStatus.MISSING,
+                reasons=("semantic_dimension_missing",),
+            )
+
+        request_unit = _semantic_unit_category(request.unit)
+        if not str(request.unit or "").strip():
+            return SemanticBindingResult(
+                status=SemanticBindingStatus.MISSING,
+                reasons=("request_unit_missing",),
+            )
+        if request_unit is None:
+            return SemanticBindingResult(
+                status=SemanticBindingStatus.INCOMPATIBLE_UNIT,
+                reasons=("request_unit_unsupported",),
+            )
+
+        matching_dimensions = tuple(
+            candidate
+            for candidate in candidates
+            if _semantic_normalize(candidate.metric) == _semantic_normalize(request.metric)
+            and _semantic_normalize(candidate.entity) == _semantic_normalize(request.entity)
+            and _semantic_normalize(candidate.period) == _semantic_normalize(request.period)
+        )
+        same_document = tuple(
+            candidate
+            for candidate in matching_dimensions
+            if str(candidate.document_id or "").strip() == str(request.document_id).strip()
+        )
+        if not same_document:
+            reasons = ("cross_document_candidate",) if matching_dimensions else ("semantic_candidate_missing",)
+            return SemanticBindingResult(
+                status=SemanticBindingStatus.MISSING,
+                reasons=reasons,
+            )
+
+        invalid_lineage = tuple(
+            candidate for candidate in same_document if not self._lineage_valid(candidate)
+        )
+        if invalid_lineage:
+            return SemanticBindingResult(
+                status=SemanticBindingStatus.LINEAGE_INVALID,
+                reasons=("candidate_lineage_invalid",),
+                candidate_count=len(invalid_lineage),
+            )
+
+        missing_unit = tuple(
+            candidate for candidate in same_document if not str(candidate.unit or "").strip()
+        )
+        if missing_unit:
+            return SemanticBindingResult(
+                status=SemanticBindingStatus.MISSING,
+                reasons=("candidate_unit_missing",),
+                candidate_count=len(missing_unit),
+            )
+
+        compatible: list[tuple[SemanticBindingCandidate, Decimal]] = []
+        incompatible_count = 0
+        for candidate in same_document:
+            if _semantic_unit_category(candidate.unit) != request_unit:
+                incompatible_count += 1
+                continue
+            try:
+                value = normalize_value(candidate.value, candidate.unit)
+            except ValueError:
+                incompatible_count += 1
+                continue
+            compatible.append((candidate, value))
+
+        if not compatible:
+            return SemanticBindingResult(
+                status=SemanticBindingStatus.INCOMPATIBLE_UNIT,
+                reasons=("no_compatible_unit_candidate",),
+                candidate_count=incompatible_count,
+            )
+        if len(compatible) != 1:
+            return SemanticBindingResult(
+                status=SemanticBindingStatus.AMBIGUOUS,
+                reasons=("semantic_candidate_not_unique",),
+                candidate_count=len(compatible),
+            )
+
+        candidate, value = compatible[0]
+        return SemanticBindingResult(
+            status=SemanticBindingStatus.BOUND,
+            bound=BoundVariable(
+                name=request.name,
+                value=value,
+                unit="ratio" if _semantic_unit_category(candidate.unit) == "ratio" else candidate.unit,
+                source_ref=candidate.source_ref,
+                metric=_semantic_normalize(candidate.metric),
+                entity=_semantic_normalize(candidate.entity),
+                period=_semantic_normalize(candidate.period),
+                confidence="semantic_exact",
+            ),
+            candidate_count=1,
+        )
 
 
 class FormulaEvidenceGate:

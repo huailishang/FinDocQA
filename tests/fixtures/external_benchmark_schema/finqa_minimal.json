@@ -1,0 +1,41 @@
+[
+  {
+    "id": "finqa-demo-add",
+    "pre_text": [],
+    "post_text": [],
+    "table": [["Metric", "Value"], ["Demo", "2"]],
+    "qa": {
+      "question": "What is two plus three?",
+      "program": "add(2, const_3)",
+      "program_re": "add(2, const_3)",
+      "gold_inds": {"table_1": "Demo value is 2"},
+      "exe_ans": 5.0
+    }
+  },
+  {
+    "id": "finqa-demo-table",
+    "pre_text": [],
+    "post_text": [],
+    "table": [["Revenue", "1", "2", "3"]],
+    "qa": {
+      "question": "What is the row total?",
+      "program": "table_sum(Revenue, const_0)",
+      "program_re": "table_sum(Revenue, const_0)",
+      "gold_inds": {"table_0": "Revenue row"},
+      "exe_ans": 6.0
+    }
+  },
+  {
+    "id": "finqa-demo-greater",
+    "pre_text": [],
+    "post_text": [],
+    "table": [],
+    "qa": {
+      "question": "Is three greater than two?",
+      "program": "greater(3, 2)",
+      "program_re": "greater(3, 2)",
+      "gold_inds": {},
+      "exe_ans": "yes"
+    }
+  }
+]

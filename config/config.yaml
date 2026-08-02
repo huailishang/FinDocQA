@@ -37,6 +37,10 @@ pipeline:
   solver: routed
   verifier: high_risk_only
   fallback: direct_placeholder
+  # C3-J is observation-only. No active/authoritative mode exists.
+  c3_shadow:
+    enabled: false
+    approved_match_rule_ids: []
 
 retrieval:
   # These parameters control retrieval inside an already selected document set.

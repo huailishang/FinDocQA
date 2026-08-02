@@ -52,6 +52,33 @@ C3-A Deterministic Calculation
 
 随后发现仅靠“发现一个反例、修一个反例”无法证明高风险模块可靠，因此新增统一可靠性测试方向：Specification / Invariant、Input-Space、Decision Table、组合测试、Property-Based、Metamorphic、Mutation 和 Regression Corpus。
 
+## 2026-08-02：C3 外部基线与来源绑定能力阶段收口
+
+C3 外部 Oracle 基线已从“能执行普通公式”扩展到两类来源绑定能力：
+
+```text
+C3-M：来源绑定数值序列聚合
+SUM / AVERAGE / MINIMUM / MAXIMUM
+
+C3-N：来源绑定表格谓词计数
+严格大于 / 严格小于
+```
+
+C3-N 的关键结论不是比较和计数本身，而是建立了完整的来源边界验证：
+
+```text
+proof 内部自洽
+≠
+来源范围真实完整
+
+必须再依据官方表格独立核对：
+行列轴、区段标题、完整明细范围、Total 汇总边界
+```
+
+经过轴字段篡改、成员跨行跨列、范围与成员同步截短、遗漏中间成员、错误区段标题和 Total 边界等反例验证，正常 16 条请求保持不变。FinQA 与 TAT-QA 完整开发集 Oracle 结果为 1599 条可表示、1597 条正确、2 条错误、0 条 C3 执行异常，剩余 23 条不支持运算。
+
+下一项 C3-O 已冻结为“来源绑定表格区段或整表实体行成员计数”，只回答完整成员数量，不做数值比较、文本枚举、缺失值判断或复合计数。截至本次整理尚未开始实现；继续工作时仍以本地 `handoffs/evaluator_executor/state/CURRENT.md` 为唯一入口。
+
 ## 当前原则
 
 - docs 只保存稳定架构、接口、评测方法、长期参考和结论级历史。
