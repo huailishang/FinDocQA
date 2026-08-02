@@ -1,20 +1,53 @@
 """C3 deterministic calculation public API."""
 from calculation.compiler import SafeFormulaCompiler, normalize_expression
+from calculation.assembly import C3InputAssembler, C3InputAssemblyInput, C3InputAssemblyResult
 from calculation.contracts import (
+    AggregationOutputOperation,
+    AggregationSelector,
     BoundVariable,
     CalculationExecutionResult,
+    DeterministicExecutionGateInput,
+    DeterministicExecutionGateResult,
+    ExecutionGateFact,
     FormulaEvidence,
     FormulaGateResult,
     FormulaGateStatus,
     FormulaProgram,
     FormulaSourceRef,
     FormulaStep,
+    SemanticBindingCandidate,
+    SemanticBindingRequest,
+    SemanticBindingResult,
+    SemanticBindingStatus,
+    SeriesAggregationOutputSpec,
+    SourceBoundNumericSeries,
+    SourceBoundNumericSeriesAggregationRequest,
+    SourceBoundNumericSeriesItem,
+    SourceBoundTablePredicateCardinalityRequest,
+    SourceSeriesBindingStatus,
+    TablePredicateOperator,
 )
 from calculation.engine import DeterministicCalculationEngine
+from calculation.predicate_cardinality import (
+    PredicateCardinalityValidationResult,
+    SourceBoundTablePredicateCardinalityCounter,
+)
+from calculation.series_aggregation import (
+    SeriesAggregationCompilationResult,
+    SourceBoundNumericSeriesAggregationCompiler,
+    SourceBoundNumericSeriesAggregator,
+)
+from calculation.evaluation import (
+    BenchmarkRate,
+    LocalBenchmarkCase,
+    LocalBenchmarkEvaluator,
+    LocalBenchmarkResult,
+)
 from calculation.material import (
     FormulaEvidenceGate,
     LocalContextVariableBinder,
     MaterialFormulaExtractor,
+    SemanticVariableBinder,
     normalize_value,
 )
 from calculation.recovery import (
@@ -25,9 +58,17 @@ from calculation.recovery import (
 from calculation.registry import BuiltinFormulaRegistry
 
 __all__ = [
+    "AggregationOutputOperation",
+    "AggregationSelector",
     "BoundVariable",
+    "C3InputAssembler",
+    "C3InputAssemblyInput",
+    "C3InputAssemblyResult",
+    "BenchmarkRate",
     "BuiltinFormulaRegistry",
     "CalculationExecutionResult",
+    "DeterministicExecutionGateInput",
+    "DeterministicExecutionGateResult",
     "DeterministicCalculationEngine",
     "FormulaContextRecovery",
     "FormulaEvidence",
@@ -39,9 +80,30 @@ __all__ = [
     "FormulaRecoveryStep",
     "FormulaSourceRef",
     "FormulaStep",
+    "ExecutionGateFact",
     "LocalContextVariableBinder",
+    "LocalBenchmarkCase",
+    "LocalBenchmarkEvaluator",
+    "LocalBenchmarkResult",
     "MaterialFormulaExtractor",
+    "PredicateCardinalityValidationResult",
     "SafeFormulaCompiler",
+    "SemanticBindingCandidate",
+    "SemanticBindingRequest",
+    "SemanticBindingResult",
+    "SemanticBindingStatus",
+    "SemanticVariableBinder",
+    "SeriesAggregationCompilationResult",
+    "SeriesAggregationOutputSpec",
+    "SourceBoundNumericSeries",
+    "SourceBoundNumericSeriesAggregationCompiler",
+    "SourceBoundNumericSeriesAggregationRequest",
+    "SourceBoundNumericSeriesAggregator",
+    "SourceBoundNumericSeriesItem",
+    "SourceBoundTablePredicateCardinalityRequest",
+    "SourceBoundTablePredicateCardinalityCounter",
+    "SourceSeriesBindingStatus",
+    "TablePredicateOperator",
     "normalize_expression",
     "normalize_value",
 ]

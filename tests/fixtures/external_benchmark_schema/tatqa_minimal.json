@@ -1,0 +1,59 @@
+[
+  {
+    "table": {
+      "uid": "tatqa-demo-table",
+      "table": [["Metric", "2024", "2023"], ["Other", "44.1", "56.7"]]
+    },
+    "paragraphs": [],
+    "questions": [
+      {
+        "uid": "tatqa-demo-difference",
+        "order": 1,
+        "question": "What is the difference?",
+        "answer": -12.6,
+        "derivation": "44.1-56.7",
+        "answer_type": "arithmetic",
+        "answer_from": "table",
+        "rel_paragraphs": [],
+        "req_comparison": false,
+        "scale": "million"
+      },
+      {
+        "uid": "tatqa-demo-percent",
+        "order": 2,
+        "question": "What is the percentage change?",
+        "answer": -22.22,
+        "derivation": "(44.1-56.7)/56.7",
+        "answer_type": "arithmetic",
+        "answer_from": "table",
+        "rel_paragraphs": [],
+        "req_comparison": false,
+        "scale": "percent"
+      },
+      {
+        "uid": "tatqa-demo-count",
+        "order": 3,
+        "question": "How many statements are listed?",
+        "answer": 2,
+        "derivation": "first statement##second statement",
+        "answer_type": "count",
+        "answer_from": "text",
+        "rel_paragraphs": [],
+        "req_comparison": false,
+        "scale": ""
+      },
+      {
+        "uid": "tatqa-demo-span",
+        "order": 4,
+        "question": "Which year is larger?",
+        "answer": ["2023"],
+        "derivation": "56.7>44.1",
+        "answer_type": "span",
+        "answer_from": "table",
+        "rel_paragraphs": [],
+        "req_comparison": true,
+        "scale": ""
+      }
+    ]
+  }
+]

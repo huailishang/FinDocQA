@@ -46,11 +46,203 @@ class BoundVariable:
     period: str = ""
     definition: str = ""
     confidence: str = "exact"
+    source_coordinate: str = ""
+    source_object_id: str = ""
+    dimension: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         payload["value"] = str(self.value)
         return payload
+
+
+class SemanticBindingStatus(str, Enum):
+    """Terminal outcomes for deterministic semantic variable binding."""
+
+    BOUND = "bound"
+    MISSING = "missing"
+    AMBIGUOUS = "ambiguous"
+    INCOMPATIBLE_UNIT = "incompatible_unit"
+    LINEAGE_INVALID = "lineage_invalid"
+
+
+@dataclass(frozen=True)
+class SemanticBindingRequest:
+    """The dimensions a formula variable must match without inference."""
+
+    name: str
+    metric: str
+    entity: str
+    period: str
+    unit: str
+    document_id: str
+
+
+@dataclass(frozen=True)
+class SemanticBindingCandidate:
+    """One candidate value with its semantic dimensions and immutable lineage."""
+
+    value: str | int | float | Decimal
+    metric: str
+    entity: str
+    period: str
+    unit: str
+    document_id: str
+    source_ref: FormulaSourceRef | None
+
+
+@dataclass(frozen=True)
+class SemanticBindingResult:
+    """Auditable result; unresolved states are ordinary data, not exceptions."""
+
+    status: SemanticBindingStatus
+    bound: BoundVariable | None = None
+    reasons: Sequence[str] = field(default_factory=tuple)
+    candidate_count: int = 0
+
+
+@dataclass(frozen=True)
+class ExecutionGateFact:
+    """One explicit PASS fact required before deterministic execution."""
+
+    passed: bool | None
+    reasons: Sequence[str] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class DeterministicExecutionGateInput:
+    """The three independent facts required to authorize FormulaProgram execution."""
+
+    formula_evidence: ExecutionGateFact
+    semantic_binding: ExecutionGateFact
+    question_formula_match: ExecutionGateFact
+
+
+@dataclass(frozen=True)
+class DeterministicExecutionGateResult:
+    """Auditable decision for the deterministic execution boundary."""
+
+    ready: bool
+    failed_gates: Sequence[str] = field(default_factory=tuple)
+    reasons: Sequence[str] = field(default_factory=tuple)
+
+class SourceSeriesBindingStatus(str, Enum):
+    """Binding status for one immutable source-backed numeric series."""
+
+    EXACT = "EXACT"
+    AMBIGUOUS = "AMBIGUOUS"
+    UNBOUND = "UNBOUND"
+
+
+class AggregationSelector(str, Enum):
+    """Supported scalar aggregation selectors."""
+
+    AVERAGE = "AVERAGE"
+    MINIMUM = "MINIMUM"
+    MAXIMUM = "MAXIMUM"
+    SUM = "SUM"
+
+
+class AggregationOutputOperation(str, Enum):
+    """How compiled aggregation outputs form the final scalar result."""
+
+    SELECTOR = "SELECTOR"
+    SUBTRACT = "SUBTRACT"
+
+
+@dataclass(frozen=True)
+class SourceBoundNumericSeriesItem:
+    """One ordered numeric fact with immutable source lineage."""
+
+    position: int
+    value: Decimal
+    unit: str
+    dimension: str
+    source_ref: FormulaSourceRef | None
+    source_coordinate: str
+    source_object_id: str
+    header_label: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = asdict(self)
+        payload["value"] = str(self.value)
+        return payload
+
+
+@dataclass(frozen=True)
+class SourceBoundNumericSeries:
+    """A reusable ordered numeric series bound to one explicit source object."""
+
+    series_id: str
+    items: Sequence[SourceBoundNumericSeriesItem]
+    metric: str
+    entity: str
+    source_object_id: str
+    binding_status: SourceSeriesBindingStatus
+    aggregation_range_explicit: bool
+    total_components_ambiguity: bool = False
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "items", tuple(self.items))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "series_id": self.series_id,
+            "items": [item.to_dict() for item in self.items],
+            "metric": self.metric,
+            "entity": self.entity,
+            "source_object_id": self.source_object_id,
+            "binding_status": self.binding_status.value,
+            "aggregation_range_explicit": self.aggregation_range_explicit,
+            "total_components_ambiguity": self.total_components_ambiguity,
+        }
+
+
+@dataclass(frozen=True)
+class SeriesAggregationOutputSpec:
+    """Final scalar output built from one or two selector outputs."""
+
+    operation: AggregationOutputOperation | str
+    operands: Sequence[AggregationSelector | str]
+    output_kind: str = "SCALAR"
+    output_semantics: str = "number"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "operands", tuple(self.operands))
+
+
+@dataclass(frozen=True)
+class SourceBoundNumericSeriesAggregationRequest:
+    """Dataset-agnostic request for deterministic source-series aggregation."""
+
+    series: SourceBoundNumericSeries
+    selectors: Sequence[AggregationSelector | str]
+    output: SeriesAggregationOutputSpec
+    question_aggregation_match: ExecutionGateFact
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "selectors", tuple(self.selectors))
+
+
+
+
+class TablePredicateOperator(str, Enum):
+    """Strict scalar predicates supported by table-cardinality counting."""
+
+    GREATER_THAN = "GREATER_THAN"
+    LESS_THAN = "LESS_THAN"
+
+
+@dataclass(frozen=True)
+class SourceBoundTablePredicateCardinalityRequest:
+    """Dataset-agnostic request to count members satisfying one strict predicate."""
+
+    collection: SourceBoundNumericSeries
+    operator: TablePredicateOperator | str
+    threshold: Decimal
+    threshold_unit: str
+    threshold_dimension: str
+    question_predicate_match: ExecutionGateFact
 
 
 @dataclass(frozen=True)

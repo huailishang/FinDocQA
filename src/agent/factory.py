@@ -32,6 +32,7 @@ from retrieval.interfaces import StoreBoundEvidenceRetriever
 from retrieval.scope_aware import ScopeAwareEvidenceRetriever
 from question.preparation import PreparedQuestion, QuestionPreparationPipeline
 from solvers.calculation import CalculationSolver
+from solvers.c3_shadow import C3ShadowObserver
 from solvers.cross_doc import CrossDocSolver
 from solvers.direct import DirectSolver
 from solvers.multi_choice import MultiChoiceSolver
@@ -399,6 +400,24 @@ class PipelineFactory:
         prompt_cfg = evidence_cfg.get("prompt_compaction", {})
         if not isinstance(prompt_cfg, dict):
             prompt_cfg = {}
+        pipeline_cfg = self.config.get("pipeline", {})
+        if not isinstance(pipeline_cfg, dict):
+            pipeline_cfg = {}
+        c3_shadow_cfg = pipeline_cfg.get("c3_shadow", {})
+        if not isinstance(c3_shadow_cfg, dict):
+            c3_shadow_cfg = {}
+        approved_match_rule_ids = c3_shadow_cfg.get("approved_match_rule_ids", ())
+        if not isinstance(approved_match_rule_ids, (list, tuple, set, frozenset)):
+            approved_match_rule_ids = ()
+        exact_rule_ids = tuple(
+            value.strip()
+            for value in approved_match_rule_ids
+            if isinstance(value, str) and value.strip()
+        )
+        c3_shadow_observer = C3ShadowObserver(
+            enabled=c3_shadow_cfg.get("enabled", False) is True,
+            approved_match_rule_ids=exact_rule_ids,
+        )
 
         llm_client = OpenAICompatibleClient.from_env(self.config)
         fallback_llm_client = build_fallback_client(self.config)
@@ -465,6 +484,7 @@ class PipelineFactory:
             prompt_budget_hard_cap_tokens=int(
                 prompt_cfg.get("hard_cap_tokens", 45_000)
             ),
+            c3_shadow_observer=c3_shadow_observer,
         )
 
     def build_writer(self) -> CsvSubmissionWriter:

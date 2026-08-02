@@ -19,6 +19,7 @@ from contracts import (
 )
 from answer_contract import contract_from_question, contract_to_dict
 from solvers.base import validate_submission_answer
+from solvers.c3_shadow import C3ShadowObserver
 from verification.production_integrity import assess_final_state
 from verification.production_typed_evidence import build_production_typed_option_evidence
 from verification.option_evidence_schema import audit_legacy_against_source_local_typed
@@ -118,6 +119,7 @@ class EnhancedBaselineWorkflow:
         prompt_budget_hard_cap_tokens: int = 45_000,
         evidence_orchestrator: Optional[Any] = None,
         orchestrator_mode: str = "advisory",
+        c3_shadow_observer: Optional[C3ShadowObserver] = None,
     ) -> None:
         self.classifier = classifier
         self.retriever = retriever
@@ -134,6 +136,7 @@ class EnhancedBaselineWorkflow:
         self.prompt_budget_target_total_tokens = int(prompt_budget_target_total_tokens)
         self.prompt_budget_hard_cap_tokens = int(prompt_budget_hard_cap_tokens)
         self.evidence_orchestrator = evidence_orchestrator
+        self.c3_shadow_observer = c3_shadow_observer
         normalized_mode = str(orchestrator_mode or "advisory").strip().lower()
         if normalized_mode not in {"advisory", "authoritative"}:
             raise ValueError(f"unsupported orchestrator_mode: {orchestrator_mode!r}")
@@ -148,6 +151,7 @@ class EnhancedBaselineWorkflow:
         classification = None
         candidates = []
         bundle = None
+        c3_shadow_observation: Optional[Dict[str, Any]] = None
         try:
             generic_adapter_freeform = bool(
                 question.answer_format == "freeform"
@@ -190,6 +194,8 @@ class EnhancedBaselineWorkflow:
             candidates = list(self.retriever.retrieve(question, classification))
             bundle = self.assembler.assemble(question, classification, candidates)
             bundle, prompt_budget_estimate = self._prepare_prompt_budget(bundle)
+            if self.c3_shadow_observer is not None:
+                c3_shadow_observation = self.c3_shadow_observer.observe(bundle).to_dict()
             if self.prompt_budget_enforced:
                 try:
                     enforce_prompt_budget(prompt_budget_estimate)
@@ -429,6 +435,8 @@ class EnhancedBaselineWorkflow:
 
             # --- Observability metadata ---
             meta = self._build_observability_meta(question, classification, candidates, bundle, solver_result)
+            if c3_shadow_observation is not None:
+                meta["c3_shadow"] = dict(c3_shadow_observation)
             meta["solver_metadata"] = dict(solver_result.metadata or {})
             meta["solver_raw_output"] = solver_result.raw_output
             meta.update(provider_execution_contract(solver_result))
@@ -625,7 +633,11 @@ class EnhancedBaselineWorkflow:
                 answer_values=final_submission_answers,
                 submission_answers=final_submission_answers,
             )
-        except (BlockingAnswerValidationError, LLMProviderBudgetExhausted):
+        except BlockingAnswerValidationError as exc:
+            if c3_shadow_observation is not None:
+                exc.metadata.setdefault("c3_shadow", dict(c3_shadow_observation))
+            raise
+        except LLMProviderBudgetExhausted:
             raise
         except PromptBudgetExceeded as exc:
             raise self._blocked_without_fallback(
@@ -635,20 +647,24 @@ class EnhancedBaselineWorkflow:
                 candidates=candidates,
                 bundle=bundle,
                 reason="prompt_budget_precheck_blocked",
+                c3_shadow_observation=c3_shadow_observation,
             ) from exc
         except ProviderCallBudgetExceeded as exc:
             raise self._blocked_without_fallback(
                 question, exc, classification=classification, candidates=candidates,
                 bundle=bundle, reason="provider_call_budget_precheck_blocked",
+                c3_shadow_observation=c3_shadow_observation,
             ) from exc
         except Exception as exc:
             if self.fallback_solver is None or not self._runtime_fallback_allowed():
                 raise self._blocked_without_fallback(
                     question, exc, classification=classification, candidates=candidates,
                     bundle=bundle, reason="fallback_disabled_main_path_error",
+                    c3_shadow_observation=c3_shadow_observation,
                 ) from exc
             return self._fallback(
-                question, exc, classification=classification, candidates=candidates, bundle=bundle
+                question, exc, classification=classification, candidates=candidates, bundle=bundle,
+                c3_shadow_observation=c3_shadow_observation,
             )
 
     def _prepare_prompt_budget(
@@ -951,6 +967,7 @@ class EnhancedBaselineWorkflow:
         candidates: Optional[Sequence[EvidenceCandidate]],
         bundle: Optional[EvidenceBundle] = None,
         reason: str,
+        c3_shadow_observation: Optional[Dict[str, Any]] = None,
     ) -> BlockingAnswerValidationError:
         classification = classification or self.classifier.classify(question)
         retained_candidates = list(candidates or [])
@@ -998,6 +1015,8 @@ class EnhancedBaselineWorkflow:
             "final_state": "failed",
             "grounded": False,
         })
+        if c3_shadow_observation is not None:
+            metadata["c3_shadow"] = dict(c3_shadow_observation)
         return BlockingAnswerValidationError(
             question.qid, question.answer_format, "", f"{reason}: {exc}",
             metadata=metadata,
@@ -1039,6 +1058,7 @@ class EnhancedBaselineWorkflow:
         classification: Optional[ClassificationResult] = None,
         candidates: Optional[Sequence[EvidenceCandidate]] = None,
         bundle: Optional[EvidenceBundle] = None,
+        c3_shadow_observation: Optional[Dict[str, Any]] = None,
     ) -> PipelineResult:
         classification = classification or self.classifier.classify(question)
         retained_candidates = list(candidates or [])
@@ -1058,6 +1078,11 @@ class EnhancedBaselineWorkflow:
                     "final_state": "failed",
                     "grounded": False,
                     "answer_source": "error",
+                    **(
+                        {"c3_shadow": dict(c3_shadow_observation)}
+                        if c3_shadow_observation is not None
+                        else {}
+                    ),
                 },
             ) from fallback_exc
 
@@ -1067,7 +1092,12 @@ class EnhancedBaselineWorkflow:
         )
         if not validation.valid:
             raise BlockingAnswerValidationError(
-                question.qid, question.answer_format, solver_result.answer, validation.reason
+                question.qid, question.answer_format, solver_result.answer, validation.reason,
+                metadata=(
+                    {"c3_shadow": dict(c3_shadow_observation)}
+                    if c3_shadow_observation is not None
+                    else None
+                ),
             )
         token_meta = self._extract_token_meta(solver_result)
         evidence_by_doc: Dict[str, List[str]] = {}
@@ -1101,6 +1131,8 @@ class EnhancedBaselineWorkflow:
             "grounded": True,
             "answer_source": "fallback",
         }
+        if c3_shadow_observation is not None:
+            meta["c3_shadow"] = dict(c3_shadow_observation)
         return PipelineResult(
             qid=question.qid,
             answer=validation.answer,
