@@ -29,7 +29,7 @@ def _parser() -> argparse.ArgumentParser:
         "--output-dir",
         default=(
             "evaluation_artifacts/c3_external_oracle_baseline_v1/"
-            "c3n_source_bound_table_predicate_cardinality_v1"
+            "c3o_source_bound_table_section_cardinality_v1"
         ),
     )
     parser.add_argument(
@@ -37,6 +37,11 @@ def _parser() -> argparse.ArgumentParser:
         default="evaluation_artifacts/c3_external_oracle_baseline_v1/source_manifest.json",
     )
     parser.add_argument("--manifest-only", action="store_true")
+    parser.add_argument(
+        "--disable-section-cardinality",
+        action="store_true",
+        help="Reproduce the frozen C3-N baseline without section cardinality.",
+    )
     parser.add_argument(
         "--disable-predicate-cardinality",
         action="store_true",
@@ -63,6 +68,7 @@ def main() -> int:
         manifest_path=args.manifest,
         enable_series_aggregation=not args.disable_series_aggregation,
         enable_predicate_cardinality=not args.disable_predicate_cardinality,
+        enable_section_cardinality=not args.disable_section_cardinality,
     )
     combined = report["datasets"]["combined"]
     print(

@@ -17,6 +17,7 @@ from evaluation.external_benchmarks.c3_oracle_baseline import (
     deny_network,
     execute_c3_runtime,
     run_cases,
+    run_external_oracle_baseline,
     verify_source_manifest,
 )
 from evaluation.external_benchmarks.contracts import (
@@ -36,6 +37,7 @@ from evaluation.external_benchmarks.native_scorers import (
 )
 from evaluation.external_benchmarks.tatqa_adapter import (
     TATQAPredicateCardinalityOracleRuntime,
+    TATQASectionCardinalityOracleRuntime,
     _predicate_runtime_from_proof,
     _runtime_from_derivation,
     load_tatqa_cases,
@@ -1124,3 +1126,168 @@ def test_bound_section_requires_numeric_detail_immediately_after_heading() -> No
             BOUND_SECTION_CASE,
             table_mutator=mutate_table,
         )
+
+
+def test_tatqa_section_cardinality_is_answer_independent_and_native_scored(
+    tmp_path: Path,
+) -> None:
+    source = TATQA_ROOT / "dataset_raw/tatqa_dataset_dev.json"
+    taxonomy = Path(
+        "evaluation_artifacts/c3_unsupported_operator_triage_v1/"
+        "per_case_taxonomy.jsonl"
+    )
+    original = load_tatqa_cases(source)
+    original_selected = {
+        case.case_id: case.runtime.section_request.collection.to_dict()
+        for case in original
+        if isinstance(case.runtime, TATQASectionCardinalityOracleRuntime)
+    }
+    original_predictions = {
+        case.case_id: execute_c3_runtime(case.runtime).answer
+        for case in original
+        if isinstance(case.runtime, TATQASectionCardinalityOracleRuntime)
+    }
+
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    for document in payload:
+        for row in document.get("questions", []):
+            row["answer"] = "987654321"
+    mutated_path = tmp_path / "tatqa_mutated_answers.json"
+    mutated_path.write_text(json.dumps(payload), encoding="utf-8")
+    mutated = load_tatqa_cases(
+        mutated_path,
+        predicate_taxonomy_path=taxonomy,
+    )
+    mutated_selected = {
+        case.case_id: case.runtime.section_request.collection.to_dict()
+        for case in mutated
+        if isinstance(case.runtime, TATQASectionCardinalityOracleRuntime)
+    }
+    mutated_predictions = {
+        case.case_id: execute_c3_runtime(case.runtime).answer
+        for case in mutated
+        if isinstance(case.runtime, TATQASectionCardinalityOracleRuntime)
+    }
+
+    assert len(original_selected) == 3
+    assert original_selected == mutated_selected
+    assert original_predictions == mutated_predictions
+
+    selected_cases = tuple(
+        case
+        for case in original
+        if isinstance(case.runtime, TATQASectionCardinalityOracleRuntime)
+    )
+    records = list(run_cases(selected_cases))
+    base_score = score_tatqa_predictions(selected_cases, records)
+    records[0] = replace(
+        records[0],
+        predicted_answer="999999999",
+        terminal_classification=TerminalClassification.EXECUTED_INCORRECT,
+    )
+    wrong_score = score_tatqa_predictions(selected_cases, records)
+
+    assert base_score["native_correct_count"] == 3
+    assert wrong_score["native_correct_count"] == 2
+    assert wrong_score["internal_equivalent_correct_count"] == 2
+    assert wrong_score["parity_delta"] == 0
+
+
+def test_section_cardinality_can_be_disabled_to_reproduce_c3n_selection() -> None:
+    source = TATQA_ROOT / "dataset_raw/tatqa_dataset_dev.json"
+    enabled = load_tatqa_cases(source)
+    disabled = load_tatqa_cases(source, enable_section_cardinality=False)
+
+    assert sum(
+        isinstance(case.runtime, TATQASectionCardinalityOracleRuntime)
+        for case in enabled
+    ) == 3
+    assert not any(
+        isinstance(case.runtime, TATQASectionCardinalityOracleRuntime)
+        for case in disabled
+    )
+    assert sum(
+        case.preclassified is TerminalClassification.UNSUPPORTED_OPERATOR
+        and case.failure_detail == "answer_type:count"
+        for case in disabled
+    ) >= 3
+    assert sum(
+        isinstance(case.runtime, TATQAPredicateCardinalityOracleRuntime)
+        for case in enabled
+    ) == sum(
+        isinstance(case.runtime, TATQAPredicateCardinalityOracleRuntime)
+        for case in disabled
+    ) == 16
+
+
+def test_c3o_complete_external_double_run_is_exact_and_byte_stable(
+    tmp_path: Path,
+) -> None:
+    manifest = Path(
+        "evaluation_artifacts/c3_external_oracle_baseline_v1/source_manifest.json"
+    )
+    output_a = tmp_path / "run-a"
+    output_b = tmp_path / "run-b"
+    _records_a, report_a = run_external_oracle_baseline(
+        finqa_root=FINQA_ROOT,
+        tatqa_root=TATQA_ROOT,
+        output_dir=output_a,
+        manifest_path=manifest,
+    )
+    _records_b, report_b = run_external_oracle_baseline(
+        finqa_root=FINQA_ROOT,
+        tatqa_root=TATQA_ROOT,
+        output_dir=output_b,
+        manifest_path=manifest,
+    )
+
+    combined = report_a["datasets"]["combined"]
+    tatqa = report_a["datasets"]["tatqa"]
+    assert report_a["measurement_valid"] is True
+    assert report_a == report_b
+    assert combined["numeric_eligible_count"] == 1623
+    assert combined["c3_representable_count"] == 1602
+    assert combined["terminal_executed_correct_count"] == 1600
+    assert combined["executed_incorrect_count"] == 2
+    assert combined["c3_execution_error_count"] == 0
+    assert combined["effective_oracle_execution_accuracy"]["value"] == pytest.approx(
+        1600 / 1623
+    )
+    assert tatqa["c3_representable_count"] == 731
+    assert tatqa["terminal_executed_correct_count"] == 729
+    assert report_a["bottlenecks"]["UNSUPPORTED_OPERATOR"]["case_count"] == 20
+    assert report_a["actual_provider_call_count"] == 0
+    assert report_a["actual_legacy_call_count"] == 0
+    assert report_a["actual_network_call_count_during_evaluation"] == 0
+    assert report_a["prompt_tokens"] == 0
+    assert report_a["completion_tokens"] == 0
+    assert report_a["total_tokens"] == 0
+    for name in (
+        "per_case_records.jsonl",
+        "aggregate_report.json",
+        "aggregate_report.md",
+    ):
+        assert (output_a / name).read_bytes() == (output_b / name).read_bytes()
+
+
+def test_c3o_snapshot_is_isolated_from_c3m_and_c3n_snapshots() -> None:
+    baseline_root = Path("evaluation_artifacts/c3_external_oracle_baseline_v1")
+    c3m_dir = baseline_root / "c3m_source_bound_numeric_series_aggregation_v1"
+    c3n_dir = baseline_root / "c3n_source_bound_table_predicate_cardinality_v1"
+    c3o_dir = baseline_root / "c3o_source_bound_table_section_cardinality_v1"
+    c3m = json.loads((c3m_dir / "aggregate_report.json").read_text(encoding="utf-8"))
+    c3n = json.loads((c3n_dir / "aggregate_report.json").read_text(encoding="utf-8"))
+    c3o = json.loads((c3o_dir / "aggregate_report.json").read_text(encoding="utf-8"))
+
+    assert c3m["datasets"]["combined"]["c3_representable_count"] == 1583
+    assert c3n["datasets"]["combined"]["c3_representable_count"] == 1599
+    assert c3o["datasets"]["combined"]["c3_representable_count"] == 1602
+    assert c3o["datasets"]["combined"]["terminal_executed_correct_count"] == 1600
+    assert c3o["datasets"]["combined"]["executed_incorrect_count"] == 2
+    assert c3o["datasets"]["combined"]["c3_execution_error_count"] == 0
+    assert c3o["bottlenecks"]["UNSUPPORTED_OPERATOR"]["case_count"] == 20
+    assert c3m["first_record_sha256"] != c3n["first_record_sha256"]
+    assert c3n["first_record_sha256"] != c3o["first_record_sha256"]
+    assert c3m["measurement_valid"] is True
+    assert c3n["measurement_valid"] is True
+    assert c3o["measurement_valid"] is True

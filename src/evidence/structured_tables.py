@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 from html.parser import HTMLParser
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -272,6 +273,16 @@ class StructuredTableRow:
     normalized_row_text: str
     canonical_source: str
     mineru_json_source: str
+    table_source_object_id: str = ""
+    table_data_row_count: int = 0
+    row_span_start: int = 0
+    row_span_end_exclusive: int = 0
+    row_span_complete: bool = False
+    row_span_start_explicit: bool = False
+    table_row_indices: tuple[int, ...] = ()
+    table_row_sources: tuple[str, ...] = ()
+    table_range_digest: str = ""
+    table_range_proof_version: str = "structured-table-range/v1"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -287,6 +298,16 @@ class StructuredTableRow:
             "normalized_row_text": self.normalized_row_text,
             "canonical_source": self.canonical_source,
             "mineru_json_source": self.mineru_json_source,
+            "table_source_object_id": self.table_source_object_id,
+            "table_data_row_count": self.table_data_row_count,
+            "row_span_start": self.row_span_start,
+            "row_span_end_exclusive": self.row_span_end_exclusive,
+            "row_span_complete": self.row_span_complete,
+            "row_span_start_explicit": self.row_span_start_explicit,
+            "table_row_indices": list(self.table_row_indices),
+            "table_row_sources": list(self.table_row_sources),
+            "table_range_digest": self.table_range_digest,
+            "table_range_proof_version": self.table_range_proof_version,
         }
 
 
@@ -551,6 +572,7 @@ def load_structured_table_rows_with_audit(
             "issues": list(layout_audit.issues),
         })
         tables_loaded += 1
+        table_rows: list[dict[str, Any]] = []
         for row_index, cells in enumerate(rows[first_data_index:], start=0):
             if not any(str(cell).strip() for cell in cells):
                 continue
@@ -558,6 +580,48 @@ def load_structured_table_rows_with_audit(
             canonical = (
                 f"{source_rel}#page_idx={page_idx}&table_index={table_index}&row_index={row_index}"
             )
+            table_rows.append(
+                {
+                    "row_index": int(row_index),
+                    "cell_texts": tuple(str(cell).strip() for cell in cells),
+                    "normalized_row_text": normalised,
+                    "canonical_source": canonical,
+                }
+            )
+        if not table_rows:
+            continue
+
+        table_source_object_id = (
+            f"{source_rel}#page_idx={page_idx}&table_index={table_index}"
+        )
+        row_indices = tuple(int(row["row_index"]) for row in table_rows)
+        row_sources = tuple(str(row["canonical_source"]) for row in table_rows)
+        range_payload = {
+            "proof_version": "structured-table-range/v1",
+            "doc_id": str(doc_id),
+            "page_idx": int(page_idx),
+            "table_index": int(table_index),
+            "headers": list(headers),
+            "rows": [
+                {
+                    "row_index": int(row["row_index"]),
+                    "canonical_source": str(row["canonical_source"]),
+                    "cell_texts": list(row["cell_texts"]),
+                }
+                for row in table_rows
+            ],
+        }
+        table_range_digest = hashlib.sha256(
+            json.dumps(
+                range_payload,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        row_span_start = row_indices[0]
+        row_span_end_exclusive = row_indices[-1] + 1
+        for row in table_rows:
             output.append(
                 StructuredTableRow(
                     domain=str(domain),
@@ -566,12 +630,21 @@ def load_structured_table_rows_with_audit(
                     table_index=int(table_index),
                     table_caption=caption,
                     table_footnote=footnote,
-                    row_index=int(row_index),
+                    row_index=int(row["row_index"]),
                     headers=tuple(headers),
-                    cell_texts=tuple(str(cell).strip() for cell in cells),
-                    normalized_row_text=normalised,
-                    canonical_source=canonical,
+                    cell_texts=tuple(row["cell_texts"]),
+                    normalized_row_text=str(row["normalized_row_text"]),
+                    canonical_source=str(row["canonical_source"]),
                     mineru_json_source=source_rel,
+                    table_source_object_id=table_source_object_id,
+                    table_data_row_count=len(table_rows),
+                    row_span_start=row_span_start,
+                    row_span_end_exclusive=row_span_end_exclusive,
+                    row_span_complete=True,
+                    row_span_start_explicit=True,
+                    table_row_indices=row_indices,
+                    table_row_sources=row_sources,
+                    table_range_digest=table_range_digest,
                 )
             )
     return tuple(output), {

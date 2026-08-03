@@ -490,3 +490,68 @@ C3-N 独立快照：
 | Combined | 1623 | 1599 | 1597 | 2 | 0 |
 
 剩余 UNSUPPORTED_OPERATOR 为 23。两次完整运行的 per_case_records.jsonl、aggregate_report.json 和 aggregate_report.md 字节一致。Provider、旧计算路由、网络调用和 Token 使用均为 0。该结果仍是 Oracle 模式能力覆盖，不代表端到端检索或文档解析准确率。
+
+## C3-O 来源绑定表格区段成员计数
+
+C3-O 增加一个与数据集无关的确定性能力：当表格区段或整表实体行已经完成唯一来源绑定、范围边界已独立验证时，直接返回成员数量。
+
+产品输入由三层组成：
+
+```text
+SourceBoundTableMember
+→ 有序位置、成员标签、FormulaSourceRef、来源坐标、来源对象
+
+SourceBoundTableMemberCollection
+→ collection_id、不可变有序成员、来源对象、轴类型、绑定状态、范围状态
+
+SourceBoundTableSectionCardinalityRequest
+→ 集合 + 问题是否确实要求成员数量的显式门控事实
+```
+
+第一版只支持两种轴：
+
+```text
+ROWS_IN_BOUND_SECTION
+WHOLE_TABLE_ENTITY_ROWS
+```
+
+执行器不解析自由文本、不搜索标题、不读取官方答案，只做：
+
+```text
+严格验证集合
+→ 按来源顺序记录每个成员 trace
+→ 返回 len(members)
+```
+
+以下情况全部失败关闭：
+
+- 空集合、错误对象类型、位置不是严格整数或不连续；
+- 成员标签为空、来源引用或来源坐标缺失；
+- 坐标重复、成员跨来源对象、FormulaSourceRef 与集合来源不一致；
+- 轴类型、绑定状态、范围显式状态或边界排除状态不合法；
+- 问题计数门控不是明确通过。
+
+TAT-QA 适配器只选择冻结 taxonomy 中同时满足 `PRODUCT_CAPABILITY`、`selection_eligibility=true`、唯一绑定和完整证明的 3 条案例，不按 case ID 或问题文本分支：
+
+| 轴类型 | 案例数 | 成员数 |
+|---|---:|---:|
+| ROWS_IN_BOUND_SECTION | 2 | 4、4 |
+| WHOLE_TABLE_ENTITY_ROWS | 1 | 7 |
+
+区段范围由官方表格独立验证：标题必须唯一，成员必须连续覆盖标题后的完整首列明细，结束边界只接受 `Total...`，或以 `Gross...` 开头且包含标准化区段名的汇总行；边界行本身不计数。整表实体范围必须从第 0 行表头后的第 1 行开始，一直覆盖到表尾，不允许空行、跳行、重复实体、结构缺失或汇总行。
+
+因此，即使同时缩短 proof 的 `start/end` 和成员列表，或向官方表格增加一条未列明细/实体，也会因为与独立推导的完整范围不一致而拒绝。将官方 answer 全部改为固定错误值，不会改变选中集合、产品请求或产品预测。
+
+C3-O 独立快照：
+
+    evaluation_artifacts/c3_external_oracle_baseline_v1/c3o_source_bound_table_section_cardinality_v1/
+
+完整 Oracle 结果：
+
+| Dataset | Numeric eligible | Representable | Correct | Incorrect | C3 errors |
+|---|---:|---:|---:|---:|---:|
+| FinQA | 873 | 871 | 871 | 0 | 0 |
+| TAT-QA | 750 | 731 | 729 | 2 | 0 |
+| Combined | 1623 | 1602 | 1600 | 2 | 0 |
+
+有效 Oracle 准确率为 `1600 / 1623 = 0.9858287122612446`，剩余 `UNSUPPORTED_OPERATOR` 为 20。完整双跑的 `per_case_records.jsonl`、`aggregate_report.json` 和 `aggregate_report.md` 字节一致；Provider、旧计算路由、网络调用和 Token 使用均为 0。该结果只说明 Oracle 程序模式的产品能力覆盖，不代表端到端检索、PDF 解析或自由问题理解准确率。

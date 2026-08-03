@@ -20,6 +20,7 @@ from calculation import (
     SemanticBindingRequest,
     SourceBoundNumericSeriesAggregator,
     SourceBoundTablePredicateCardinalityCounter,
+    SourceBoundTableSectionCardinalityCounter,
 )
 from contracts import ClassificationResult, EvidenceBundle, EvidenceCandidate, Question, QuestionLabel
 from evaluation.external_benchmarks.contracts import C3ExecutionObservation, ExternalCaseRecord, OracleCase, OracleRuntime, SourceManifestEntry, TerminalClassification
@@ -30,6 +31,7 @@ from evaluation.external_benchmarks.finqa_adapter import (
 from evaluation.external_benchmarks.native_scorers import score_finqa_predictions, score_tatqa_predictions
 from evaluation.external_benchmarks.tatqa_adapter import (
     TATQAPredicateCardinalityOracleRuntime,
+    TATQASectionCardinalityOracleRuntime,
     load_tatqa_cases,
 )
 from solvers.c3_deterministic import ExplicitC3Pipeline
@@ -86,6 +88,40 @@ def _usage_kwargs(observation: C3ExecutionObservation) -> dict[str, int]:
 
 
 def execute_c3_runtime(runtime: OracleRuntime) -> C3ExecutionObservation:
+    if isinstance(runtime, TATQASectionCardinalityOracleRuntime):
+        if runtime.section_request is None:
+            return C3ExecutionObservation(
+                ok=False,
+                error="section_cardinality_request_missing",
+            )
+        result = SourceBoundTableSectionCardinalityCounter().execute(
+            runtime.section_request
+        )
+        source_lineage = tuple(
+            {
+                "collection_id": runtime.section_request.collection.collection_id,
+                "position": member.position,
+                "member_label": member.member_label,
+                "source_coordinate": member.source_coordinate,
+                "source_object_id": member.source_object_id,
+                "axis_type": runtime.section_request.collection.axis_type.value,
+                "source_ref": member.source_ref.to_dict() if member.source_ref else None,
+            }
+            for member in runtime.section_request.collection.members
+        )
+        return C3ExecutionObservation(
+            ok=result.ok,
+            answer=str(result.value) if result.ok else "",
+            error=result.error if not result.ok else "",
+            provider_call_count=0,
+            legacy_call_count=0,
+            prompt_tokens=0,
+            completion_tokens=0,
+            total_tokens=0,
+            trace=tuple(result.trace),
+            source_lineage=source_lineage,
+        )
+
     if isinstance(runtime, TATQAPredicateCardinalityOracleRuntime):
         if runtime.predicate_request is None:
             return C3ExecutionObservation(
@@ -411,6 +447,7 @@ def run_external_oracle_baseline(
     manifest_path: str | Path,
     enable_series_aggregation: bool = True,
     enable_predicate_cardinality: bool = True,
+    enable_section_cardinality: bool = True,
 ) -> tuple[tuple[ExternalCaseRecord, ...], Mapping[str, Any]]:
     finqa, tatqa = Path(finqa_root), Path(tatqa_root)
     ensure_source_manifest(manifest_path, finqa, tatqa)
@@ -421,6 +458,7 @@ def run_external_oracle_baseline(
     tatqa_cases = load_tatqa_cases(
         tatqa / "dataset_raw/tatqa_dataset_dev.json",
         enable_predicate_cardinality=enable_predicate_cardinality,
+        enable_section_cardinality=enable_section_cardinality,
         predicate_taxonomy_path=(
             tatqa.parents[1]
             / "c3_unsupported_operator_triage_v1"
