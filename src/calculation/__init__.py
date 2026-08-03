@@ -23,14 +23,22 @@ from calculation.contracts import (
     SourceBoundNumericSeries,
     SourceBoundNumericSeriesAggregationRequest,
     SourceBoundNumericSeriesItem,
+    SourceBoundTableMember,
+    SourceBoundTableMemberCollection,
     SourceBoundTablePredicateCardinalityRequest,
+    SourceBoundTableSectionCardinalityRequest,
     SourceSeriesBindingStatus,
     TablePredicateOperator,
+    TableSectionAxisType,
 )
 from calculation.engine import DeterministicCalculationEngine
 from calculation.predicate_cardinality import (
     PredicateCardinalityValidationResult,
     SourceBoundTablePredicateCardinalityCounter,
+)
+from calculation.section_cardinality import (
+    SectionCardinalityValidationResult,
+    SourceBoundTableSectionCardinalityCounter,
 )
 from calculation.series_aggregation import (
     SeriesAggregationCompilationResult,
@@ -87,6 +95,7 @@ __all__ = [
     "LocalBenchmarkResult",
     "MaterialFormulaExtractor",
     "PredicateCardinalityValidationResult",
+    "SectionCardinalityValidationResult",
     "SafeFormulaCompiler",
     "SemanticBindingCandidate",
     "SemanticBindingRequest",
@@ -100,10 +109,15 @@ __all__ = [
     "SourceBoundNumericSeriesAggregationRequest",
     "SourceBoundNumericSeriesAggregator",
     "SourceBoundNumericSeriesItem",
+    "SourceBoundTableMember",
+    "SourceBoundTableMemberCollection",
     "SourceBoundTablePredicateCardinalityRequest",
     "SourceBoundTablePredicateCardinalityCounter",
+    "SourceBoundTableSectionCardinalityRequest",
+    "SourceBoundTableSectionCardinalityCounter",
     "SourceSeriesBindingStatus",
     "TablePredicateOperator",
+    "TableSectionAxisType",
     "normalize_expression",
     "normalize_value",
 ]

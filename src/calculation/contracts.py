@@ -224,6 +224,71 @@ class SourceBoundNumericSeriesAggregationRequest:
         object.__setattr__(self, "selectors", tuple(self.selectors))
 
 
+class TableSectionAxisType(str, Enum):
+    """Supported axes for an explicitly source-bound member collection."""
+
+    ROWS_IN_BOUND_SECTION = "ROWS_IN_BOUND_SECTION"
+    WHOLE_TABLE_ENTITY_ROWS = "WHOLE_TABLE_ENTITY_ROWS"
+
+
+@dataclass(frozen=True)
+class SourceBoundTableMember:
+    """One ordered table member with immutable source lineage."""
+
+    position: int
+    member_label: str
+    source_ref: FormulaSourceRef | None
+    source_coordinate: str
+    source_object_id: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class SourceBoundTableMemberCollection:
+    """An explicit source-bound table section or whole-table entity range."""
+
+    collection_id: str
+    members: Sequence[SourceBoundTableMember]
+    source_object_id: str
+    axis_type: TableSectionAxisType | str
+    binding_status: SourceSeriesBindingStatus | str
+    range_explicit: bool
+    boundary_rows_excluded: bool
+
+    def __post_init__(self) -> None:
+        if isinstance(self.members, Sequence) and not isinstance(
+            self.members, (str, bytes, bytearray)
+        ):
+            object.__setattr__(self, "members", tuple(self.members))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "collection_id": self.collection_id,
+            "members": [member.to_dict() for member in self.members],
+            "source_object_id": self.source_object_id,
+            "axis_type": (
+                self.axis_type.value
+                if isinstance(self.axis_type, TableSectionAxisType)
+                else self.axis_type
+            ),
+            "binding_status": (
+                self.binding_status.value
+                if isinstance(self.binding_status, SourceSeriesBindingStatus)
+                else self.binding_status
+            ),
+            "range_explicit": self.range_explicit,
+            "boundary_rows_excluded": self.boundary_rows_excluded,
+        }
+
+
+@dataclass(frozen=True)
+class SourceBoundTableSectionCardinalityRequest:
+    """Dataset-agnostic request to count an explicit table member collection."""
+
+    collection: SourceBoundTableMemberCollection
+    question_cardinality_match: ExecutionGateFact
 
 
 class TablePredicateOperator(str, Enum):

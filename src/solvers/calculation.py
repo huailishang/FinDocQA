@@ -24,8 +24,10 @@ from calculation import (
     DeterministicCalculationEngine,
     DeterministicExecutionGateInput,
     FormulaProgram,
+    SourceBoundNumericSeriesAggregator,
 )
 from contracts import EvidenceBundle, SolverResult
+from evidence.c3_numeric_series_binding import SourceBoundSumSeriesBinder
 from solvers.base import (
     candidate_doc_lineage,
     candidate_doc_ids,
@@ -138,7 +140,208 @@ class CalculationSolver:
             metadata=metadata,
         )
 
+    @staticmethod
+    def _source_bound_sum_series_eligible(bundle: EvidenceBundle) -> bool:
+        """Restrict the deterministic SUM branch to ordinary open-QA input.
+
+        Formal AFAC/B freeform contracts, option questions, and other solver
+        lanes retain their historical behavior even if their evidence happens
+        to resemble a structured numeric series.
+        """
+        question = bundle.question
+        raw = question.raw if isinstance(question.raw, Mapping) else {}
+        return bool(
+            question.answer_format == "freeform"
+            and not question.options
+            and str(raw.get("_input_adapter") or "") == "canonical_question_v1"
+            and str(raw.get("split") or "").strip().upper() != "B"
+            and question.submission_slot_count is None
+            and not question.submission_slot_contracts
+        )
+
+    @staticmethod
+    def _source_bound_sum_series_metadata(
+        *,
+        binding: Any,
+        execution: Any,
+        computation_status: str,
+        answer_source: str,
+        computation_complete: bool,
+    ) -> dict[str, Any]:
+        source_refs = tuple(execution.source_refs or binding.source_refs or ())
+        source_lineage = [source_ref.to_dict() for source_ref in source_refs]
+        used_doc_ids = list(
+            dict.fromkeys(
+                str(source_ref.doc_id)
+                for source_ref in source_refs
+                if str(source_ref.doc_id).strip()
+            )
+        )
+        return {
+            "answer_source": answer_source,
+            "computation_status": computation_status,
+            "computation_complete": computation_complete,
+            "computation_performed": bool(execution.ok),
+            "computation_grounded": bool(execution.ok),
+            "provider_call_count": 0,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "legacy_execution_invoked": False,
+            "request_contract": "SourceBoundNumericSeriesAggregationRequest",
+            "source_bound_sum_series_request": binding.to_dict().get("request"),
+            "binding_trace": [dict(step) for step in binding.trace],
+            "binding_reasons": list(binding.reasons),
+            "binding_metadata": dict(binding.metadata or {}),
+            "result_trace": [dict(step) for step in execution.trace],
+            "source_lineage": source_lineage,
+            "source_refs": source_lineage,
+            "solver_source_refs": source_lineage,
+            "solver_used_doc_ids": used_doc_ids,
+            "used_doc_ids": used_doc_ids,
+            "solver_lineage_source": "c3_source_bound_sum_series",
+            "used_docs_source": "c3_source_bound_sum_series",
+            "source_lineage_complete": bool(source_lineage and used_doc_ids),
+            "gate_status": execution.gate_status,
+            "audit_reasons": list(execution.audit_reasons),
+            "ungrounded": not computation_complete,
+        }
+
+    def _solve_source_bound_sum_series(
+        self, bundle: EvidenceBundle
+    ) -> SolverResult | None:
+        if not self._source_bound_sum_series_eligible(bundle):
+            return None
+
+        try:
+            binding = SourceBoundSumSeriesBinder().bind(bundle)
+        except Exception as exc:
+            return SolverResult(
+                qid=bundle.question.qid,
+                answer="",
+                solver=self.name,
+                raw_output=str(exc),
+                confidence=0.0,
+                metadata={
+                    "answer_source": "c3_source_bound_sum_series_binding_failed",
+                    "computation_status": "failed",
+                    "computation_complete": False,
+                    "computation_performed": False,
+                    "computation_grounded": False,
+                    "provider_call_count": 0,
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                    "legacy_execution_invoked": False,
+                    "request_contract": "SourceBoundNumericSeriesAggregationRequest",
+                    "binding_trace": [],
+                    "result_trace": [],
+                    "source_lineage": [],
+                    "source_refs": [],
+                    "solver_source_refs": [],
+                    "solver_used_doc_ids": [],
+                    "solver_lineage_source": "c3_source_bound_sum_series",
+                    "gate_status": "",
+                    "audit_reasons": ["source_bound_sum_series_binding_exception"],
+                    "error": str(exc),
+                    "ungrounded": True,
+                },
+            )
+
+        if not binding.ready or binding.request is None:
+            return None
+
+        try:
+            execution = SourceBoundNumericSeriesAggregator().execute(binding.request)
+        except Exception as exc:
+            metadata = {
+                "answer_source": "c3_source_bound_sum_series_execution_failed",
+                "computation_status": "failed",
+                "computation_complete": False,
+                "computation_performed": False,
+                "computation_grounded": False,
+                "provider_call_count": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "legacy_execution_invoked": False,
+                "request_contract": "SourceBoundNumericSeriesAggregationRequest",
+                "source_bound_sum_series_request": binding.to_dict().get("request"),
+                "binding_trace": [dict(step) for step in binding.trace],
+                "binding_reasons": list(binding.reasons),
+                "binding_metadata": dict(binding.metadata or {}),
+                "result_trace": [],
+                "source_lineage": [item.to_dict() for item in binding.source_refs],
+                "source_refs": [item.to_dict() for item in binding.source_refs],
+                "solver_source_refs": [item.to_dict() for item in binding.source_refs],
+                "solver_used_doc_ids": list(
+                    dict.fromkeys(
+                        str(item.doc_id)
+                        for item in binding.source_refs
+                        if str(item.doc_id).strip()
+                    )
+                ),
+                "solver_lineage_source": "c3_source_bound_sum_series",
+                "gate_status": "",
+                "audit_reasons": ["source_bound_sum_series_execution_exception"],
+                "error": str(exc),
+                "ungrounded": True,
+            }
+            metadata["used_doc_ids"] = list(metadata["solver_used_doc_ids"])
+            metadata["used_docs_source"] = "c3_source_bound_sum_series"
+            return SolverResult(
+                qid=bundle.question.qid,
+                answer="",
+                solver=self.name,
+                raw_output=str(exc),
+                confidence=0.0,
+                metadata=metadata,
+            )
+
+        if not execution.ok:
+            metadata = self._source_bound_sum_series_metadata(
+                binding=binding,
+                execution=execution,
+                computation_status="failed",
+                answer_source="c3_source_bound_sum_series_execution_failed",
+                computation_complete=False,
+            )
+            metadata["error"] = execution.error
+            return SolverResult(
+                qid=bundle.question.qid,
+                answer="",
+                solver=self.name,
+                raw_output=execution.error,
+                confidence=0.0,
+                metadata=metadata,
+            )
+
+        answer = str(execution.value)
+        metadata = self._source_bound_sum_series_metadata(
+            binding=binding,
+            execution=execution,
+            computation_status="completed",
+            answer_source="c3_source_bound_sum_series",
+            computation_complete=True,
+        )
+        metadata.update(
+            {
+                "submission_answers": [answer],
+                "expected_submission_slots": 1,
+            }
+        )
+        return SolverResult(
+            qid=bundle.question.qid,
+            answer=answer,
+            solver=self.name,
+            confidence=1.0,
+            metadata=metadata,
+        )
+
     def solve(self, bundle: EvidenceBundle) -> SolverResult:
+        source_bound_sum = self._solve_source_bound_sum_series(bundle)
+        if source_bound_sum is not None:
+            return source_bound_sum
         if bundle.question.answer_format == "freeform":
             return self._solve_freeform(bundle)
         deterministic = self._solve_insurance_calculation(bundle)

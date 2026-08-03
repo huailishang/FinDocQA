@@ -14,9 +14,13 @@ from calculation import (
     FormulaSourceRef,
     SourceBoundNumericSeries,
     SourceBoundNumericSeriesItem,
+    SourceBoundTableMember,
+    SourceBoundTableMemberCollection,
     SourceBoundTablePredicateCardinalityRequest,
+    SourceBoundTableSectionCardinalityRequest,
     SourceSeriesBindingStatus,
     TablePredicateOperator,
+    TableSectionAxisType,
 )
 from evaluation.external_benchmarks.contracts import (
     OracleCase,
@@ -193,6 +197,14 @@ class TATQAPredicateCardinalityOracleRuntime(OracleRuntime):
     oracle_axis: str = ""
 
 
+@dataclass(frozen=True)
+class TATQASectionCardinalityOracleRuntime(OracleRuntime):
+    """Evaluation-only runtime carrying one generic section-cardinality request."""
+
+    section_request: SourceBoundTableSectionCardinalityRequest | None = None
+    oracle_axis: str = ""
+
+
 def _default_predicate_taxonomy_path(dataset_path: Path) -> Path:
     resolved = dataset_path.resolve()
     if len(resolved.parents) < 4:
@@ -225,6 +237,31 @@ def _accepted_predicate_proofs(path: Path) -> dict[str, Mapping[str, Any]]:
             case_id = row.get("case_id")
             if not isinstance(case_id, str) or not case_id or case_id in selected:
                 raise ValueError("predicate taxonomy contains missing or duplicate case id")
+            selected[case_id] = proof
+    return selected
+
+
+def _accepted_section_proofs(path: Path) -> dict[str, Mapping[str, Any]]:
+    if not path.is_file():
+        return {}
+    selected: dict[str, Mapping[str, Any]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line:
+            continue
+        row = json.loads(line)
+        proof = row.get("oracle_proof") or {}
+        if (
+            row.get("candidate_capability")
+            == "SOURCE_BOUND_TABLE_SECTION_CARDINALITY"
+            and row.get("candidate_type") == "PRODUCT_CAPABILITY"
+            and row.get("selection_eligibility") is True
+            and row.get("binding_uniqueness_status") == "UNIQUE"
+            and proof.get("proof_status") == "COMPLETE"
+            and proof.get("binding_uniqueness_status") == "UNIQUE"
+        ):
+            case_id = row.get("case_id")
+            if not isinstance(case_id, str) or not case_id or case_id in selected:
+                raise ValueError("section taxonomy contains missing or duplicate case id")
             selected[case_id] = proof
     return selected
 
@@ -686,10 +723,230 @@ def _predicate_runtime_from_proof(
     )
 
 
+def _is_section_boundary_label(label: str, normalized_section: str) -> bool:
+    return (
+        label == "total"
+        or label.startswith("total ")
+        or (label.startswith("gross ") and normalized_section in label)
+    )
+
+
+def _validate_section_member_binding(
+    *,
+    table: list[Any],
+    source_object_id: str,
+    axis_info: Mapping[str, Any],
+    members: list[Any],
+    rule: Mapping[str, Any],
+) -> tuple[TableSectionAxisType, list[Mapping[str, Any]], list[int]]:
+    axis = axis_info.get("axis")
+    normalized_members, member_rows, member_columns = _member_axis_coordinates(members)
+    if member_columns != [0] * len(normalized_members):
+        raise ValueError("section members must be bound to column zero")
+
+    if axis == TableSectionAxisType.ROWS_IN_BOUND_SECTION.value:
+        if rule.get("rule_type") != "SECTION_MEMBER_CARDINALITY":
+            raise ValueError("section membership rule missing")
+        if rule.get("exclude_boundary_and_subtotal_rows") is not True:
+            raise ValueError("section boundary exclusion must be explicit")
+        normalized_section = _normalized_section_heading(
+            axis_info.get("section_phrase"),
+            "section_phrase",
+        )
+        heading_rows = [
+            row_index
+            for row_index, raw_row in enumerate(table)
+            if isinstance(raw_row, list)
+            and raw_row
+            and _non_empty_text(raw_row[0])
+            and _normalized_section_heading(raw_row[0], "section heading")
+            == normalized_section
+        ]
+        if not heading_rows:
+            raise ValueError("section heading mismatch")
+        if len(heading_rows) != 1:
+            raise ValueError("section heading is ambiguous")
+        official_start = heading_rows[0] + 1
+        boundary_rows: list[int] = []
+        for row_index in range(official_start, len(table)):
+            label = _normalized_row_label(
+                _table_row(table, row_index, "section scan"),
+                "section scan",
+            )
+            if _is_section_boundary_label(label, normalized_section):
+                boundary_rows.append(row_index)
+        if not boundary_rows:
+            raise ValueError("section summary boundary missing")
+        if len(boundary_rows) != 1:
+            raise ValueError("section summary boundary is ambiguous")
+        official_end = boundary_rows[0]
+        if official_start >= official_end:
+            raise ValueError("section member range is empty")
+        official_rows = list(range(official_start, official_end))
+        axis_type = TableSectionAxisType.ROWS_IN_BOUND_SECTION
+    elif axis == TableSectionAxisType.WHOLE_TABLE_ENTITY_ROWS.value:
+        if rule.get("rule_type") != "WHOLE_TABLE_ENTITY_CARDINALITY":
+            raise ValueError("whole-table membership rule missing")
+        header_row = _strict_axis_int(axis_info.get("header_row"), "header_row")
+        if header_row != 0:
+            raise ValueError("whole-table header row must be zero")
+        header = _table_row(table, header_row, "whole-table header")
+        official_start = header_row + 1
+        official_end = len(table)
+        if official_start >= official_end:
+            raise ValueError("whole-table entity range is empty")
+        official_rows = list(range(official_start, official_end))
+        labels: list[str] = []
+        for row_index in official_rows:
+            row = _table_row(table, row_index, "whole-table entity")
+            if len(row) != len(header):
+                raise ValueError("whole-table entity row structure is incomplete")
+            label = _normalized_row_label(row, "whole-table entity")
+            if label == "total" or label.startswith("total ") or label.startswith("gross "):
+                raise ValueError("whole-table entity range includes summary row")
+            labels.append(label)
+        if len(labels) != len(set(labels)):
+            raise ValueError("whole-table entity labels are duplicated")
+        axis_type = TableSectionAxisType.WHOLE_TABLE_ENTITY_ROWS
+    else:
+        raise ValueError("section axis unsupported")
+
+    start_row = _strict_axis_int(axis_info.get("start_row"), "start_row")
+    end_row = _strict_axis_int(
+        axis_info.get("end_row_exclusive"),
+        "end_row_exclusive",
+    )
+    if start_row != official_start or end_row != official_end:
+        raise ValueError("section range does not match official complete range")
+    if member_rows != official_rows:
+        raise ValueError("section members do not cover official complete range")
+    if len(normalized_members) != len(official_rows):
+        raise ValueError("section member count does not match official range")
+
+    seen_coordinates: set[str] = set()
+    seen_labels: set[str] = set()
+    for member, row_index in zip(normalized_members, official_rows):
+        row = _table_row(table, row_index, "section member")
+        member_label = member.get("member_label")
+        if not _non_empty_text(member_label):
+            raise ValueError("section member label must be non-empty text")
+        if not isinstance(row[0], str) or row[0] != member_label:
+            raise ValueError("section member label mismatch")
+        coordinate = f"{source_object_id}/r{row_index}c0"
+        if member.get("coordinate") != coordinate:
+            raise ValueError("section source coordinate mismatch")
+        if coordinate in seen_coordinates:
+            raise ValueError("section source coordinate duplicated")
+        if member_label in seen_labels:
+            raise ValueError("section member label duplicated")
+        seen_coordinates.add(coordinate)
+        seen_labels.add(member_label)
+    return axis_type, normalized_members, official_rows
+
+
+def _section_cardinality_runtime_from_proof(
+    *,
+    table_payload: Mapping[str, Any],
+    question_row: Mapping[str, Any],
+    proof: Mapping[str, Any],
+) -> TATQASectionCardinalityOracleRuntime:
+    table_uid = table_payload.get("uid")
+    table = table_payload.get("table")
+    if not isinstance(table_uid, str) or not table_uid or not isinstance(table, list):
+        raise ValueError("section table schema invalid")
+    source_object_id = f"tatqa://table/{table_uid}"
+    if proof.get("bound_source_object_ids") != [source_object_id]:
+        raise ValueError("section source object mismatch")
+
+    axis_info = proof.get("bound_axis_or_section")
+    members = proof.get("bound_member_or_value_coordinates")
+    rule = proof.get("predicate_or_membership_rule")
+    if not isinstance(axis_info, Mapping) or not isinstance(members, list) or not members:
+        raise ValueError("section bound collection missing")
+    if not isinstance(rule, Mapping):
+        raise ValueError("section membership rule missing")
+
+    axis_type, normalized_members, official_rows = _validate_section_member_binding(
+        table=table,
+        source_object_id=source_object_id,
+        axis_info=axis_info,
+        members=members,
+        rule=rule,
+    )
+    expected_count = proof.get("independently_derived_expected_count")
+    if type(expected_count) is not int or expected_count != len(official_rows):
+        raise ValueError("section independent count mismatch")
+
+    bound_members: list[SourceBoundTableMember] = []
+    for position, (member, row_index) in enumerate(
+        zip(normalized_members, official_rows)
+    ):
+        member_label = member.get("member_label")
+        assert isinstance(member_label, str)
+        coordinate = f"{source_object_id}/r{row_index}c0"
+        bound_members.append(
+            SourceBoundTableMember(
+                position=position,
+                member_label=member_label,
+                source_ref=FormulaSourceRef(
+                    doc_id=table_uid,
+                    page_number=None,
+                    source=source_object_id,
+                    block_id="table",
+                    excerpt=member_label,
+                ),
+                source_coordinate=coordinate,
+                source_object_id=source_object_id,
+            )
+        )
+
+    axis_signature = ":".join(
+        str(axis_info.get(name, ""))
+        for name in (
+            "axis",
+            "header_row",
+            "section_phrase",
+            "start_row",
+            "end_row_exclusive",
+        )
+    )
+    collection = SourceBoundTableMemberCollection(
+        collection_id=f"table_section_collection:{table_uid}:{axis_signature}",
+        members=tuple(bound_members),
+        source_object_id=source_object_id,
+        axis_type=axis_type,
+        binding_status=SourceSeriesBindingStatus.EXACT,
+        range_explicit=True,
+        boundary_rows_excluded=True,
+    )
+    request = SourceBoundTableSectionCardinalityRequest(
+        collection=collection,
+        question_cardinality_match=ExecutionGateFact(True),
+    )
+    case_id = question_row.get("uid")
+    question = question_row.get("question")
+    if not isinstance(case_id, str) or not case_id or not isinstance(question, str):
+        raise ValueError("section question schema invalid")
+    return TATQASectionCardinalityOracleRuntime(
+        dataset="tatqa",
+        case_id=case_id,
+        question=question,
+        expression="source_bound_table_section_cardinality",
+        variables=(),
+        source_id=source_object_id,
+        native_program="source_bound_table_section_cardinality",
+        scale=str(question_row.get("scale") or "").lower().strip(),
+        output_multiplier="1",
+        section_request=request,
+        oracle_axis=axis_type.value,
+    )
+
+
 def load_tatqa_cases(
     path: str | Path,
     *,
     enable_predicate_cardinality: bool = True,
+    enable_section_cardinality: bool = True,
     predicate_taxonomy_path: str | Path | None = None,
 ) -> tuple[OracleCase, ...]:
     source_path = Path(path)
@@ -702,6 +959,11 @@ def load_tatqa_cases(
     accepted_predicates = (
         _accepted_predicate_proofs(taxonomy_path)
         if enable_predicate_cardinality
+        else {}
+    )
+    accepted_sections = (
+        _accepted_section_proofs(taxonomy_path)
+        if enable_section_cardinality
         else {}
     )
     if not isinstance(payload, list):
@@ -737,13 +999,28 @@ def load_tatqa_cases(
                     scale=scale,
                 )
             elif answer_type == "count":
-                proof = accepted_predicates.get(case_id)
-                if proof is not None:
+                predicate_proof = accepted_predicates.get(case_id)
+                section_proof = accepted_sections.get(case_id)
+                if predicate_proof is not None and section_proof is not None:
+                    raise ValueError("count case selected by multiple capabilities")
+                if predicate_proof is not None:
                     try:
                         runtime = _predicate_runtime_from_proof(
                             table_payload=table_payload,
                             question_row=question_row,
-                            proof=proof,
+                            proof=predicate_proof,
+                        )
+                        parsed = True
+                    except ValueError as exc:
+                        terminal = TerminalClassification.ADAPTER_PARSE_ERROR
+                        detail = str(exc)
+                        parsed = True
+                elif section_proof is not None:
+                    try:
+                        runtime = _section_cardinality_runtime_from_proof(
+                            table_payload=table_payload,
+                            question_row=question_row,
+                            proof=section_proof,
                         )
                         parsed = True
                     except ValueError as exc:
@@ -784,4 +1061,8 @@ def load_tatqa_cases(
     return tuple(cases)
 
 
-__all__ = ["TATQAPredicateCardinalityOracleRuntime", "load_tatqa_cases"]
+__all__ = [
+    "TATQAPredicateCardinalityOracleRuntime",
+    "TATQASectionCardinalityOracleRuntime",
+    "load_tatqa_cases",
+]

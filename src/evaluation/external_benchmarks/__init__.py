@@ -20,6 +20,7 @@ from evaluation.external_benchmarks.contracts import (
 from evaluation.external_benchmarks.finqa_adapter import FinQASeriesOracleRuntime, load_finqa_cases
 from evaluation.external_benchmarks.tatqa_adapter import (
     TATQAPredicateCardinalityOracleRuntime,
+    TATQASectionCardinalityOracleRuntime,
     load_tatqa_cases,
 )
 
@@ -33,6 +34,7 @@ __all__ = [
     "RuntimeVariable",
     "SourceManifestEntry",
     "TATQAPredicateCardinalityOracleRuntime",
+    "TATQASectionCardinalityOracleRuntime",
     "TerminalClassification",
     "build_source_manifest",
     "ensure_source_manifest",
