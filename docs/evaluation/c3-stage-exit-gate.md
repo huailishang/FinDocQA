@@ -136,7 +136,18 @@ H-01 之后，C3-M 会在正常 CalculationSolver 路径执行。该执行不能
 
 下一步应继续解决 C3-N/C3-O 的来源绑定与证据组装，而不是继续增加新的长尾算子。
 
-## 7. 产物与边界
+## 7. `baseline_head` 的含义
+
+`build_stage_exit_report()` 每次运行都会读取当时仓库的实际 Git HEAD，并写入机器报告的 `baseline_head`。专项测试验证该字段等于同一次运行环境的 `git rev-parse HEAD`，而不是永久绑定某个历史提交号。
+
+因此：
+
+    新运行生成的报告：baseline_head = evaluator 实际运行时 HEAD
+    已保存的历史报告：baseline_head = 生成该历史快照时的 HEAD
+
+正常提交代码后 HEAD 会变化，不应因此导致 stage-exit 回归失败。历史机器报告仍保持原样，作为当时测量结果的不可变快照。
+
+## 8. 产物与边界
 
 机器报告：evaluation_artifacts/c3_stage_exit_gate_v1/report.json
 

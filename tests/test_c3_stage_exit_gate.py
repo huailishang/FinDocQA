@@ -21,7 +21,17 @@ from scripts.evaluate_c3_stage_exit import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE_HEAD = "4bcac1d0597b6636eb12a10ff67aff0888b9efb5"
+
+
+def _runtime_git_head() -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return completed.stdout.strip()
 
 
 def _report() -> dict:
@@ -30,8 +40,9 @@ def _report() -> dict:
     return report
 
 
-def test_report_has_required_schema_fields_and_frozen_baseline() -> None:
+def test_report_has_required_schema_fields_and_runtime_baseline() -> None:
     report = _report()
+    runtime_head = _runtime_git_head()
 
     required = {
         "schema_version",
@@ -52,7 +63,8 @@ def test_report_has_required_schema_fields_and_frozen_baseline() -> None:
     }
     assert required <= set(report)
     assert report["schema_version"] == SCHEMA_VERSION
-    assert report["baseline_head"] == BASELINE_HEAD
+    assert re.fullmatch(r"[0-9a-f]{40}", runtime_head)
+    assert report["baseline_head"] == runtime_head
     assert report["measurement_valid"] is True
 
 

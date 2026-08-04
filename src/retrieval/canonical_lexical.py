@@ -23,6 +23,40 @@ from retrieval.interfaces import (
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_.%％]+|[\u4e00-\u9fff]{2,}")
 _BOOK_TITLE_RE = re.compile(r"《[^》]+》")
+_DOCUMENT_QUERY_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "of",
+        "in",
+        "on",
+        "for",
+        "to",
+        "and",
+        "or",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "what",
+        "which",
+        "how",
+        "during",
+        "this",
+        "that",
+        "these",
+        "those",
+        "from",
+        "by",
+        "with",
+        "at",
+        "as",
+    }
+)
 
 
 def _terms(text: str) -> tuple[str, ...]:
@@ -56,6 +90,14 @@ def _terms(text: str) -> tuple[str, ...]:
 def _question_terms(question: Question) -> tuple[str, ...]:
     text = "\n".join([question.text, *question.options.values()])
     return _terms(text)
+
+
+def _document_query_terms(question: Question) -> tuple[str, ...]:
+    raw_terms = _question_terms(question)
+    filtered = tuple(
+        term for term in raw_terms if term not in _DOCUMENT_QUERY_STOPWORDS
+    )
+    return filtered or raw_terms
 
 
 def _evidence_terms(question: Question) -> tuple[str, ...]:
@@ -155,7 +197,7 @@ class CanonicalDocumentRetriever(DocumentRetriever):
         store: DocumentStore,
     ) -> Sequence[DocumentHit]:
         del classification
-        terms = _question_terms(question)
+        terms = _document_query_terms(question)
         explicit = retrieval_doc_ids(question)
         documents: Iterable[CanonicalDocument]
         if explicit:
