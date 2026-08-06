@@ -29,6 +29,7 @@ BASELINE_REPORT_PATH = (
     / "c3_question_table_evidence_retrieval_baseline_v1"
     / "report.json"
 )
+BASELINE_REPORT_SHA256 = "33edc54487162e6b2f5cd7ed30c82c7087002bae0e2cdaf5d3fa7086f0539998"
 
 
 @pytest.fixture(scope="module")
@@ -47,6 +48,7 @@ def corpus(manifest: dict[str, object]) -> baseline.AdaptedCorpus:
 
 @pytest.fixture(scope="module")
 def report() -> dict[str, object]:
+    assert baseline.sha256_file(BASELINE_REPORT_PATH) == BASELINE_REPORT_SHA256
     return json.loads(BASELINE_REPORT_PATH.read_text(encoding="utf-8"))
 
 

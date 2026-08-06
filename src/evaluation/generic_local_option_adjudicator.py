@@ -22,6 +22,7 @@ _AMOUNT_UNIT_MULTIPLIER = {"元": 1.0, "万元": 1e4, "亿元": 1e8, "万亿元"
 _YEAR_RE = re.compile(r"(?:19|20)\d{2}")
 _TAG_RE = re.compile(r"<[^>]+>")
 _SPACE_RE = re.compile(r"\s+")
+_PAGE_FILE_RE = re.compile(r"^page_(\d+)\.md$", re.IGNORECASE)
 
 # Cross-domain metric/clause phrases.  These are semantic vocabulary, not qid
 # or final-answer rules.  Longest match wins when binding a numeric claim.
@@ -107,9 +108,19 @@ class EvidenceWindow:
     score: float
     text: str
     matched_terms: tuple[str, ...]
+    page_number: int | None = None
+    source_page_index: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class _EvidenceSource:
+    path: Path
+    page_number: int | None
+    source_page_index: int | None
+    page_resolution_gap: str = ""
 
 
 @dataclass(frozen=True)
@@ -123,10 +134,12 @@ class OptionAdjudication:
     option_numbers: tuple[str, ...]
     bound_evidence_number: str
     evidence: tuple[EvidenceWindow, ...]
+    page_resolution_gaps: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         row = asdict(self)
         row["evidence"] = [item.to_dict() for item in self.evidence]
+        row["page_resolution_gaps"] = list(self.page_resolution_gaps)
         return row
 
 
@@ -263,27 +276,57 @@ def _query_terms(text: str) -> tuple[str, ...]:
     return tuple(out[:18])
 
 
-def _candidate_paths(data_root: Path, domain: str, doc_id: str) -> list[Path]:
-    candidates = [
-        data_root / "processed_mineru" / domain / doc_id / "auto" / f"{doc_id}.md",
+def _page_identity(path: Path) -> tuple[int | None, int | None]:
+    match = _PAGE_FILE_RE.match(path.name)
+    if not match:
+        return None, None
+    page_number = int(match.group(1))
+    return page_number, max(0, page_number - 1)
+
+
+def _candidate_sources(data_root: Path, domain: str, doc_id: str) -> tuple[list[_EvidenceSource], tuple[str, ...]]:
+    """Return page-addressable sources, preferring adapted page contracts.
+
+    Whole-document canonical Markdown is intentionally not returned as an
+    adjudication source. It may help subject identity lookup elsewhere, but it
+    cannot support or contradict an option because it has no stable page
+    identity.
+    """
+    page_roots = (
         data_root / "processed_mineru_retrieval" / domain / doc_id,
         data_root / "processed_pymupdf4llm" / domain / doc_id,
-    ]
-    paths: list[Path] = []
-    for candidate in candidates:
-        if candidate.is_file():
-            paths.append(candidate)
-        elif candidate.is_dir():
-            paths.extend(sorted(candidate.glob("*.md")))
-    # Keep distinct files only.
+    )
+    sources: list[_EvidenceSource] = []
     seen: set[str] = set()
-    output: list[Path] = []
-    for path in paths:
-        key = str(path.resolve())
-        if key not in seen:
+    for root in page_roots:
+        if not root.is_dir():
+            continue
+        for path in sorted(root.glob("page_*.md")):
+            page_number, source_page_index = _page_identity(path)
+            if page_number is None or source_page_index is None:
+                continue
+            key = str(path.resolve())
+            if key in seen:
+                continue
             seen.add(key)
-            output.append(path)
-    return output
+            sources.append(
+                _EvidenceSource(
+                    path=path,
+                    page_number=page_number,
+                    source_page_index=source_page_index,
+                )
+            )
+    if sources:
+        return sources, ()
+
+    fallbacks = (
+        data_root / "processed_mineru" / domain / doc_id / "auto" / f"{doc_id}.md",
+        data_root / "processed_mineru" / domain / doc_id / f"{doc_id}.md",
+    )
+    existing = [path for path in fallbacks if path.is_file()]
+    if existing:
+        return [], (f"{doc_id}:page_level_source_unavailable",)
+    return [], (f"{doc_id}:source_unavailable",)
 
 
 @lru_cache(maxsize=512)
@@ -309,20 +352,23 @@ def _windows_cached(path_str: str, radius: int = 850) -> tuple[str, ...]:
     return tuple(output)
 
 
-def retrieve_option_windows(
+def _retrieve_option_windows_with_gaps(
     *,
     data_root: Path,
     domain: str,
     doc_ids: Sequence[str],
     option_text: str,
     top_k: int = 5,
-) -> list[EvidenceWindow]:
+) -> tuple[list[EvidenceWindow], tuple[str, ...]]:
     terms = _query_terms(option_text)
     option_entities = extract_option_entities(option_text)
     scored: list[EvidenceWindow] = []
+    page_resolution_gaps: list[str] = []
     for doc_id in doc_ids:
-        for path in _candidate_paths(data_root, domain, doc_id):
-            for window in _windows_cached(str(path)):
+        sources, gaps = _candidate_sources(data_root, domain, str(doc_id))
+        page_resolution_gaps.extend(gaps)
+        for source in sources:
+            for window in _windows_cached(str(source.path)):
                 compact = _normalize(window)
                 matched = tuple(term for term in terms if _normalize(term) in compact)
                 if not matched:
@@ -336,19 +382,23 @@ def retrieve_option_windows(
                     score += 10.0
                 entity_probe = EvidenceWindow(
                     doc_id=str(doc_id),
-                    source_path=str(path),
+                    source_path=str(source.path),
                     score=0.0,
                     text=window,
                     matched_terms=matched,
+                    page_number=source.page_number,
+                    source_page_index=source.source_page_index,
                 )
                 if option_entities and _evidence_matches_entities(option_entities, entity_probe):
                     score += 20.0
                 scored.append(EvidenceWindow(
                     doc_id=str(doc_id),
-                    source_path=str(path),
+                    source_path=str(source.path),
                     score=round(score, 4),
                     text=window,
                     matched_terms=matched,
+                    page_number=source.page_number,
+                    source_page_index=source.source_page_index,
                 ))
     scored.sort(key=lambda row: (-row.score, row.source_path, row.text[:30]))
     unique: list[EvidenceWindow] = []
@@ -361,7 +411,67 @@ def retrieve_option_windows(
         unique.append(row)
         if len(unique) >= top_k:
             break
-    return unique
+    return unique, tuple(dict.fromkeys(page_resolution_gaps))
+
+
+def retrieve_option_windows(
+    *,
+    data_root: Path,
+    domain: str,
+    doc_ids: Sequence[str],
+    option_text: str,
+    top_k: int = 5,
+) -> list[EvidenceWindow]:
+    windows, _ = _retrieve_option_windows_with_gaps(
+        data_root=data_root,
+        domain=domain,
+        doc_ids=doc_ids,
+        option_text=option_text,
+        top_k=top_k,
+    )
+    return windows
+
+
+@dataclass(frozen=True)
+class _Quantity:
+    raw: str
+    value: float
+    normalized_value: float
+    unit: str
+    kind: str
+
+
+def _page_resolved(evidence: EvidenceWindow) -> bool:
+    return (
+        evidence.page_number is not None
+        and evidence.source_page_index is not None
+        and bool(evidence.source_path)
+        and _PAGE_FILE_RE.match(Path(evidence.source_path).name) is not None
+    )
+
+
+def _explicit_years(text: str) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(_YEAR_RE.findall(str(text or ""))))
+
+
+def _evidence_matches_explicit_years(option_text: str, evidence: EvidenceWindow) -> bool:
+    required = _explicit_years(option_text)
+    if not required:
+        return True
+    combined = _normalize(evidence.text + " " + _document_subject_head(evidence.source_path, evidence.doc_id))
+    return all(year in combined for year in required)
+
+
+def _evidence_matches_high_confidence_context(
+    option_text: str,
+    option_entities: Sequence[str],
+    evidence: EvidenceWindow,
+) -> bool:
+    return (
+        _page_resolved(evidence)
+        and _evidence_matches_binding_context(option_text, option_entities, evidence)
+        and _evidence_matches_explicit_years(option_text, evidence)
+    )
 
 
 def _compatible_metric_index(metric: str, window: str) -> int:
@@ -382,29 +492,89 @@ def _compatible_metric_index(metric: str, window: str) -> int:
         return idx
 
 
+def _metric_local_section(metric: str, window: str, max_chars: int = 320) -> str:
+    compact = _normalize(window)
+    idx = _compatible_metric_index(metric, window)
+    if idx < 0:
+        return ""
+    metric_compact = _normalize(metric)
+    tail = compact[idx + len(metric_compact): idx + len(metric_compact) + max_chars]
+    cut_points: list[int] = []
+    for delimiter in ("。", "；", ";"):
+        pos = tail.find(delimiter)
+        if pos > 0:
+            cut_points.append(pos)
+    for other in _METRIC_PHRASES:
+        other_compact = _normalize(other)
+        if not other_compact or other_compact == metric_compact:
+            continue
+        pos = tail.find(other_compact)
+        if pos > 0:
+            cut_points.append(pos)
+    if cut_points:
+        tail = tail[: min(cut_points)]
+    return tail
+
+
+def _semantic_anchor_section(anchor: str, window: str, radius: int = 180) -> str:
+    compact = _normalize(window)
+    anchor_compact = _normalize(anchor)
+    idx = compact.find(anchor_compact)
+    if idx < 0:
+        return ""
+    return compact[max(0, idx - radius): idx + len(anchor_compact) + radius]
+
+
+def _quantities(text: str) -> tuple[_Quantity, ...]:
+    output: list[_Quantity] = []
+    for raw, unit in _AMOUNT_RE.findall(str(text or "")):
+        value = float(raw.replace(",", ""))
+        output.append(
+            _Quantity(
+                raw=raw,
+                value=value,
+                normalized_value=value * _AMOUNT_UNIT_MULTIPLIER[unit],
+                unit=unit,
+                kind="amount",
+            )
+        )
+    for raw in _PERCENT_RE.findall(str(text or "")):
+        normalized = raw.replace("％", "%").replace("%", "")
+        output.append(
+            _Quantity(
+                raw=normalized,
+                value=float(normalized.replace(",", "")),
+                normalized_value=float(normalized.replace(",", "")),
+                unit="%",
+                kind="percent",
+            )
+        )
+    return tuple(output)
+
+
+def _unique_quantities(values: Sequence[_Quantity]) -> tuple[_Quantity, ...]:
+    output: list[_Quantity] = []
+    seen: set[tuple[str, float]] = set()
+    for value in values:
+        key = (value.kind, round(value.normalized_value, 8))
+        if key in seen:
+            continue
+        seen.add(key)
+        output.append(value)
+    return tuple(output)
+
+
+def _quantity_equal(left: _Quantity, right: _Quantity) -> bool:
+    if left.kind != right.kind:
+        return False
+    tolerance = max(1e-6, abs(left.normalized_value) * 1e-9, abs(right.normalized_value) * 1e-9)
+    return abs(left.normalized_value - right.normalized_value) <= tolerance
+
+
 def _bound_number(metric: str, window: str) -> str:
-    if not metric:
-        return ""
-    compact = _normalize(window)
-    metric_compact = _normalize(metric)
-    idx = _compatible_metric_index(metric, window)
-    if idx < 0:
-        return ""
-    tail = compact[idx + len(metric_compact): idx + len(metric_compact) + 100]
-    match = _NUM_RE.search(tail)
-    return match.group(0) if match else ""
-
-
-def _near_metric_contains_number(metric: str, number: str, window: str) -> bool:
-    if not metric or not number:
-        return False
-    compact = _normalize(window)
-    metric_compact = _normalize(metric)
-    idx = _compatible_metric_index(metric, window)
-    if idx < 0:
-        return False
-    section = compact[max(0, idx - 80): idx + len(metric_compact) + 180]
-    return number in set(_numbers(section))
+    section = _metric_local_section(metric, window)
+    quantities = _unique_quantities(_quantities(section))
+    return quantities[0].raw if len(quantities) == 1 else ""
 
 
 def _numeric_comparator(
@@ -413,36 +583,20 @@ def _numeric_comparator(
     windows: Sequence[EvidenceWindow],
     option_entities: Sequence[str],
 ) -> tuple[str, str, str, EvidenceWindow] | None:
-    match = re.search(r"(?:超过|大于|高于)\s*([-+]?\d+(?:\.\d+)?)\s*[%％]", option_text)
-    if not match:
+    match = re.search(r"(?:超过|大于|高于)\s*([-+]?\d(?:[\d,]*\d)?(?:\.\d+)?)\s*[%％]", option_text)
+    if not match or not metric:
         return None
-    # A percentage threshold is meaningful only when the option exposes a
-    # recognized metric/clause. Without metric binding, an unrelated percentage
-    # from the same entity or paragraph must never satisfy the comparator.
-    if not metric:
-        return None
-    threshold = float(match.group(1))
+    threshold = float(match.group(1).replace(",", ""))
     for evidence in windows:
-        if not _evidence_matches_binding_context(option_text, option_entities, evidence):
+        if not _evidence_matches_high_confidence_context(option_text, option_entities, evidence):
             continue
-        compact = _normalize(evidence.text)
-        metric_compact = _normalize(metric)
-        if metric and metric_compact not in compact:
+        section = _metric_local_section(metric, evidence.text)
+        values = _unique_quantities([value for value in _quantities(section) if value.kind == "percent"])
+        if len(values) != 1:
             continue
-        if metric:
-            idx = _compatible_metric_index(metric, evidence.text)
-            if idx < 0:
-                continue
-            tail = compact[idx + len(metric_compact): idx + len(metric_compact) + 260]
-        else:
-            tail = compact
-        percentages = [float(value.replace("％", "%").replace("%", "")) for value in _PERCENT_RE.findall(tail)]
-        if not percentages:
-            continue
-        # A comparator such as “超过30%” should bind to an explicit percentage
-        # in the metric-local section, not to the first raw amount after metric.
-        value = percentages[0]
-        return ("SUPPORTED" if value > threshold else "CONTRADICTED", str(value), f"threshold={threshold}", evidence)
+        value = values[0]
+        relation = "SUPPORTED" if value.normalized_value > threshold else "CONTRADICTED"
+        return relation, value.raw, f"threshold={threshold}%;evidence={value.raw}", evidence
     return None
 
 
@@ -457,23 +611,67 @@ def _amount_threshold_comparator(
         return None
     threshold_raw, threshold_unit = match.groups()
     threshold = float(threshold_raw.replace(",", "")) * _AMOUNT_UNIT_MULTIPLIER[threshold_unit]
-    metric_compact = _normalize(metric)
     for evidence in windows:
-        if not _evidence_matches_binding_context(option_text, option_entities, evidence):
+        if not _evidence_matches_high_confidence_context(option_text, option_entities, evidence):
             continue
-        compact = _normalize(evidence.text)
-        idx = _compatible_metric_index(metric, evidence.text)
-        if idx < 0:
+        section = _metric_local_section(metric, evidence.text)
+        values = _unique_quantities([value for value in _quantities(section) if value.kind == "amount"])
+        if len(values) != 1:
             continue
-        tail = compact[idx + len(metric_compact): idx + len(metric_compact) + 260]
-        amount_match = _AMOUNT_RE.search(tail)
-        if not amount_match:
+        value = values[0]
+        relation = "SUPPORTED" if value.normalized_value > threshold else "CONTRADICTED"
+        reason = f"threshold={threshold_raw}{threshold_unit};evidence={value.raw}"
+        return relation, value.raw, reason, evidence
+    return None
+
+
+def _metric_quantity_binding(
+    option_text: str,
+    metric: str,
+    windows: Sequence[EvidenceWindow],
+    option_entities: Sequence[str],
+) -> tuple[str, str, str, EvidenceWindow] | None:
+    expected = _unique_quantities(_quantities(option_text))
+    if not metric or len(expected) != 1:
+        return None
+    expected_value = expected[0]
+    for evidence in windows:
+        if not _evidence_matches_high_confidence_context(option_text, option_entities, evidence):
             continue
-        value_raw, value_unit = amount_match.groups()
-        value = float(value_raw.replace(",", "")) * _AMOUNT_UNIT_MULTIPLIER[value_unit]
-        relation = "SUPPORTED" if value > threshold else "CONTRADICTED"
-        reason = f"threshold={threshold_raw}{threshold_unit};evidence={value_raw}{value_unit}"
-        return relation, f"{value_raw}{value_unit}", reason, evidence
+        section = _metric_local_section(metric, evidence.text)
+        observed = _unique_quantities(
+            [value for value in _quantities(section) if value.kind == expected_value.kind]
+        )
+        if any(_quantity_equal(expected_value, value) for value in observed):
+            match = next(value for value in observed if _quantity_equal(expected_value, value))
+            return "SUPPORTED", match.raw, "metric_quantity_bound", evidence
+        if len(observed) == 1:
+            return "CONTRADICTED", observed[0].raw, "metric_quantity_bound_to_different_value", evidence
+    return None
+
+
+def _directional_contradiction(
+    option_text: str,
+    metric: str,
+    windows: Sequence[EvidenceWindow],
+    option_entities: Sequence[str],
+) -> tuple[str, str, EvidenceWindow] | None:
+    semantic_anchors = _metric_phrases(option_text)
+    if not semantic_anchors:
+        return None
+    for positive, negatives in _OPPOSITE_MARKERS:
+        if positive not in option_text:
+            continue
+        for evidence in windows:
+            if not _evidence_matches_high_confidence_context(option_text, option_entities, evidence):
+                continue
+            for anchor in semantic_anchors:
+                section = _semantic_anchor_section(anchor, evidence.text)
+                if not section:
+                    continue
+                for negative in negatives:
+                    if _normalize(negative) in section:
+                        return f"opposite_marker:{positive}->{negative}", _bound_number(metric, evidence.text), evidence
     return None
 
 
@@ -482,103 +680,114 @@ def adjudicate_option(
     label: str,
     option_text: str,
     windows: Sequence[EvidenceWindow],
+    page_resolution_gaps: Sequence[str] = (),
 ) -> OptionAdjudication:
     metric = _metric_phrase(option_text)
     option_numbers = tuple(number for number in _numbers(option_text) if len(number) > 0)
     option_entities = extract_option_entities(option_text)
     compact_option = _normalize(option_text)
-
-    # Strongest case: the full proposition is reproduced locally.
+    unresolved_gaps = list(page_resolution_gaps)
+    valid_windows: list[EvidenceWindow] = []
     for evidence in windows:
+        if _page_resolved(evidence):
+            valid_windows.append(evidence)
+        else:
+            unresolved_gaps.append(f"{evidence.source_path or evidence.doc_id}:page_identity_missing")
+    unresolved_gaps = list(dict.fromkeys(unresolved_gaps))
+
+    if not valid_windows:
+        reason = "page_resolution_gap_no_page_level_evidence" if unresolved_gaps else "no_local_evidence"
+        return OptionAdjudication(
+            label, option_text, "UNRESOLVED", "LOW", reason, metric, option_numbers, "", (), tuple(unresolved_gaps)
+        )
+
+    # Strongest support: the full proposition is reproduced on an addressable page.
+    for evidence in valid_windows:
         compact_window = _normalize(evidence.text)
         if compact_option and compact_option in compact_window:
-            return OptionAdjudication(label, option_text, "SUPPORTED", "HIGH", "full_proposition_reproduced", metric, option_numbers, "", (evidence,))
+            return OptionAdjudication(
+                label, option_text, "SUPPORTED", "HIGH", "full_proposition_reproduced",
+                metric, option_numbers, "", (evidence,), tuple(unresolved_gaps)
+            )
 
-    comparator = _numeric_comparator(option_text, metric, windows, option_entities)
+    comparator = _numeric_comparator(option_text, metric, valid_windows, option_entities)
     if comparator:
         relation, value, reason, evidence = comparator
-        return OptionAdjudication(label, option_text, relation, "HIGH", f"numeric_comparator:{reason}", metric, option_numbers, value, (evidence,))
+        return OptionAdjudication(
+            label, option_text, relation, "HIGH", f"numeric_comparator:{reason}",
+            metric, option_numbers, value, (evidence,), tuple(unresolved_gaps)
+        )
 
-    amount_comparator = _amount_threshold_comparator(option_text, metric, windows, option_entities)
+    amount_comparator = _amount_threshold_comparator(option_text, metric, valid_windows, option_entities)
     if amount_comparator:
         relation, value, reason, evidence = amount_comparator
-        return OptionAdjudication(label, option_text, relation, "HIGH", f"amount_comparator:{reason}", metric, option_numbers, value, (evidence,))
+        return OptionAdjudication(
+            label, option_text, relation, "HIGH", f"amount_comparator:{reason}",
+            metric, option_numbers, value, (evidence,), tuple(unresolved_gaps)
+        )
 
-    # Directional/negation contradictions are decisive when the same semantic
-    # clause (not merely the same broad paragraph) is present.
-    semantic_anchors = _metric_phrases(option_text)
-    for positive, negatives in _OPPOSITE_MARKERS:
-        if positive not in option_text:
-            continue
-        for evidence in windows:
-            if not _evidence_matches_binding_context(option_text, option_entities, evidence):
-                continue
-            compact_window = _normalize(evidence.text)
-            anchor_ok = any(_normalize(anchor) in compact_window for anchor in semantic_anchors)
-            if option_numbers:
-                anchor_ok = anchor_ok or any(number in compact_window for number in option_numbers)
-            if not anchor_ok:
-                continue
-            for negative in negatives:
-                if _normalize(negative) in compact_window:
-                    return OptionAdjudication(label, option_text, "CONTRADICTED", "HIGH", f"opposite_marker:{positive}->{negative}", metric, option_numbers, _bound_number(metric, evidence.text), (evidence,))
+    contradiction = _directional_contradiction(option_text, metric, valid_windows, option_entities)
+    if contradiction:
+        reason, bound, evidence = contradiction
+        return OptionAdjudication(
+            label, option_text, "CONTRADICTED", "HIGH", reason, metric, option_numbers, bound,
+            (evidence,), tuple(unresolved_gaps)
+        )
 
-    # Metric/value binding.  The nearest number after a metric is treated as the
-    # bound value.  This catches statements that borrow a number from a nearby
-    # but different metric (e.g. contract amount vs revenue).
-    meaningful_numbers = [number for number in option_numbers if not (len(number) == 4 and number.startswith(("19", "20")))]
-    if metric:
-        for evidence in windows:
-            if not _evidence_matches_binding_context(option_text, option_entities, evidence):
-                continue
-            compact_window = _normalize(evidence.text)
-            if _normalize(metric) not in compact_window:
-                continue
-            bound = _bound_number(metric, evidence.text)
-            if meaningful_numbers:
-                if bound and any(bound == number for number in meaningful_numbers):
-                    return OptionAdjudication(label, option_text, "SUPPORTED", "HIGH", "metric_nearest_value_bound", metric, option_numbers, bound, (evidence,))
-                if bound and all(bound != number for number in meaningful_numbers):
-                    return OptionAdjudication(label, option_text, "CONTRADICTED", "HIGH", "metric_bound_to_different_value", metric, option_numbers, bound, (evidence,))
-                if not bound and any(_near_metric_contains_number(metric, number, evidence.text) for number in meaningful_numbers):
-                    return OptionAdjudication(label, option_text, "SUPPORTED", "MEDIUM", "metric_value_present_without_unique_nearest_binding", metric, option_numbers, bound, (evidence,))
+    quantity_binding = _metric_quantity_binding(option_text, metric, valid_windows, option_entities)
+    if quantity_binding:
+        relation, value, reason, evidence = quantity_binding
+        return OptionAdjudication(
+            label, option_text, relation, "HIGH", reason, metric, option_numbers, value,
+            (evidence,), tuple(unresolved_gaps)
+        )
 
-    # Date/regulatory/direct-fact clauses: require most semantic query anchors in
-    # one source window.  Numeric years alone are not enough.
+    meaningful_numbers = [
+        number for number in option_numbers
+        if not (len(number) == 4 and number.startswith(("19", "20")))
+    ]
     terms = [term for term in _query_terms(option_text) if not _NUM_RE.fullmatch(_normalize(term))]
     option_polarity = _direction_polarity(option_text)
-    for evidence in windows:
+    for evidence in valid_windows:
         if not _evidence_matches_binding_context(option_text, option_entities, evidence):
             continue
+        if not _evidence_matches_explicit_years(option_text, evidence):
+            continue
         evidence_polarity = _direction_polarity(evidence.text)
-        # Semantic-anchor fallback cannot override an explicit directional
-        # contradiction. Opposite polarity stays unresolved/contradicted via the
-        # dedicated polarity path instead of becoming a false support.
-        if option_polarity and evidence_polarity != option_polarity:
+        if option_polarity and evidence_polarity and evidence_polarity != option_polarity:
             continue
         compact_window = _normalize(evidence.text)
         matched = [term for term in terms if _normalize(term) in compact_window]
         evidence_numbers = set(_numbers(evidence.text))
         numeric_ok = not meaningful_numbers or all(number in evidence_numbers for number in meaningful_numbers)
         if numeric_ok and matched and len(matched) >= max(1, min(2, len(terms))):
-            return OptionAdjudication(label, option_text, "SUPPORTED", "MEDIUM", "semantic_anchor_bundle_present", metric, option_numbers, _bound_number(metric, evidence.text), (evidence,))
+            return OptionAdjudication(
+                label, option_text, "SUPPORTED", "MEDIUM", "semantic_anchor_bundle_present",
+                metric, option_numbers, _bound_number(metric, evidence.text), (evidence,), tuple(unresolved_gaps)
+            )
 
     same_entity_windows = [
-        evidence for evidence in windows
+        evidence for evidence in valid_windows
         if _evidence_matches_entities(option_entities, evidence)
     ]
     binding_context_windows = [
         evidence for evidence in same_entity_windows
         if _evidence_matches_period(option_text, evidence)
+        and _evidence_matches_explicit_years(option_text, evidence)
     ]
     if option_entities and not same_entity_windows:
         unresolved_reason = "entity_binding_gate_no_same_entity_evidence"
-    elif _specific_period_tokens(option_text) and not binding_context_windows:
+    elif (_specific_period_tokens(option_text) or _explicit_years(option_text)) and not binding_context_windows:
         unresolved_reason = "period_binding_gate_no_matching_period_evidence"
+    elif unresolved_gaps:
+        unresolved_reason = "page_resolution_gap_incomplete_source_set"
     else:
         unresolved_reason = "insufficient_generic_local_entailment"
-    evidence_tail = (binding_context_windows or same_entity_windows or list(windows))[:2]
-    return OptionAdjudication(label, option_text, "UNRESOLVED", "LOW", unresolved_reason, metric, option_numbers, "", tuple(evidence_tail))
+    evidence_tail = (binding_context_windows or same_entity_windows or valid_windows)[:2]
+    return OptionAdjudication(
+        label, option_text, "UNRESOLVED", "LOW", unresolved_reason, metric, option_numbers, "",
+        tuple(evidence_tail), tuple(unresolved_gaps)
+    )
 
 
 def adjudicate_question(
@@ -590,13 +799,20 @@ def adjudicate_question(
 ) -> dict[str, Any]:
     rows: list[OptionAdjudication] = []
     for label, option_text in options.items():
-        windows = retrieve_option_windows(
+        windows, page_resolution_gaps = _retrieve_option_windows_with_gaps(
             data_root=data_root,
             domain=domain,
             doc_ids=doc_ids,
             option_text=option_text,
         )
-        rows.append(adjudicate_option(label=str(label), option_text=str(option_text), windows=windows))
+        rows.append(
+            adjudicate_option(
+                label=str(label),
+                option_text=str(option_text),
+                windows=windows,
+                page_resolution_gaps=page_resolution_gaps,
+            )
+        )
     supported = [row.label for row in rows if row.relation == "SUPPORTED"]
     unresolved = [row.label for row in rows if row.relation == "UNRESOLVED"]
     return {

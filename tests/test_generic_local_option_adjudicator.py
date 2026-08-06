@@ -5,15 +5,23 @@ from evaluation.generic_local_option_adjudicator import (
 )
 
 
-def ev(text: str) -> EvidenceWindow:
-    return EvidenceWindow(doc_id="doc", source_path="doc.md", score=10.0, text=text, matched_terms=())
+def ev(text: str, *, doc_id: str = "doc", page_number: int = 1) -> EvidenceWindow:
+    return EvidenceWindow(
+        doc_id=doc_id,
+        source_path=f"page_{page_number:04d}.md",
+        score=10.0,
+        text=text,
+        matched_terms=(),
+        page_number=page_number,
+        source_page_index=page_number - 1,
+    )
 
 
 def test_metric_value_binding_supports_same_metric_number():
     row = adjudicate_option(
         label="A",
         option_text="公司2024年研发投入占营业收入比例为6.97%",
-        windows=[ev("研发投入占营业收入比例 6.97%，上年为6.63%")],
+        windows=[ev("公司2024年研发投入占营业收入比例 6.97%，上年为6.63%")],
     )
     assert row.relation == "SUPPORTED"
 
@@ -22,7 +30,7 @@ def test_metric_value_binding_rejects_number_borrowed_from_other_metric():
     row = adjudicate_option(
         label="B",
         option_text="公司2024年新签合同额达到2.19万亿元",
-        windows=[ev("全年新签合同额4.5万亿元，完成营业收入2.19万亿元")],
+        windows=[ev("公司2024年全年新签合同额4.5万亿元，完成营业收入2.19万亿元")],
     )
     assert row.relation == "CONTRADICTED"
     assert row.bound_evidence_number == "4.5"
@@ -32,7 +40,7 @@ def test_directional_contradiction_detects_decrease_vs_growth():
     row = adjudicate_option(
         label="C",
         option_text="公司2024年经营活动产生的现金流量净额较上年有所增长",
-        windows=[ev("经营活动产生的现金流量净额为133453873000元，同比下降21.37%")],
+        windows=[ev("公司2024年经营活动产生的现金流量净额为133453873000元，同比下降21.37%")],
     )
     assert row.relation == "CONTRADICTED"
 
@@ -70,7 +78,7 @@ def test_threshold_comparison_supports_value_above_threshold():
     row = adjudicate_option(
         label="D",
         option_text="公司2025年经营活动产生的现金流量净额同比增长超过30%",
-        windows=[ev("经营活动产生的现金流量净额同比增长37.35%")],
+        windows=[ev("公司2025年经营活动产生的现金流量净额同比增长37.35%")],
     )
     assert row.relation == "SUPPORTED"
 
