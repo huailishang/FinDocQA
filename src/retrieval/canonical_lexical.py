@@ -9,10 +9,10 @@ from __future__ import annotations
 import re
 from bisect import bisect_left
 from dataclasses import dataclass
-from typing import Iterable, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from contracts import ClassificationResult, EvidenceCandidate, Question, retrieval_doc_ids
-from document.contracts import CanonicalDocument, CanonicalPage
+from document.contracts import CanonicalDocument, CanonicalPage, CanonicalTable
 from document.store import DocumentStore
 from retrieval.interfaces import (
     DocumentHit,
@@ -57,6 +57,41 @@ _DOCUMENT_QUERY_STOPWORDS = frozenset(
         "as",
     }
 )
+_ROW_LABEL_MATCH_STOPWORDS = _DOCUMENT_QUERY_STOPWORDS | frozenset(
+    {
+        "average",
+        "between",
+        "did",
+        "does",
+        "exceed",
+        "exceeded",
+        "highest",
+        "many",
+        "million",
+        "millions",
+        "period",
+        "thousand",
+        "value",
+        "values",
+        "year",
+        "years",
+    }
+)
+
+
+@dataclass(frozen=True)
+class _TableRowAnchor:
+    text: str
+    before_text: str
+    after_text: str
+    table_id: str
+    source_object_id: str
+    row_index: int
+    row_label: str
+    match_score: int
+    matched_terms: tuple[str, ...]
+    span: tuple[int, int]
+    coordinate_ids: tuple[str, ...]
 
 
 def _terms(text: str) -> tuple[str, ...]:
@@ -185,6 +220,156 @@ def _window(
     return snippet, before, after, score, matched
 
 
+def _normalized_row_label_terms(text: str) -> tuple[str, ...]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for raw_term in _terms(text):
+        term = raw_term.strip("._-%％")
+        if not term or any(ch.isdigit() for ch in term):
+            continue
+        is_cjk = all("\u4e00" <= ch <= "\u9fff" for ch in term)
+        if not is_cjk:
+            if term in _ROW_LABEL_MATCH_STOPWORDS:
+                continue
+            if len(term) > 3 and term.endswith("s") and not term.endswith("ss"):
+                term = term[:-1]
+        if term and term not in seen:
+            seen.add(term)
+            result.append(term)
+    return tuple(result)
+
+
+def _row_label_match_score(
+    label: str,
+    question_terms: Sequence[str],
+) -> tuple[int, tuple[str, ...]]:
+    label_terms = set(_normalized_row_label_terms(label))
+    matched = tuple(term for term in question_terms if term in label_terms)
+    score = sum(3 if len(term) >= 6 else 2 if len(term) >= 4 else 1 for term in matched)
+    return score, matched
+
+
+def _table_source_object_id(table: CanonicalTable) -> str:
+    metadata = table.metadata if isinstance(table.metadata, Mapping) else {}
+    return str(metadata.get("source_object_id") or table.table_id or "")
+
+
+def _valid_coordinate_span(
+    coordinate_spans: Mapping[str, object],
+    coordinate: str,
+    *,
+    text_length: int,
+) -> tuple[int, int] | None:
+    raw_span = coordinate_spans.get(coordinate)
+    if (
+        not isinstance(raw_span, Sequence)
+        or isinstance(raw_span, (str, bytes, bytearray))
+        or len(raw_span) != 2
+    ):
+        return None
+    start, end = raw_span
+    if (
+        not isinstance(start, int)
+        or isinstance(start, bool)
+        or not isinstance(end, int)
+        or isinstance(end, bool)
+        or start < 0
+        or end < start
+        or end > text_length
+    ):
+        return None
+    return start, end
+
+
+def _table_row_anchor(
+    *,
+    page: CanonicalPage,
+    question: Question,
+    flank: int,
+) -> _TableRowAnchor | None:
+    question_terms = _normalized_row_label_terms(
+        "\n".join([question.text, *question.options.values()])
+    )
+    if not question_terms or not page.tables:
+        return None
+
+    scored_rows: list[
+        tuple[int, tuple[str, ...], CanonicalTable, int, tuple[str, ...]]
+    ] = []
+    for table in page.tables:
+        row_offset = 1 if table.headers else 0
+        for row_index, raw_row in enumerate(table.rows, start=row_offset):
+            row = tuple(str(cell or "") for cell in raw_row)
+            if (
+                not row
+                or not row[0].strip()
+                or not any(cell.strip() for cell in row[1:])
+            ):
+                continue
+            score, matched = _row_label_match_score(row[0], question_terms)
+            scored_rows.append((score, matched, table, row_index, row))
+
+    if not scored_rows:
+        return None
+    top_score = max(item[0] for item in scored_rows)
+    if top_score <= 0:
+        return None
+    winners = [item for item in scored_rows if item[0] == top_score]
+    if len(winners) != 1:
+        return None
+
+    score, matched_terms, table, row_index, row = winners[0]
+    source_object_id = _table_source_object_id(table)
+    if not source_object_id:
+        return None
+    coordinate_spans = page.metadata.get("coordinate_spans")
+    if not isinstance(coordinate_spans, Mapping):
+        coordinate_spans = table.metadata.get("coordinate_spans")
+    if not isinstance(coordinate_spans, Mapping):
+        return None
+
+    coordinates = tuple(
+        f"{source_object_id}/r{row_index}c{column_index}"
+        for column_index in range(len(row))
+    )
+    spans: list[tuple[int, int]] = []
+    for coordinate in coordinates:
+        span = _valid_coordinate_span(
+            coordinate_spans,
+            coordinate,
+            text_length=len(page.text),
+        )
+        if span is None:
+            return None
+        spans.append(span)
+    if not spans:
+        return None
+
+    start = min(span[0] for span in spans)
+    end = max(span[1] for span in spans)
+    if end <= start:
+        return None
+    snippet = page.text[start:end]
+    if not snippet or page.text.find(snippet) != start:
+        return None
+    if page.text.find(snippet, start + 1) >= 0:
+        return None
+
+    return _TableRowAnchor(
+        text=snippet,
+        before_text=page.text[max(0, start - flank):start].strip(),
+        after_text=page.text[end:min(len(page.text), end + flank)].strip(),
+        table_id=table.table_id,
+        source_object_id=source_object_id,
+        row_index=row_index,
+        row_label=row[0],
+        match_score=score,
+        matched_terms=matched_terms,
+        span=(start, end),
+        coordinate_ids=coordinates,
+    )
+
+
 @dataclass
 class CanonicalDocumentRetriever(DocumentRetriever):
     top_k: int = 8
@@ -303,6 +488,15 @@ class CanonicalLexicalEvidenceRetriever:
         )
         if score <= 0 and not retrieval_doc_ids(question):
             return None
+        anchor = _table_row_anchor(
+            page=page,
+            question=question,
+            flank=self.context_flank_chars,
+        )
+        if anchor is not None:
+            snippet = anchor.text
+            before = anchor.before_text
+            after = anchor.after_text
         if not snippet:
             return None
         page_number = page.page_number or 0
@@ -328,6 +522,22 @@ class CanonicalLexicalEvidenceRetriever:
                 "document_retriever": doc_hit.retriever,
                 "parser_name": document.parser_name,
                 "source_type": document.source_type,
+                **(
+                    {
+                        "table_row_anchor": {
+                            "table_id": anchor.table_id,
+                            "source_object_id": anchor.source_object_id,
+                            "row_index": anchor.row_index,
+                            "row_label": anchor.row_label,
+                            "match_score": anchor.match_score,
+                            "matched_terms": list(anchor.matched_terms),
+                            "span": list(anchor.span),
+                            "coordinate_ids": list(anchor.coordinate_ids),
+                        }
+                    }
+                    if anchor is not None
+                    else {}
+                ),
                 "lineage": {
                     "source_path": (
                         page.lineage.source_path if page.lineage else document.source_uri

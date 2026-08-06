@@ -675,6 +675,45 @@ Phase 6
 
 ---
 
+## 10.1 后续知识组织层（规划，不进入当前主线）
+
+在 Canonical Document 和 QA 消费链之间，后续可以通过两个独立实验验证是否需要增加知识组织层：
+
+```text
+Canonical Document Store
+        ├─ Document Memory Index
+        │   └─ 章节树、表格、图片、坐标和结构导航
+        └─ Compiled Wiki
+            └─ 来源摘要、概念、实体、规则和跨文档对比
+```
+
+对应外部借鉴：
+
+- Knowhere：借鉴 Parser 之后的文档层级重建、结构导航和多模态对象绑定；
+- LLM Wiki：借鉴“不可变原始资料 → 可重建派生 Wiki → Schema/维护规则”的知识编译方式。
+
+边界：
+
+```text
+原始文档和坐标 = 最终事实来源
+Document Memory = 导航索引
+Wiki = 可失效、可重建的派生知识
+```
+
+规划顺序：
+
+```text
+完成当前 B-03 / H-07
+→ P-KW1：10～20 份文档的结构导航探针
+→ 仅在 E2 指标改善后扩大 Document Memory
+→ P-LW1：小规模来源可追溯 Wiki 探针
+→ 不直接建设完整知识图谱、桌面应用或新平台
+```
+
+详细方案见 `reference/Knowhere与LLM-Wiki借鉴分析.md`。
+
+---
+
 ## 11. 一句话目标架构
 
 ```text
