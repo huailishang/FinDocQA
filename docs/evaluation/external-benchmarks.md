@@ -42,6 +42,77 @@ E4 End-to-End QA
 
 注意：外部数据许可与 FinDocQA Apache-2.0 代码许可分开处理，不把第三方数据直接并入代码许可证。
 
+2026-08-07 复核补充：FinanceBench 官方 GitHub 仓库公开 150 道样本及对应 PDF；Hugging Face `PatronusAI/financebench` 数据卡当前标注许可证为 `CC-BY-NC-4.0`。Human 已明确本项目对该外部数据集的用途仅限 **学习 / 非商业研究**，因此项目级使用范围冻结为 `RESEARCH_ONLY_NONCOMMERCIAL`，可以继续实现隔离的 research-only Adapter。要求保留来源与许可证说明，不把 FinanceBench 数据、标注或第三方 PDF 重新许可为 FinDocQA Apache-2.0 资产，不扩展到商业用途；底层 PDF 的权利状态不由 HF 数据集许可证自动推定，默认只作为本地研究输入、不再分发。
+
+### FinMRAGBench
+
+定位：更贴近真实金融分析的多模态 RAG benchmark（ACL 2026 Findings）。
+
+公开信息：
+
+- 887 道 expert-verified QA；
+- 来源为真实年度报告；
+- 多数问题需要跨多个页面甚至多个文档组合证据；
+- 覆盖五类代表性金融分析任务；
+- 代码与数据公开。
+
+最适合：
+
+```text
+E2 Multi-page / Multi-document Retrieval
+E3 Multi-step Financial Reasoning
+E4 High-difficulty End-to-End QA
+```
+
+价值：作为 FinanceBench 之后的第二层压力集，检验 FinDocQA 是否能从“单文档可回答”进一步进入跨页、跨文档和多模态金融分析。
+
+来源：`https://aclanthology.org/2026.findings-acl.187/`
+
+### FinRAGBench-V
+
+定位：中英双语金融视觉 RAG + visual citation benchmark（EMNLP 2025）。
+
+公开数据包括：
+
+- 60,780 个中文页面和 51,219 个英文页面；
+- 原始 QA PDF、page-image corpus、queries、qrels、citation labels；
+- 人工标注 QA，覆盖 7 类问题；
+- Hugging Face 数据约 202 GB，Apache-2.0。
+
+最适合：
+
+```text
+E1 PDF / Visual Parsing
+E2 Visual Retrieval
+E4 Answer + Citation
+```
+
+价值很高，但数据体量过大，不作为当前第一接入项；先注册，后续按小样本/切片接入，避免为评测一次性引入 200GB 级数据。
+
+来源：`https://aclanthology.org/2025.emnlp-main.211/`、`https://huggingface.co/datasets/zhaosuifeng/FinRAGBench-V`
+
+### FinDER
+
+定位：真实金融从业者搜索式 Query + Retrieval benchmark。
+
+公开数据包括：
+
+- 5,703 条 expert-generated query-evidence-answer triplets；
+- 问题刻意保留金融从业场景中的缩写、简称和短表达；
+- 重点要求从大语料中检索证据，而不是直接给定上下文；
+- Hugging Face 数据许可为 `CC-BY-NC-4.0`。
+
+最适合：
+
+```text
+C1 Query Understanding
+E2 Retrieval
+```
+
+不作为当前主 E4 数据集；由于非商用许可，只注册为 research/reference track，数据和 FinDocQA Apache-2.0 代码保持隔离。
+
+来源：`https://arxiv.org/abs/2504.15800`、`https://huggingface.co/datasets/Linq-AI-Research/FinDER`
+
 ### MMLongBench-Doc
 
 定位：长 PDF + 多模态文档理解 benchmark。
@@ -198,25 +269,59 @@ E4 unseen contract QA
 
 ```text
 P1 FinanceBench
-   原始 PDF + evidence page + answer
-   → 最适合先打通完整 Adapter
+   150 道公开人工标注 QA + 原始 PDF + evidence page + answer
+   → source/license snapshot 已冻结；Human 已限定为学习 / 非商业研究，下一步允许 research-only Adapter，仍不得进入商业评测流水线
 
-P2 MMLongBench-Doc
-   PDF + table/chart/image/layout
-   → 专门补 Parser / Multimodal 评测
+P2 FinMRAGBench
+   887 道 expert-verified QA + 跨页 / 跨文档 / 多模态年度报告
+   → FinanceBench 打通后作为高难度 E2/E4 压力集
 
-P3 TAT-QA / MultiHiertt
-   已结构化表格 + program/evidence
-   → 专门测 Solver / Verification
+P3 FinRAGBench-V
+   中英双语视觉 RAG + 原始 PDF + qrels + citation labels
+   → 体量约 202 GB；先注册，不全量下载，后续按切片测 Parser / Visual Retrieval / Citation
 
-P4 DocFinQA / Loong
-   长上下文 / 多文档
-   → 测 Retrieval 与跨文档能力
+P4 FinDER
+   5703 条真实搜索式 query-evidence-answer
+   → 只补 C1 / E2；CC-BY-NC-4.0，保持 research/reference-only
 
-P5 FinLFQA / KG-MuLQA
-   attribution / credit agreements / multi-hop
-   → 后续能力扩展
+P5 TAT-QA / MultiHiertt / DocFinQA / KG-MuLQA
+   结构化表格、长上下文、credit agreement multi-hop
+   → 作为 Solver / long-context / contract 专项压力集
+
+现有 FinQA / TAT-QA ACTIVE_REFERENCE 继续保留，不因为接入新的 E4 数据集而替换。
+MMLongBench-Doc / Loong 保持专项候选，需要 E4 错误分布证明 Parser、多模态或跨文档是主要损失后再提升优先级。
 ```
+
+### 2026-08-07 接入决策
+
+当前不继续为了题量人工扩本地 Gold。Evaluation Suite 的职责分工收敛为：
+
+```text
+Local Gold DEV_SEED
+→ 测本项目自己的金融材料与业务分布
+→ 少而严格，不充当公开 benchmark 的替代品
+
+FinanceBench
+→ 第一条外部 E4 research-only 轨
+→ source/license snapshot 已冻结；按 Human 明确的非商业学习/研究范围，下一步接 Adapter，再从原始 PDF 到 evidence / answer 做外部测量
+
+FinMRAGBench
+→ 第二条高难 E4 压力轨
+→ 跨页、跨文档、多模态金融分析
+
+FinDER
+→ Query Understanding / Retrieval 专项轨
+→ 非商用许可，默认 research-only
+
+FinRAGBench-V
+→ 视觉检索与 citation 专项轨
+→ 数据很大，后续按小切片接入
+
+FinQA / TAT-QA
+→ 已有 E2 / E3 专项回归
+```
+
+原则：外部轨道分别出分，不与 Local Gold 混成一个总分；先用不同轨道定位失败层，再决定 Parser / Retriever / Solver / Verifier 的产品实验。
 
 ---
 
