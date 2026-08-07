@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-08-06-r17`
+Map revision: `2026-08-07-r21`
 
-Last reviewed: `2026-08-06`
+Last reviewed: `2026-08-07`
 
 Map owner: Evaluator
 
@@ -256,7 +256,7 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 监管 / 保险 Gold = 0 / 0
 ```
 
-状态：第一批 5 道 Gold 决策冻结；不为达到 8、10 或 30 道降低标准。当前本地轨仍为 `NOT_SCORE_READY`，因为尚未形成机器可读正式 manifest、领域覆盖不足、没有 Shadow，也没有当前产品 E4 baseline。
+状态：两波 17 个 machine-eligible 已全部裁决并完成 Evaluation Suite v0.2 物化：机器可读 Gold = 9，ambiguous = 4，deferred = 4；领域分布为金融合同 2 / 财务报告 3 / 保险 1 / 监管 1 / 研究 2，五个本地域均有 Gold。36 个 Gold evidence 文件运行时 Hash 校验通过，六个 v0.2 输出独立双生成字节一致，14 个相关回归通过。当前仍不伪造 Holdout-Shadow，本地轨继续 `FROZEN_SEED_NOT_SCORE_READY`。人工扩题到此暂停，后续优先扩大外部可信测量范围。
 
 ## Bottleneck register
 
@@ -267,7 +267,7 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 | B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 | H-07 后 15 文档缺失、5 表来源缺失、2 成员范围不完整；Binding 32 | high（局部测量） | PAUSED |
 | B-04 | 长尾计算算子 | 剩余 unsupported operator 无通用家族达到 5 条 | 最大合格族 1 | C3 stage-exit report | high | RETIRED |
 | B-05 | 复杂表格解析 | 2124 张图像表或复杂 span 表未加载，但问题级影响未知 | 2124 张表 | `empty_or_image_table=2038` 等 | medium（现象）；low（业务影响） | WATCH |
-| B-06 | E4 Gold 与端到端结果度量 | 无法可信判断自然语言问题到最终答案是否正确、可追溯、可放行 | 项目全链；当前 100 题、30 Gold 候选 | 30/30 evidence pack；10 dossier；Evaluator 冻结 5 道 Gold 决策；正式 manifest 与当前 E4 baseline 仍缺失 | high | ACTIVE |
+| B-06 | E4 Gold 与端到端结果度量 | 无法可信判断自然语言问题到最终答案是否正确、可追溯、可放行 | 项目全链；本地 100 题 + 外部公开 benchmark | 30/30 evidence pack；17 machine-eligible 全部完成两波复核；累计 9 Gold 覆盖五域；Shadow=0；FinanceBench 等外部 E4 尚未接入 | high | ACTIVE |
 
 ## Active bottleneck
 
@@ -278,11 +278,11 @@ Active bottleneck ID: `B-06`
 1. B-03 在固定 54 题闭集内已获得两次明确改善：停用词过滤和 row-label anchor；其残余 `15 / 5 / 2` 仍可作为 Failure-Regression，但不再决定项目主方向。
 2. H-08、H-09 连续两个剩余分支均为 `NO_SINGLE_VARIABLE`，说明继续在当前闭集上拆小问题和调局部规则的边际收益已经很低。
 3. 当前已有 E1、E2、E3 模块级结果，但都不能代表用户自然语言问题的最终答案准确率。
-4. `docs/evaluation/local-benchmark.md` 目前是标准设计，不是已经冻结的 Gold 资产。
-5. 私有历史中已有 30 道 Gold 种子候选，原始五领域问题共 100 道，但候选仍缺逐题来源、页码、证据、Claim/公式和两轮复核状态。
-6. E4 指标代码和 Answer A/B runner 已存在，当前第一缺口是可信输入 Gold，而不是继续增加评测器或检索规则。
-7. 因此 B-06 成为第一瓶颈：先完成 Gold 证据包和可运行 manifest，再运行当前产品端到端基线，之后才根据真实错误分布选 Parser、Retrieval、Solver、Verifier 或 Recovery。
-8. Knowhere / LLM Wiki 保持后续规划；只有 E4 证明知识导航或跨文档组织是主要失败层，才进入相关实验。
+4. 两波本地裁决已覆盖全部 17 个 machine-eligible：Wave-1 = 5 Gold / 2 ambiguous / 3 deferred，Wave-2 = 4 Gold / 2 ambiguous / 1 deferred；累计 9 Gold，五个本地域均已有至少 1 道。
+5. 这 9 道仍是开发可见 DEV_SEED，不应伪装成 Holdout；因此继续从同一 30 题池人工凑量的边际价值已明显下降，人工扩本地 Gold 暂停。
+6. 现有 FinQA / TAT-QA 已覆盖 E2/E3 专项，但还缺公开的标准金融 PDF E4。FinanceBench source/license snapshot 已冻结：GitHub/HF 均为 150/150 qid、84/84 引用 PDF tree 可定位；HF 数据卡为 `CC-BY-NC-4.0`。Human 已明确 FinanceBench 在本项目仅用于学习 / 非商业研究，因此项目级 use scope 已冻结为 `RESEARCH_ONLY_NONCOMMERCIAL`，不再阻断 research-only Adapter；仍不得进入商业流水线或把第三方数据重新许可为 Apache-2.0。FinMRAGBench 保持第二层跨页/跨文档/多模态压力集。
+7. 因此 B-06 继续为第一瓶颈，当前主线收敛为“Evaluation Suite v0.2 → FinanceBench source identity 已冻结 → research-only Adapter → 外部 E4 baseline → 根据最大失败层决定产品实验”。
+8. Knowhere / LLM Wiki、B-05 Parser 和 B-03 Retrieval 都保持后续候选；只有新的 E4 结果证明对应层是最大损失时才重新激活产品实验。
 
 ## Active hypothesis
 
@@ -297,14 +297,20 @@ Falsifiable hypothesis:
 ```text
 五领域原始问题 = 100
 私有 Gold 种子候选 = 30
-Evaluator 冻结 Gold 决策 = 5
-当前正式 Gold manifest = 0
+Evaluator 冻结 Gold 决策 = 9
+当前机器可读 Gold manifest = 9 DEV_SEED（Evaluation Suite v0.2）
+剩余 machine-eligible 未裁决候选 = 0
+Gold 五域覆盖 = 2 / 3 / 1 / 1 / 2（金融合同 / 财务报告 / 保险 / 监管 / 研究）
+Holdout-Shadow = 0
+FinanceBench source/license snapshot = COMPLETE（GitHub/HF 150/150；84/84 referenced PDF tree）
+FinanceBench approved use scope = RESEARCH_ONLY_NONCOMMERCIAL
+FinanceBench external E4 adapter = 0
 当前 E4 baseline result = 0
 已有 E4 指标 / Answer A-B runner = 有
-Provider / network authorization = false
+Provider authorization = false
 ```
 
-H-11 当前状态：`LOCAL_GOLD_MANIFEST_MATERIALIZATION`。Evaluation Suite proposal 已通过，Evaluator 已独立冻结 5 道 Gold 决策；下一步只把这 5 道原样物化为机器可读 manifest，并明确监管/保险覆盖缺口。不得重新解释答案、继续修 shortlist 排序器或为了题量补凑 Gold。
+H-11 当前状态：`FINANCEBENCH_RESEARCH_ADAPTER`。FinanceBench source snapshot 已通过独立复核：GitHub/HF 150/150 unique qid，qid 集完全一致，11 个核心 QA 字段 mismatch=0，150/150 QA→document join，84/84 referenced PDF tree 完整，PDF blob=0。HF 数据卡许可证为 `CC-BY-NC-4.0`；Human 已明确用途仅限学习 / 非商业研究，因此 use scope 冻结为 `RESEARCH_ONLY_NONCOMMERCIAL`。下一步允许实现隔离的 research-only Adapter，但不得运行 Provider/E4、不得进入商业流水线、不得把第三方数据/标注/PDF 重新许可为 Apache-2.0。
 
 ## Completed H-06 experiment gates
 
@@ -367,12 +373,12 @@ Gold source Top5 rank
 
 | Priority | Hypothesis | Principal change | Same-baseline comparison | Expected result | Cost/risk |
 |---:|---|---|---|---|---|
-| 1 | H-11 Local Gold manifest v0.1 | 将 Evaluator 已裁决的 5 道 Gold 原样物化为正式私有 manifest | 冻结 decision JSON + 原始页级 evidence + suite proposal | 5 道机器可读 Gold；2 ambiguous / 3 deferred 分离；local score-ready 仍为 false | evaluator design，L0 |
-| 2 | E4 current-product baseline | 使用冻结 Gold 运行现有全链 | 同一 Gold-Core / Shadow、同一模型与配置 | Answer / Evidence / False Accept / False Reject / Cost 基线 | 需要单独 API 授权 |
-| 3 | E4 largest-failure capability experiment | 由 E4 第一失败层冻结一个 principal change | 同一 E4 before/after | 直接改善最终产品指标，核心门禁不退化 | 后续决定 |
-| 4 | B-03 residual regression | 把 H-08/H-09 和 15/5/2 保留为回归案例 | 仅在 E4 指向 Retrieval 时恢复 | 防止已知检索失败回归 | 暂停主线 |
-| 5 | P-KW1 / P-LW1 | 结构导航 / 来源可追溯 Wiki 探针 | 仅在 E4 证明知识组织是主要失败层时激活 | unknown | 后续规划 |
-| 6 | B-05 parser experiment | 只处理有 E4 问题级证据的复杂表格解析损失 | E4 相关案例 before/after | unknown | 禁止按 2124 张表数量直接优化 |
+| 1 | FinanceBench research-only Adapter | 在 `RESEARCH_ONLY_NONCOMMERCIAL` use scope 下新增 FinanceBench → Canonical Question / Gold Annotation / Document Reference Adapter | 冻结 source snapshot：GitHub/HF 150/150、qid 相等、84/84 PDF tree | 150 条可离线规范化；Gold/evidence 仅用于 evaluator；不改 Retriever/Solver/Verifier | measurement infra，L0/L1 |
+| 2 | FinanceBench research PDF acquisition / parse smoke | Adapter 通过后，只为本地非商业研究按冻结 84 个文档引用准备 PDF 输入并做 parser smoke | 同一 source snapshot + research-only use scope | PDF→Canonical Document 可追溯，第三方文件继续 gitignored、不再分发 | bounded download；先小切片再扩 |
+| 3 | FinanceBench external E4 baseline | Adapter + PDF smoke 通过后使用固定 research subset 运行现有全链 | 同一公开 Gold、同一模型与配置 | Answer / Evidence / False Accept / False Reject / Cost 外部基线 | Provider 运行仍需单独授权 |
+| 4 | FinMRAGBench Adapter / stress track | FinanceBench 路线许可受阻或完成后，再核 FinMRAGBench 的官方 license/体量并接高难金融 QA | 官方 expert-verified QA | 暴露多页、多文档、复杂金融分析损失 | 后续；先核许可证/体量 |
+| 5 | FinRAGBench-V / FinDER specialty tracks | FinRAGBench-V 只做视觉/citation 切片；FinDER 只做 research-only Query/Retrieval | 官方 schema/license | 补 Parser/Visual Citation 与真实 Query Retrieval | 202GB / CC-BY-NC-4.0，禁止当前全量接入 |
+| 6 | E4 largest-failure capability experiment | 由 Local + 可合法使用的外部 E4 第一失败层冻结一个 principal change | 同一 E4 before/after | 直接改善最终产品指标，核心门禁不退化 | 后续决定 |
 
 ## Reassessment triggers
 
@@ -406,3 +412,7 @@ Gold source Top5 rank
 | 2026-08-06-r15 | 2026-08-06 | H-11 V1：30/30 映射、42 tests、零调用通过；但 option evidence 108/151 缺页码，10 题全缺页；3 个机械冲突独立核对均为误判 | B-06 保持 ACTIVE；Gold 状态分布尚不可用 | H-11 转 ACTIVE_REPAIR_REQUIRED，先修页级血缘与冲突门禁 |
 | 2026-08-06-r16 | 2026-08-06 | H-11 repair PASS：153 条 option evidence 全部页级可追溯，3/3 已知误冲突关闭，真实反证保留，63 tests；状态 25 partial / 5 missing / 0 contradiction | B-06 保持 ACTIVE；证据生成器不再是首要阻断，正式 Gold / E4 baseline 仍缺失 | H-11 转 LOCAL_GOLD_SUITE_ASSEMBLY，不强制 30，组合本地小 Gold 与外部轨道 |
 | 2026-08-06-r17 | 2026-08-06 | Suite 组装 PASS：独立重生成一致、5 tracks、116 tests；shortlist 4/10 语义证据弱。Evaluator 独立裁决 10 题：5 Gold / 2 ambiguous / 3 deferred | B-06 保持 ACTIVE；Gold 决策已有 5，道路从候选筛选转为正式 manifest 与后续 E4 准备 | H-11 转 LOCAL_GOLD_MANIFEST_MATERIALIZATION，不补凑题量 |
+| 2026-08-07-r18 | 2026-08-07 | Local Gold manifest PASS：9/9 冻结输入、5/5 Gold 精确物化、2 ambiguous + 3 deferred 分离、14 tests；本地轨仍 FROZEN_SEED_NOT_SCORE_READY | B-06 保持 ACTIVE；“无 manifest”缺口关闭，当前缺口收窄为 Gold 覆盖 / Shadow / E4 baseline readiness | H-11 转 WAVE2_GOLD_DOSSIER_PREPARATION，只处理剩余 7 道 machine-eligible 候选 |
+| 2026-08-07-r19 | 2026-08-07 | Wave-2 dossier preparation 独立复核通过；7 道裁决为 4 Gold / 2 ambiguous / 1 deferred，累计 9 Gold 首次覆盖五域。外部复核确定 FinanceBench=P1，FinMRAGBench=P2，FinRAGBench-V/FinDER 专项注册 | B-06 保持 ACTIVE；停止主动扩本地 Gold，主缺口转为 suite v0.2 + 外部金融 PDF E4 接入 | H-11 转 EVALUATION_SUITE_V0_2_CONSOLIDATION，随后 FinanceBench Adapter |
+| 2026-08-07-r20 | 2026-08-07 | Evaluation Suite v0.2 独立复核通过：9 Gold / 4 ambiguous / 4 deferred，五域覆盖，36 evidence Hash、双生成、14 tests 均通过；同时复核 FinanceBench HF 数据卡为 CC-BY-NC-4.0 | B-06 保持 ACTIVE；本地 suite 收口，外部主缺口先变为 FinanceBench source/license 可复现与用途边界 | H-11 转 FINANCEBENCH_SOURCE_LICENSE_SNAPSHOT；许可明确后才允许 Adapter |
+| 2026-08-07-r21 | 2026-08-07 | FinanceBench source snapshot 独立复核通过：GitHub/HF 150/150 qid 全等、core mismatch=0、150/150 doc join、84/84 PDF tree、双生成稳定；Human 明确用途仅限学习/非商业研究 | B-06 保持 ACTIVE；source identity 与项目 use-scope gate 均关闭，下一缺口为 research-only Adapter | H-11 转 FINANCEBENCH_RESEARCH_ADAPTER；第三方数据继续隔离、不得商业化或重新许可 |
