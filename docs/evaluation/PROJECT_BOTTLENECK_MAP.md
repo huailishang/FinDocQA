@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-08-07-r21`
+Map revision: `2026-08-10-r29`
 
-Last reviewed: `2026-08-07`
+Last reviewed: `2026-08-10`
 
 Map owner: Evaluator
 
@@ -264,10 +264,10 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 |---|---|---|---:|---|---|---|
 | B-01 | 来源绑定 request → 正常计算主链 | SUM 能力曾不可达 | 固定 SUM 3 cases | 0/3→3/3；33/33 护栏 | high | CLOSED |
 | B-02 | 结构化表格证据供给 | 真实 MinerU 表格和完整行证据曾未知 | 190 文档 | 77 份完整行证据、6071 表、77525 行 | high | CLOSED |
-| B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 | H-07 后 15 文档缺失、5 表来源缺失、2 成员范围不完整；Binding 32 | high（局部测量） | PAUSED |
+| B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 + FinanceBench 3-doc/8-QA slice | Real E4 semantic review：冻结 Retrieval miss 6/6 最终语义错误；Retrieval hit 2/2 均生成语义正确答案。H-13 仍显示 miss 根因=alias 2 / derived 2 / causal 2，无单一 patch >=4 | high（局部外部端到端测量） | REOPEN_CANDIDATE |
 | B-04 | 长尾计算算子 | 剩余 unsupported operator 无通用家族达到 5 条 | 最大合格族 1 | C3 stage-exit report | high | RETIRED |
 | B-05 | 复杂表格解析 | 2124 张图像表或复杂 span 表未加载，但问题级影响未知 | 2124 张表 | `empty_or_image_table=2038` 等 | medium（现象）；low（业务影响） | WATCH |
-| B-06 | E4 Gold 与端到端结果度量 | 无法可信判断自然语言问题到最终答案是否正确、可追溯、可放行 | 项目全链；本地 100 题 + 外部公开 benchmark | 30/30 evidence pack；17 machine-eligible 全部完成两波复核；累计 9 Gold 覆盖五域；Shadow=0；FinanceBench 等外部 E4 尚未接入 | high | ACTIVE |
+| B-06 | E4 Gold 与端到端结果度量 | 无法可信自动判断 freeform 最终答案语义正确性并稳定统计 paid-run 成本 | 项目全链；本地 100 题 + 外部公开 benchmark | FinanceBench 8-case real E4 已完成：语义生成 2/8、accepted-correct 1/8；raw exact/value scorer 却为 0/8，且 incremental checkpoint run 的 post-run call-count 统计会混入继承记录 | high | ACTIVE |
 
 ## Active bottleneck
 
@@ -281,36 +281,35 @@ Active bottleneck ID: `B-06`
 4. 两波本地裁决已覆盖全部 17 个 machine-eligible：Wave-1 = 5 Gold / 2 ambiguous / 3 deferred，Wave-2 = 4 Gold / 2 ambiguous / 1 deferred；累计 9 Gold，五个本地域均已有至少 1 道。
 5. 这 9 道仍是开发可见 DEV_SEED，不应伪装成 Holdout；因此继续从同一 30 题池人工凑量的边际价值已明显下降，人工扩本地 Gold 暂停。
 6. 现有 FinQA / TAT-QA 已覆盖 E2/E3 专项，但还缺公开的标准金融 PDF E4。FinanceBench source/license snapshot 已冻结：GitHub/HF 均为 150/150 qid、84/84 引用 PDF tree 可定位；HF 数据卡为 `CC-BY-NC-4.0`。Human 已明确 FinanceBench 在本项目仅用于学习 / 非商业研究，因此项目级 use scope 已冻结为 `RESEARCH_ONLY_NONCOMMERCIAL`，不再阻断 research-only Adapter；仍不得进入商业流水线或把第三方数据重新许可为 Apache-2.0。FinMRAGBench 保持第二层跨页/跨文档/多模态压力集。
-7. 因此 B-06 继续为第一瓶颈，当前主线收敛为“Evaluation Suite v0.2 → FinanceBench source identity 已冻结 → research-only Adapter → 外部 E4 baseline → 根据最大失败层决定产品实验”。
+7. 因此 B-06 继续为第一瓶颈，当前主线收敛为“Evaluation Suite v0.2 → FinanceBench source/Adapter → 3-doc raw-PDF physical smoke 已通过 → Canonical ingestion + evidence retrieval smoke → 小切片外部 E4 baseline → 根据最大失败层决定产品实验”。
 8. Knowhere / LLM Wiki、B-05 Parser 和 B-03 Retrieval 都保持后续候选；只有新的 E4 结果证明对应层是最大损失时才重新激活产品实验。
 
 ## Active hypothesis
 
-Hypothesis ID: `H-11`
+Hypothesis ID: `H-16`
 
 Falsifiable hypothesis:
 
-> 使用仓库现有 30 道私有 Gold 种子候选和原始五领域问题，在不修改产品、不调用 Provider、不把历史答案直接当 Gold 的前提下，可以生成 30/30 机器可读证据记录，并冻结一组具有完整来源闭环、可供 E4 运行的 Gold-Core / Holdout-Shadow manifest。该资产将使下一次端到端基线首次能够按最终答案、证据、门禁与成本定位项目第一真实瓶颈。
+> H-15/H-15R1 已首次得到可信的 FinanceBench 8-case real E4 runtime：6 个冻结 Retrieval miss 全部最终语义错误，2 个 Retrieval hit 均生成语义正确答案，其中 1 个因 `freeform_answer_too_long` 被误拦。与此同时，现有 `AnswerAB` freeform exact/value scorer 把这 2 个语义正确答案也记为 0，导致 raw 0/8 与人工/Evaluator 语义 2/8 冲突。下一步必须先冻结一个 **零 Provider、可重复、Gold evaluator-side** 的 freeform 语义评分合同，使 `00941/01858` 判为正确，同时保持另外 6 个错误案例为错误；若做不到，则不得扩大 paid E4 benchmark，也不得用 raw exact/value 指标驱动产品实验。
 
 当前测量事实：
 
 ```text
-五领域原始问题 = 100
-私有 Gold 种子候选 = 30
-Evaluator 冻结 Gold 决策 = 9
-当前机器可读 Gold manifest = 9 DEV_SEED（Evaluation Suite v0.2）
-剩余 machine-eligible 未裁决候选 = 0
-Gold 五域覆盖 = 2 / 3 / 1 / 1 / 2（金融合同 / 财务报告 / 保险 / 监管 / 研究）
-Holdout-Shadow = 0
-FinanceBench source/license snapshot = COMPLETE（GitHub/HF 150/150；84/84 referenced PDF tree）
-FinanceBench approved use scope = RESEARCH_ONLY_NONCOMMERCIAL
-FinanceBench external E4 adapter = 0
-当前 E4 baseline result = 0
-已有 E4 指标 / Answer A-B runner = 有
-Provider authorization = false
+FinanceBench real E4 slice = 8 QA / 3 docs
+fixed model = ModelScope Qwen/Qwen3.5-397B-A17B
+semantic correct generation = 2 / 8
+accepted correct delivery = 1 / 8
+correct-but-blocked = 1 / 8 (01858)
+Retrieval miss → semantic wrong = 6 / 6
+Retrieval hit → semantic correct generation = 2 / 2
+raw AnswerAB exact/value = 0 / 8
+Repair1 incremental attempts = 3 / 3 ModelScope only
+V1 + Repair1 actual provider attempts = 11
+completed provider tokens = 27266
+product/core mutation = 0
 ```
 
-H-11 当前状态：`FINANCEBENCH_RESEARCH_ADAPTER`。FinanceBench source snapshot 已通过独立复核：GitHub/HF 150/150 unique qid，qid 集完全一致，11 个核心 QA 字段 mismatch=0，150/150 QA→document join，84/84 referenced PDF tree 完整，PDF blob=0。HF 数据卡许可证为 `CC-BY-NC-4.0`；Human 已明确用途仅限学习 / 非商业研究，因此 use scope 冻结为 `RESEARCH_ONLY_NONCOMMERCIAL`。下一步允许实现隔离的 research-only Adapter，但不得运行 Provider/E4、不得进入商业流水线、不得把第三方数据/标注/PDF 重新许可为 Apache-2.0。
+H-16 当前状态：`FINANCEBENCH_FREEFORM_E4_SCORER_DIAGNOSTIC`。B-03 因真实端到端证据转为 `REOPEN_CANDIDATE`，但 H-13 的 `NO_SINGLE_VARIABLE` 仍有效，禁止围绕 8 题直接补 Retrieval 规则。B-06 保持 ACTIVE：先把 freeform 语义评分尺子修准，再决定是否扩大外部 E4；incremental provider-call post-run accounting 作为独立 maintenance defect 登记，不与 scorer 主变量混改。
 
 ## Completed H-06 experiment gates
 
@@ -416,3 +415,11 @@ Gold source Top5 rank
 | 2026-08-07-r19 | 2026-08-07 | Wave-2 dossier preparation 独立复核通过；7 道裁决为 4 Gold / 2 ambiguous / 1 deferred，累计 9 Gold 首次覆盖五域。外部复核确定 FinanceBench=P1，FinMRAGBench=P2，FinRAGBench-V/FinDER 专项注册 | B-06 保持 ACTIVE；停止主动扩本地 Gold，主缺口转为 suite v0.2 + 外部金融 PDF E4 接入 | H-11 转 EVALUATION_SUITE_V0_2_CONSOLIDATION，随后 FinanceBench Adapter |
 | 2026-08-07-r20 | 2026-08-07 | Evaluation Suite v0.2 独立复核通过：9 Gold / 4 ambiguous / 4 deferred，五域覆盖，36 evidence Hash、双生成、14 tests 均通过；同时复核 FinanceBench HF 数据卡为 CC-BY-NC-4.0 | B-06 保持 ACTIVE；本地 suite 收口，外部主缺口先变为 FinanceBench source/license 可复现与用途边界 | H-11 转 FINANCEBENCH_SOURCE_LICENSE_SNAPSHOT；许可明确后才允许 Adapter |
 | 2026-08-07-r21 | 2026-08-07 | FinanceBench source snapshot 独立复核通过：GitHub/HF 150/150 qid 全等、core mismatch=0、150/150 doc join、84/84 PDF tree、双生成稳定；Human 明确用途仅限学习/非商业研究 | B-06 保持 ACTIVE；source identity 与项目 use-scope gate 均关闭，下一缺口为 research-only Adapter | H-11 转 FINANCEBENCH_RESEARCH_ADAPTER；第三方数据继续隔离、不得商业化或重新许可 |
+| 2026-08-10-r22 | 2026-08-10 | FinanceBench research-only Adapter 独立复核通过：150/150 Canonical compatible、84 docs、50/50/50 types、Gold leakage=0；12 focused + 19 regressions passed；baseline/scope/hash 均独立一致 | B-06 保持 ACTIVE；Adapter 缺口关闭，下一缺口为原始 PDF materialization / Parser evidence-page readiness，E4 baseline 仍为 0 | H-11 转 FINANCEBENCH_PDF_PARSER_SMOKE；先小切片，不直接跑 Provider/E4 |
+| 2026-08-10-r23 | 2026-08-10 | 3-doc FinanceBench raw-PDF smoke 独立复核 PASS：3/3 PDF hash/page-count 一致；8 QA、10 evidence annotations、10 unique evidence pages；out-of-range=0；PyMuPDF 10/10 页有文本 | B-06 保持 ACTIVE；原始 PDF/官方页码物理链路不再是首要阻断，下一缺口为项目自身 Canonical ingestion 与 evidence retrieval | 关闭 H-11 基础接入序列；激活 H-12 FINANCEBENCH_CANONICAL_EVIDENCE_SMOKE；仍不跑 Provider/E4 |
+| 2026-08-10-r24 | 2026-08-10 | Canonical evidence smoke 独立复核 PASS：3-doc page/Canonical counts 全一致，10/10 page+lineage+token sequence；Canonical lexical all-gold@5=2/8、annotation=2/10、Retrieval loss=6/8。停用词探针 2/8→2/8；6 个 miss Gold worst rank=52/135/109/147/70/81 | B-06 保持 ACTIVE；B-03 由 PAUSED 转 REOPEN_CANDIDATE，但尚未授权产品改动；简单 stopword/top_k 假设被否决 | H-12 关闭为 RETRIEVAL_LAYER_CONFIRMED；激活 H-13 FINANCEBENCH_RETRIEVAL_SEMANTIC_GAP_DIAGNOSTIC，先找 >=4 case 的单一 question-only 机制 |
+| 2026-08-10-r25 | 2026-08-10 | H-13 semantic-gap diagnostic 独立复核 PASS：Phase-A 8/8 Gold key leakage=0；Retrieval baseline 再现 2/8、loss=6/8；miss taxonomy=direct alias 2 / derived operand 2 / causal-business 2；无 family >=4，gate=`NO_SINGLE_VARIABLE` | B-03 记录外部弱点后回到 PAUSED，不授权 patch；B-06 保持 ACTIVE，停止 8-QA 微调并转 E4 baseline | H-13 关闭；激活 H-14 FINANCEBENCH_E4_BASELINE_PREFLIGHT；先修正外部 E4 接线与 provider gate，不做真实调用 |
+| 2026-08-10-r26 | 2026-08-10 | FinanceBench E4 preflight 独立复核 PASS：8/8 candidate-doc binding、Gold leakage=0、factory scope escape=0/provider=0；factory baseline=2/8、2/10；36 regressions passed；CLI dry-run 0 calls，两个 negative execute gate 均 exit2 before workflow/provider | B-06 保持 ACTIVE；E4 接线缺口关闭，external answer baseline 仍 NOT_RUN；B-03 继续 PAUSED | H-14 关闭为 PREFLIGHT_READY；激活 H-15 FINANCEBENCH_REAL_E4_BASELINE，但状态为 HUMAN_AUTHORIZATION_REQUIRED |
+| 2026-08-10-r27 | 2026-08-10 | Human 明确授权 H-15 bounded real Provider run；冻结 8-case/3-doc、ModelScope `Qwen/Qwen3.5-397B-A17B`、单 endpoint、total call budget=8、checkpoint/resume/provider ledger；禁止产品改动 | B-06 保持 ACTIVE；进入首次外部真实 E4 answer baseline；B-03 继续 PAUSED | H-15 转 AUTHORIZED_FOR_BOUNDED_REAL_E4，分发真实 baseline Executor 包 |
+| 2026-08-10-r28 | 2026-08-10 | H-15 V1 real run 被评估基础设施阻断：8 actual attempts 中 ModelScope 7 / SiliconFlow 1；5 completions、3 invalid/blocked；两个 Retrieval-hit controls 无有效 E4。resume 0 新调用、产品 diff=0 | B-06 保持 ACTIVE；V1 raw 0/8 禁止晋级；B-03 继续 PAUSED | H-15 V1 REJECTED；激活 H-15R1 REAL_E4_INFRA_REPAIR，只继承 5 有效案例并最多追加 3 次单 ModelScope 调用 |
+| 2026-08-10-r29 | 2026-08-10 | H-15R1 PASS：Repair1 单 endpoint audit 通过，新增 3/3 ModelScope completions，8-case runtime 完整；Evaluator 语义裁决=2/8 正确生成、1/8 正确且放行；6/6 Retrieval miss 错、2/2 Retrieval hit 对；01858 正确但被长度门禁误拦；raw exact/value 仍 0/8 | B-03 转 REOPEN_CANDIDATE（端到端支持 Retrieval 为主损失层，但无单一 patch）；B-06 保持 ACTIVE（freeform scorer 不可信） | 关闭 H-15/H-15R1；激活 H-16 FINANCEBENCH_FREEFORM_E4_SCORER_DIAGNOSTIC，零 Provider；provider incremental accounting 独立 maintenance |
