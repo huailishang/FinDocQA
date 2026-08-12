@@ -17,6 +17,7 @@ Keep FinDocQA reusable for financial long-document QA. Prefer generic capabiliti
 - Put reusable logic in src/; keep scripts thin.
 - Add focused offline tests for reusable modules.
 - Prefer deterministic preprocessing and verification before adding LLM calls.
+- When exploring a new direction and there is no clear implementation path yet, first search GitHub and other public sources for relevant projects, papers, documentation, or established practices. Critically separate reusable ideas from context-specific assumptions, absorb only the parts supported by evidence and project constraints, then adapt or correct them for FinDocQA instead of copying them directly.
 - Keep parser fallbacks narrow and page-scoped.
 - Historical competition conclusions belong in docs/history/, not in active code paths.
 

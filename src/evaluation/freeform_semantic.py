@@ -45,6 +45,25 @@ _NUMBER_RE = re.compile(r"(?<![A-Za-z0-9])[-+]?\d+(?:,\d{3})*(?:\.\d+)?(?:%|％)
 _CONTENT_RE = re.compile(r"[A-Za-z]+(?:'[A-Za-z]+)?|\d+(?:\.\d+)?|[\u4e00-\u9fff]+")
 _ORDINAL_RE = re.compile(r"(?<![A-Za-z0-9])(\d+)(?:st|nd|rd|th)\b", re.I)
 
+# High-confidence answer-local contradiction cues. These are intentionally
+# generic language patterns: they do not contain benchmark entities, values,
+# qids, or domain-specific aliases.
+_NEGATION_BEFORE_ANCHOR_RE = re.compile(
+    r"(?:\b(?:is|was|are|were|be|been|being)\s+)?"
+    r"(?:\bnot\s+(?!only\b)|\bno\s+longer\s+|\b(?:isn't|wasn't|aren't|weren't)\s+)$",
+    re.I,
+)
+_NEGATION_AFTER_ANCHOR_RE = re.compile(
+    r"^\s*(?:\b(?:is|was|are|were)\s+not\s+(?!only\b)|\b(?:isn't|wasn't|aren't|weren't)\b)",
+    re.I,
+)
+_CORRECTION_CUE_RE = re.compile(
+    r"\b(?:corrected|revised|updated|changed|adjusted)\s+(?:it\s+)?to\b"
+    r"|\breplaced\s+(?:it\s+)?(?:with|by)\b"
+    r"|\bsuperseded\s+by\b",
+    re.I,
+)
+
 
 @dataclass(frozen=True)
 class FreeformSemanticResult:
@@ -89,29 +108,69 @@ def _canonical_decimal(raw: str) -> str | None:
     return f"num:{normalized}{suffix}"
 
 
-def _protected_anchors(value: object) -> tuple[str, ...]:
+def _anchor_text(value: object) -> str:
     text = unicodedata.normalize("NFKC", str(value or ""))
     # Numeric coupon-rate bullets such as "-1.500% Notes due 2026" use the
     # leading hyphen as a list marker, not as a negative sign. Normalize only
     # this generic line-start/capitalized-label shape; ordinary negative values
     # remain signed anchors.
-    text = re.sub(
+    return re.sub(
         r"(?m)^(\s*)-(?=\d+(?:\.\d+)?%\s+[A-Z])",
         r"\1",
         text,
     )
-    anchors: list[str] = []
+
+
+def _protected_anchor_occurrences(value: object) -> tuple[tuple[str, int, int], ...]:
+    text = _anchor_text(value)
+    occurrences: list[tuple[str, int, int]] = []
     for match in _MIXED_TOKEN_RE.finditer(text):
-        anchors.append(f"id:{match.group(0).casefold()}")
+        occurrences.append((f"id:{match.group(0).casefold()}", match.start(), match.end()))
     for match in _ORDINAL_RE.finditer(text):
         canonical = _canonical_decimal(match.group(1))
         if canonical:
-            anchors.append(canonical)
+            occurrences.append((canonical, match.start(), match.end()))
     for match in _NUMBER_RE.finditer(text):
         canonical = _canonical_decimal(match.group(0))
         if canonical:
-            anchors.append(canonical)
-    return tuple(dict.fromkeys(anchors))
+            occurrences.append((canonical, match.start(), match.end()))
+    return tuple(sorted(occurrences, key=lambda item: (item[1], item[2], item[0])))
+
+
+def _protected_anchors(value: object) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(anchor for anchor, _, _ in _protected_anchor_occurrences(value)))
+
+
+def _contradiction_reason(predicted_answer: object, gold_anchors: Iterable[str]) -> str | None:
+    """Return a high-confidence answer-local contradiction reason, if any."""
+    protected = set(gold_anchors)
+    if not protected:
+        return None
+
+    text = _anchor_text(predicted_answer)
+    occurrences = _protected_anchor_occurrences(predicted_answer)
+    for anchor, start, end in occurrences:
+        if anchor not in protected:
+            continue
+
+        before = text[max(0, start - 48):start]
+        after = text[end:min(len(text), end + 48)]
+        if _NEGATION_BEFORE_ANCHOR_RE.search(before) or _NEGATION_AFTER_ANCHOR_RE.search(after):
+            return "contradicted_protected_anchor_negation"
+
+        tail = text[end:min(len(text), end + 120)]
+        cue = _CORRECTION_CUE_RE.search(tail)
+        if cue is None:
+            continue
+        cue_end = end + cue.end()
+        conflict_limit = min(len(text), cue_end + 64)
+        if any(
+            other_anchor != anchor and other_anchor not in protected and cue_end <= other_start < conflict_limit
+            for other_anchor, other_start, _ in occurrences
+        ):
+            return "contradicted_protected_anchor_correction"
+
+    return None
 
 
 def _normalize_content_token(token: str) -> str:
@@ -189,6 +248,7 @@ def score_freeform_semantic(
     predicted_anchors = _protected_anchors(predicted_answer)
     matched_anchors = tuple(anchor for anchor in gold_anchors if anchor in set(predicted_anchors))
     anchor_recall = _recall(gold_anchors, predicted_anchors)
+    contradiction_reason = _contradiction_reason(predicted_answer, gold_anchors)
 
     gold_tokens = _content_tokens(gold_answer)
     predicted_tokens = _content_tokens(predicted_answer)
@@ -204,6 +264,18 @@ def score_freeform_semantic(
             protected_anchor_recall=anchor_recall,
             content_token_recall=token_recall,
             reason="incompatible_refusal",
+        )
+
+    if contradiction_reason is not None:
+        return FreeformSemanticResult(
+            semantic_correct=False,
+            refusal_detected=predicted_refusal,
+            gold_refusal_detected=gold_refusal,
+            protected_gold_anchors=gold_anchors,
+            matched_protected_anchors=matched_anchors,
+            protected_anchor_recall=anchor_recall,
+            content_token_recall=token_recall,
+            reason=contradiction_reason,
         )
 
     if _is_numeric_only_gold(gold_answer):
