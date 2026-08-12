@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-08-10-r29`
+Map revision: `2026-08-12-r41`
 
-Last reviewed: `2026-08-10`
+Last reviewed: `2026-08-12`
 
 Map owner: Evaluator
 
@@ -267,49 +267,52 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 | B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 + FinanceBench 3-doc/8-QA slice | Real E4 semantic review：冻结 Retrieval miss 6/6 最终语义错误；Retrieval hit 2/2 均生成语义正确答案。H-13 仍显示 miss 根因=alias 2 / derived 2 / causal 2，无单一 patch >=4 | high（局部外部端到端测量） | REOPEN_CANDIDATE |
 | B-04 | 长尾计算算子 | 剩余 unsupported operator 无通用家族达到 5 条 | 最大合格族 1 | C3 stage-exit report | high | RETIRED |
 | B-05 | 复杂表格解析 | 2124 张图像表或复杂 span 表未加载，但问题级影响未知 | 2124 张表 | `empty_or_image_table=2038` 等 | medium（现象）；low（业务影响） | WATCH |
-| B-06 | E4 Gold 与端到端结果度量 | 无法可信自动判断 freeform 最终答案语义正确性并稳定统计 paid-run 成本 | 项目全链；本地 100 题 + 外部公开 benchmark | FinanceBench 8-case real E4 已完成：语义生成 2/8、accepted-correct 1/8；raw exact/value scorer 却为 0/8，且 incremental checkpoint run 的 post-run call-count 统计会混入继承记录 | high | ACTIVE |
+| B-06 | E4 Gold 与端到端结果度量 | 无法可信自动判断 freeform 最终答案语义正确性并稳定统计 paid-run 成本 | 项目全链；本地 100 题 + 外部公开 benchmark | FinanceBench 8-case real E4 已完成；H-19~H-22 已冻结并 smoke-tested L2 Judge 规则/离线 harness，但 independent freeform Judge 泛化尚未完成 | high | SECONDARY_BLOCKED_BY_B-07 |
+| B-07 | Solver/Provider → 输出门禁 → 可交付答案 | 新 independent freeform cohort 中 Provider 执行失败与输出门禁使最终可交付答案严重不足 | AMD_2022_10K 7-case independent cohort；最大单一失败族 4 cases | H-25：7/7 bounded attempts，Provider COMPLETED 3 / ERROR 4，prediction 3/7，blocked 6/7，final accepted 1/7；4 个 ERROR ledger 均缺 failure_category/error_type/http_status | high（该 cohort）；medium（全局外推） | ACTIVE |
 
 ## Active bottleneck
 
-Active bottleneck ID: `B-06`
+Active bottleneck ID: `B-07`
 
 当前判断：
 
-1. B-03 在固定 54 题闭集内已获得两次明确改善：停用词过滤和 row-label anchor；其残余 `15 / 5 / 2` 仍可作为 Failure-Regression，但不再决定项目主方向。
-2. H-08、H-09 连续两个剩余分支均为 `NO_SINGLE_VARIABLE`，说明继续在当前闭集上拆小问题和调局部规则的边际收益已经很低。
-3. 当前已有 E1、E2、E3 模块级结果，但都不能代表用户自然语言问题的最终答案准确率。
-4. 两波本地裁决已覆盖全部 17 个 machine-eligible：Wave-1 = 5 Gold / 2 ambiguous / 3 deferred，Wave-2 = 4 Gold / 2 ambiguous / 1 deferred；累计 9 Gold，五个本地域均已有至少 1 道。
-5. 这 9 道仍是开发可见 DEV_SEED，不应伪装成 Holdout；因此继续从同一 30 题池人工凑量的边际价值已明显下降，人工扩本地 Gold 暂停。
-6. 现有 FinQA / TAT-QA 已覆盖 E2/E3 专项，但还缺公开的标准金融 PDF E4。FinanceBench source/license snapshot 已冻结：GitHub/HF 均为 150/150 qid、84/84 引用 PDF tree 可定位；HF 数据卡为 `CC-BY-NC-4.0`。Human 已明确 FinanceBench 在本项目仅用于学习 / 非商业研究，因此项目级 use scope 已冻结为 `RESEARCH_ONLY_NONCOMMERCIAL`，不再阻断 research-only Adapter；仍不得进入商业流水线或把第三方数据重新许可为 Apache-2.0。FinMRAGBench 保持第二层跨页/跨文档/多模态压力集。
-7. 因此 B-06 继续为第一瓶颈，当前主线收敛为“Evaluation Suite v0.2 → FinanceBench source/Adapter → 3-doc raw-PDF physical smoke 已通过 → Canonical ingestion + evidence retrieval smoke → 小切片外部 E4 baseline → 根据最大失败层决定产品实验”。
-8. Knowhere / LLM Wiki、B-05 Parser 和 B-03 Retrieval 都保持后续候选；只有新的 E4 结果证明对应层是最大损失时才重新激活产品实验。
+1. H-25 已完成 current8 之外 `AMD_2022_10K` 完整 7-case 的真实 bounded product generation：7/7 各尝试一次，Gold runtime leakage=0，Judge 未运行。
+2. 这 7 个独立案例中，最大单一失败族不是 Retrieval，也不是 Judge，而是 `Provider ERROR = 4/7`；它达到“通用问题覆盖至少 4 个独立案例才进入下一实验”的门槛。
+3. 另有 2 个 Provider 已完成输出被 `freeform_answer_too_long` / `truncation_risk` 拦截，但只有 2 个案例，暂不单独进入输出门禁调参。
+4. 最终 product-gate accepted 仅 1/7，因此当前先解决 product-generation deliverability；在稳定拿到足够真实 prediction 之前，继续做 Judge 泛化测量的信息增益较低。
+5. B-06 的 Judge 规则、离线 harness、shadow preflight 已经建立，但 independent freeform Judge 泛化仍未完成；当前降为 `SECONDARY_BLOCKED_BY_B-07`，不是关闭。
+6. Evaluator 独立检查发现 4 个 Provider ERROR 的 ledger 只有通用 `ERROR`/时间戳，没有 `failure_category / error_type / http_status`，现有证据无法区分 429、5xx、连接、超时或响应格式失败。
+7. 所以不能直接加 retry、换 Provider、换模型或调 Prompt；下一步先用零 Provider repair 把 Provider failure 变成可诊断证据。
+8. B-03 Retrieval 继续 `REOPEN_CANDIDATE`；Knowhere / LLM Wiki 与 B-05 Parser 继续等待新的 E4 失败证据，不回到局部题目微调。
 
 ## Active hypothesis
 
-Hypothesis ID: `H-16`
+Hypothesis ID: `H-26`
 
 Falsifiable hypothesis:
 
-> H-15/H-15R1 已首次得到可信的 FinanceBench 8-case real E4 runtime：6 个冻结 Retrieval miss 全部最终语义错误，2 个 Retrieval hit 均生成语义正确答案，其中 1 个因 `freeform_answer_too_long` 被误拦。与此同时，现有 `AnswerAB` freeform exact/value scorer 把这 2 个语义正确答案也记为 0，导致 raw 0/8 与人工/Evaluator 语义 2/8 冲突。下一步必须先冻结一个 **零 Provider、可重复、Gold evaluator-side** 的 freeform 语义评分合同，使 `00941/01858` 判为正确，同时保持另外 6 个错误案例为错误；若做不到，则不得扩大 paid E4 benchmark，也不得用 raw exact/value 指标驱动产品实验。
+> H-25 的最大失败族是 4/7 Provider ERROR，但当前 `TokenAttempt` / `finalize_provider_attempt` 以及 `llm_client` 异常路径没有持久化 sanitized failure metadata。若先只增加 `failure_category / error_type / http_status` 三类诊断字段，并保持 Provider/model/retry/fallback/timeout/prompt/output-gate 行为完全不变，那么 synthetic HTTPError / Timeout / URLError / invalid JSON / invalid response 路径应能稳定产生可归因 ledger，同时成功调用语义保持不变。若为了获得这些字段必须改变 Provider 行为或保存 raw response body，则 H-26 失败并停止。
 
 当前测量事实：
 
 ```text
-FinanceBench real E4 slice = 8 QA / 3 docs
-fixed model = ModelScope Qwen/Qwen3.5-397B-A17B
-semantic correct generation = 2 / 8
-accepted correct delivery = 1 / 8
-correct-but-blocked = 1 / 8 (01858)
-Retrieval miss → semantic wrong = 6 / 6
-Retrieval hit → semantic correct generation = 2 / 2
-raw AnswerAB exact/value = 0 / 8
-Repair1 incremental attempts = 3 / 3 ModelScope only
-V1 + Repair1 actual provider attempts = 11
-completed provider tokens = 27266
-product/core mutation = 0
+H-25 L2/L3 = 8/8 PASS
+AMD independent freeform cohort = 7 cases
+Provider attempts = 7/7
+Provider COMPLETED / ERROR = 3 / 4
+prediction present = 3/7
+product blocked = 6/7
+final product-gate accepted = 1/7
+largest failure family = Provider ERROR 4/7
+ERROR rows with failure_category = 0/4
+ERROR rows with error_type = 0/4
+ERROR rows with http_status = 0/4
+Judge = NOT_RUN
+B-06 = SECONDARY_BLOCKED_BY_B-07
+B-07 = ACTIVE
 ```
 
-H-16 当前状态：`FINANCEBENCH_FREEFORM_E4_SCORER_DIAGNOSTIC`。B-03 因真实端到端证据转为 `REOPEN_CANDIDATE`，但 H-13 的 `NO_SINGLE_VARIABLE` 仍有效，禁止围绕 8 题直接补 Retrieval 规则。B-06 保持 ACTIVE：先把 freeform 语义评分尺子修准，再决定是否扩大外部 E4；incremental provider-call post-run accounting 作为独立 maintenance defect 登记，不与 scorer 主变量混改。
+H-26 只修 Provider error ledger 可诊断性，零 Provider/API 调用，不改变 retry/fallback/provider/model/timeout/prompt/output gate。修复独立通过后，再决定是否需要一次单独授权的 bounded canary 去重新捕获真实 Provider failure 类型。
 
 ## Completed H-06 experiment gates
 
@@ -423,3 +426,15 @@ Gold source Top5 rank
 | 2026-08-10-r27 | 2026-08-10 | Human 明确授权 H-15 bounded real Provider run；冻结 8-case/3-doc、ModelScope `Qwen/Qwen3.5-397B-A17B`、单 endpoint、total call budget=8、checkpoint/resume/provider ledger；禁止产品改动 | B-06 保持 ACTIVE；进入首次外部真实 E4 answer baseline；B-03 继续 PAUSED | H-15 转 AUTHORIZED_FOR_BOUNDED_REAL_E4，分发真实 baseline Executor 包 |
 | 2026-08-10-r28 | 2026-08-10 | H-15 V1 real run 被评估基础设施阻断：8 actual attempts 中 ModelScope 7 / SiliconFlow 1；5 completions、3 invalid/blocked；两个 Retrieval-hit controls 无有效 E4。resume 0 新调用、产品 diff=0 | B-06 保持 ACTIVE；V1 raw 0/8 禁止晋级；B-03 继续 PAUSED | H-15 V1 REJECTED；激活 H-15R1 REAL_E4_INFRA_REPAIR，只继承 5 有效案例并最多追加 3 次单 ModelScope 调用 |
 | 2026-08-10-r29 | 2026-08-10 | H-15R1 PASS：Repair1 单 endpoint audit 通过，新增 3/3 ModelScope completions，8-case runtime 完整；Evaluator 语义裁决=2/8 正确生成、1/8 正确且放行；6/6 Retrieval miss 错、2/2 Retrieval hit 对；01858 正确但被长度门禁误拦；raw exact/value 仍 0/8 | B-03 转 REOPEN_CANDIDATE（端到端支持 Retrieval 为主损失层，但无单一 patch）；B-06 保持 ACTIVE（freeform scorer 不可信） | 关闭 H-15/H-15R1；激活 H-16 FINANCEBENCH_FREEFORM_E4_SCORER_DIAGNOSTIC，零 Provider；provider incremental accounting 独立 maintenance |
+| 2026-08-11-r30 | 2026-08-11 | H-16 独立复核：冻结 8-case oracle agreement=8/8，correct=2/8，5/5 frozen counterfactual、双生成、20+8 tests、零 Provider 均通过；额外 adversarial 复核同时复现 protected-anchor 明确否定、冲突修正值、numeric-only 冲突值的 generic false accept | B-06 保持 ACTIVE；冻结 scorer diagnostic 可接受，但更大范围自动评分仍不可信；B-03 不变 | H-16 任务 PASS/NOT_APPLICABLE；拒绝立即 PROMOTE，激活 H-16R1 FREEFORM_SCORER_CONTRADICTION_GUARD_REPAIR |
+| 2026-08-11-r31 | 2026-08-11 | H-16R1 冻结修复独立复核：6/6 contradiction negatives、4/4 benign controls、8-case oracle 8/8、22 regressions 均通过；但 8 个未冻结同义 semantic probes 仅 5/8 正确，出现 wrong-figure / actual-figure / numeric-incorrect 三个明确 false accept | B-06 保持 ACTIVE；deterministic anchor scorer 仅保留为窄范围辅助信号，不晋级 unrestricted binary semantic judge；停止 cue/regex 微修 | H-16R1 PASS/NOT_APPLICABLE + HOLD_SCORER；激活 H-17 E4_FREEFORM_SCORING_POLICY_DESIGN，先定义 auto-score / abstain / semantic-review 边界，不做 paid E4 |
+| 2026-08-11-r32 | 2026-08-11 | Human 指定 Evaluator 直接基于项目 evidence + 公开参考制定 H-17 policy；最终冻结 `ADOPT_LAYERED_SEMANTIC_REVIEW`：Option A reject，Option B 作为 L1 triage，Option C 作为完整 E4 policy；deterministic 仅对结构化可证明结果有最终权限，其余必须 semantic review；model judge 在 meta-eval 前 shadow-only | B-06 保持 ACTIVE，但架构选择已关闭；当前第一缺口变为 policy 是否能在现有 evidence 上稳定路由且不产生 false AUTO_CORRECT | H-17 evaluator-design 收口；激活 H-18 SCORING_POLICY_SHADOW_REPLAY，零 Provider，先回放 8 real outputs 与 adversarial guardrails |
+| 2026-08-11-r33 | 2026-08-11 | H-18 独立复核：固定 8 real outputs 得到 6 AUTO_INCORRECT + 2 REVIEW_REQUIRED，14 个 complex probes 与 4 个 benign controls 均安全 abstain；但额外 4 个金融/合同 `cannot` 语义控制中 3 个被 false AUTO_INCORRECT，根因是 router 复用 inherited scorer 的宽泛 bare-`cannot` refusal signal | B-06 保持 ACTIVE；layered policy 不变，但 L1 自动判错权限尚不可信，禁止进入 L2 judge calibration | H-18 REJECTED/NOT_APPLICABLE；激活 H-18R1 REFUSAL_AUTHORITY_REPAIR，只收紧 answerability refusal，其他边界不动 |
+| 2026-08-12-r34 | 2026-08-12 | H-18R1 独立 L3 最终 7/7 PASS：4/4 普通金融/合同 `cannot` 安全 abstain，6/6 明确 answerability-refusal 为 AUTO_INCORRECT，real-8 保持 6+2；首次 L3 的 import-path 环境缺陷经显式 A1 amendment 修正并保留失败证据 | B-06 保持 ACTIVE；L1 refusal authority 前置阻断关闭，不再继续 deterministic refusal/cue 微调；下一缺口转为 L2 semantic judge calibration contract | H-18R1 PASS/NOT_APPLICABLE；激活 H-19 L2_JUDGE_CALIBRATION_DESIGN，零 Provider，先冻结校准输入/输出、real-vs-trust-test 分层、meta-eval 指标与晋级条件 |
+| 2026-08-12-r35 | 2026-08-12 | H-19 独立 L3 7/7 PASS：L2 I/O authority、三值输出、REAL_CALIBRATION/TRUST_TEST 分轨、9 个核心 meta-eval 指标、shadow-only 与 independent-real-slice 晋级边界均冻结；zero Provider | B-06 保持 ACTIVE；“如何校准第二层尺子”的规则缺口关闭，下一缺口是把规则变成 provider-agnostic、可机械复现的离线 harness | H-19 PASS/NOT_APPLICABLE；激活 H-20 L2_JUDGE_OFFLINE_HARNESS，优先复用现有 EvaluationCase/Observation/Result，仍零 Provider |
+| 2026-08-12-r36 | 2026-08-12 | H-20 独立 L3 7/7 PASS：离线 harness 复用 EvaluationCase/Observation，三值 schema、REAL/TRUST 分轨、固定算术、malformed/missing/duplicate/mismatch fail-closed 均独立复现；zero Provider | B-06 保持 ACTIVE；离线记分基础设施缺口关闭，下一缺口转为真实 model-judge shadow run 的 prompt/rubric/manifest/budget/checkpoint/authorization preflight | H-20 PASS/NOT_APPLICABLE；激活 H-21 L2_JUDGE_SHADOW_PREFLIGHT，仍零 Provider，形成明确 Human/API authorization gate |
+| 2026-08-12-r37 | 2026-08-12 | H-21 独立 L3 7/7 PASS：prompt/rubric/schema、8-output REAL source identity、5 类 TRUST families、零调用预算、checkpoint/resume/provider-ledger 与 evaluator-evidence-only 边界均通过；Provider/model 仍 UNSELECTED | B-06 保持 ACTIVE；shadow-run preflight 缺口关闭，下一步唯一阻断变为 Human 对 bounded external model/API shadow-judge calls 的明确授权 | H-21 PASS/NOT_APPLICABLE；激活 H-22 BOUNDED_SHADOW_JUDGE_RUN，但停在 authorization gate，未授权前不分发 Executor 真实调用包 |
+| 2026-08-12-r38 | 2026-08-12 | Human 授权 H-22，当前 GPT-5.6 Sol 会话完成 8 REAL + 28 TRUST 的 session-mediated shadow smoke；L2/L3 7/7 PASS，REAL agreement=8/8、TRUST=28/28、0 abstain；但同一会话已看过 real-8 历史 6错2对结论，明确记录为 CONTEXT_CONTAMINATED | B-06 保持 ACTIVE；rubric/protocol 执行已 smoke-tested，但独立 judge 泛化仍未证明，禁止 authority promotion | H-22 session-smoke PASS/NOT_APPLICABLE；激活 H-23 INDEPENDENT_REAL_SLICE_DISCOVERY，先零 Provider 查找 current 8 之外真实输出切片 |
+| 2026-08-12-r39 | 2026-08-12 | H-23 独立 L3 5/5 PASS：repository-wide discovery 找到 A 历史 prediction ∩ Local Gold v0.2 的完整 9-case 交集，source/reference Hash、9/9 Gold authority、current8 overlap=0、8 exact/1 mismatch 均独立复现 | B-06 保持 ACTIVE；该 9-case 全为 structured multi/MCQ，L1 exact/set 已足以裁决，只登记为 INDEPENDENT_STRUCTURED_CONTROL_SLICE，不消耗下一次 L2 semantic-judge 实验 | H-23 PASS/NOT_APPLICABLE；激活 H-24 INDEPENDENT_FREEFORM_SLICE_FREEZE，零 Provider 机械冻结 current8 之外完整 FinanceBench document cohort |
+| 2026-08-12-r40 | 2026-08-12 | H-24 独立 L3 6/6 PASS：排除 current8 三个 3M 文档后，按 qa_count desc + doc_name asc 机械选择 `AMD_2022_10K` 完整 7-case cohort；7/7 question/reference 非空、0 choice-letter-only、唯一 PDF path、7 个 source-line Hash exact、0 prediction/Judge/API | B-06 保持 ACTIVE；独立 freeform 试卷已经冻结，但还没有 FinDocQA product prediction，因此仍不能做 fresh-context Judge 泛化测量 | H-24 PASS/NOT_APPLICABLE；激活 H-25 PRODUCT_GENERATION_AUTH，停在 Human/API 授权门，前次 H-22 Judge 授权不可复用 |
+| 2026-08-12-r41 | 2026-08-12 | Human 授权 H-25 后完成 AMD 7-case bounded product generation；独立 L3 8/8 PASS，7/7 each-one-attempt，Provider COMPLETED/ERROR=3/4，prediction=3/7，blocked=6/7，final accepted=1/7，Gold leak=0，Judge 未运行 | 新建 B-07 并设为 ACTIVE：最大单一失败族 Provider ERROR=4/7 达到通用问题门槛；B-06 降为 SECONDARY_BLOCKED_BY_B-07。4 个 ERROR ledger 均缺 failure_category/error_type/http_status，不能盲目 retry/换模型 | H-25 PASS/NOT_APPLICABLE；激活 H-26 PROVIDER_ERROR_LEDGER_DIAGNOSTICS_REPAIR，零 Provider，只补 sanitized failure diagnostics，不改变调用行为 |

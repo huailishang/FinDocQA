@@ -149,3 +149,56 @@ def test_numeric_coupon_bullet_is_not_misread_as_negative_value() -> None:
     result = score_freeform_semantic(prediction, gold)
     assert result.protected_anchor_recall == 1.0
     assert result.semantic_correct is True
+
+
+def test_generic_contradiction_guard_rejects_negated_or_superseded_gold_anchor() -> None:
+    cases = [
+        (
+            "Revenue was 65% higher.",
+            "Revenue was not 65% higher.",
+            "contradicted_protected_anchor_negation",
+        ),
+        (
+            "The rate was 65%.",
+            "The rate was 65%, corrected to 64%.",
+            "contradicted_protected_anchor_correction",
+        ),
+        (
+            "8.70",
+            "The value is 8.70, but corrected to 8.71.",
+            "contradicted_protected_anchor_correction",
+        ),
+        (
+            "8.70",
+            "The value is not 8.70; it is 8.71.",
+            "contradicted_protected_anchor_negation",
+        ),
+        (
+            "The symbol is MMM26.",
+            "The symbol is not MMM26; it is MMM27.",
+            "contradicted_protected_anchor_negation",
+        ),
+        (
+            "Organic growth was 0.9%.",
+            "Organic growth was initially 0.9%, revised to 1.1%.",
+            "contradicted_protected_anchor_correction",
+        ),
+    ]
+    for gold, predicted, expected_reason in cases:
+        result = score_freeform_semantic(predicted, gold)
+        assert result.semantic_correct is False
+        assert result.reason == expected_reason
+        assert result.protected_anchor_recall == 1.0
+
+
+def test_generic_contradiction_guard_preserves_benign_extra_context() -> None:
+    cases = [
+        ("8.70", "The value is 8.70, compared with 8.50 last year."),
+        ("Revenue was 65% higher.", "Revenue was 65% higher than the 50% benchmark."),
+        ("The symbol is MMM26.", "The symbol is MMM26; the previous series was MMM25."),
+        ("Revenue was 65% higher.", "Revenue was not only 65% higher, but also more stable."),
+    ]
+    for gold, predicted in cases:
+        result = score_freeform_semantic(predicted, gold)
+        assert result.semantic_correct is True
+        assert result.reason in {"numeric_anchor_match", "semantic_anchor_match"}
