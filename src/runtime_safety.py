@@ -27,6 +27,9 @@ class TokenAttempt:
     error_at:str=''; timeout_at:str=''; final_status:str='STARTED'
     provider_request_id:str=''
     pre_call_block_reason:str=''
+    failure_category:str=''
+    error_type:str=''
+    http_status:int|None=None
 
 class TokenLedger:
     def __init__(self,path:Path): self.path=path
@@ -55,11 +58,14 @@ class TokenLedger:
         return asdict(attempt)
     def finalize_attempt(self, attempt_id:str, *, final_status:str, provider_request_id:str='',
                          prompt_tokens:int=0, completion_tokens:int=0, total_tokens:int=0,
-                         resolved_model:str='')->dict[str,Any]:
+                         resolved_model:str='', failure_category:str='', error_type:str='',
+                         http_status:int|None=None)->dict[str,Any]:
         status=str(final_status).upper(); now=utc_now()
         updates={'status':status,'final_status':status,'provider_request_id':provider_request_id,
                  'prompt_tokens':int(prompt_tokens or 0),'completion_tokens':int(completion_tokens or 0),
-                 'total_tokens':int(total_tokens or 0)}
+                 'total_tokens':int(total_tokens or 0),
+                 'failure_category':str(failure_category or ''),'error_type':str(error_type or ''),
+                 'http_status':None if http_status is None else int(http_status)}
         if resolved_model: updates['model']=resolved_model
         if status=='COMPLETED': updates['completed_at']=now
         elif status=='TIMEOUT': updates['timeout_at']=now
@@ -280,9 +286,11 @@ def begin_provider_attempt(*, path: Path, attempt_id: str, provider: str, model:
 def finalize_provider_attempt(*, path: Path, attempt_id: str, final_status: str,
                               provider_request_id: str = "", resolved_model: str = "",
                               prompt_tokens: int = 0, completion_tokens: int = 0,
-                              total_tokens: int = 0) -> None:
+                              total_tokens: int = 0, failure_category: str = "",
+                              error_type: str = "", http_status: int | None = None) -> None:
     TokenLedger(path).finalize_attempt(
         attempt_id, final_status=final_status, provider_request_id=provider_request_id,
         resolved_model=resolved_model, prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens, total_tokens=total_tokens,
+        failure_category=failure_category, error_type=error_type, http_status=http_status,
     )

@@ -232,7 +232,18 @@ Canonical Document Store
 
 ## 5. 后续实验路线
 
-这两个方向进入后续规划，不打断当前 B-03 / H-07 主线。
+这两个方向继续保留在后续规划层。当前第一瓶颈已经转为 B-06 / H-29，因此不打断当前 Judge 证据完善主线。
+
+结合 KDD Cup 2026 DataAgents 冠军方案后，Knowhere 的定位进一步明确：它负责建立**可导航的 Document Memory（文档记忆）**，而冠军方案提供 query-time Agent Runtime（查询时智能体运行时）的“先探查、再规划、发现证据缺口后继续导航”策略。两者应串成：
+
+```text
+Knowhere-like Structure Navigation
+→ Soft Evidence Workspace
+→ Explore Before Solve / Evidence Plan
+→ FinDocQA Solver / Verifier
+```
+
+详细对应关系见 `KDDCup2026冠军方案对FinDocQA吸收分析.md`。
 
 ### P-KW1｜Knowhere 式结构导航探针
 
