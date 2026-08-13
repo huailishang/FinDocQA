@@ -31,6 +31,7 @@ FinDocQA 的正式文档只保留四类：项目架构、模块接口、评测�
 - `对比计划.md`：长期能力地图与差距分析。
 - `提升教程-进阶优化.md`：金融长文档问答进阶方法总结。
 - `Knowhere与LLM-Wiki借鉴分析.md`：Document Memory 与知识编译层的边界、风险和后续最小实验。
+- `KDDCup2026冠军方案对FinDocQA吸收分析.md`：将冠军 Data Agent Runtime 与 Knowhere 文档导航结合，整理 Soft Evidence Workspace、Explore Before Solve、受限工具面等可吸收机制及验证优先级。
 
 ## 5. 历史
 

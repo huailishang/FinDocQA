@@ -54,6 +54,28 @@ def _ledger_path_from_env() -> Optional[Path]:
         return None
     return Path(raw)
 
+
+def _finalize_provider_failure(
+    *,
+    ledger_path: Optional[Path],
+    attempt_id: str,
+    final_status: str,
+    failure_category: str,
+    error_type: str,
+    http_status: int | None = None,
+) -> None:
+    if ledger_path is None or finalize_provider_attempt is None:
+        return
+    finalize_provider_attempt(
+        path=ledger_path,
+        attempt_id=attempt_id,
+        final_status=final_status,
+        failure_category=failure_category,
+        error_type=error_type,
+        http_status=http_status,
+    )
+
+
 def _load_local_env_fallback(path: str = ".env") -> bool:
     """Load simple KEY=VALUE pairs when python-dotenv is unavailable."""
     env_path = Path(path)
@@ -472,8 +494,6 @@ class OpenAICompatibleClient:
                 body = response.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
-            if ledger_path is not None and finalize_provider_attempt is not None:
-                finalize_provider_attempt(path=ledger_path, attempt_id=attempt_id, final_status="ERROR")
             quota_markers = (
                 "insufficient_quota",
                 "quota exhausted",
@@ -498,6 +518,23 @@ class OpenAICompatibleClient:
                 and any(marker in detail_lower for marker in capability_markers)
             )
             if explicit_completion_cap_rejection:
+                failure_category = "PROVIDER_CAPABILITY"
+                error_type = "LLMProviderCapabilityError"
+            elif quota_exhausted:
+                failure_category = "PROVIDER_QUOTA"
+                error_type = "HTTPError"
+            else:
+                failure_category = "HTTP_ERROR"
+                error_type = "HTTPError"
+            _finalize_provider_failure(
+                ledger_path=ledger_path,
+                attempt_id=attempt_id,
+                final_status="ERROR",
+                failure_category=failure_category,
+                error_type=error_type,
+                http_status=int(exc.code),
+            )
+            if explicit_completion_cap_rejection:
                 raise LLMProviderCapabilityError(
                     f"provider rejected max_completion_tokens capability: HTTP {exc.code}"
                 ) from exc
@@ -508,31 +545,47 @@ class OpenAICompatibleClient:
                 ) from exc
             raise LLMClientUnavailable(f"HTTP {exc.code}: {detail[:500]}") from exc
         except TimeoutError as exc:
-            if ledger_path is not None and finalize_provider_attempt is not None:
-                finalize_provider_attempt(path=ledger_path, attempt_id=attempt_id, final_status="TIMEOUT")
+            _finalize_provider_failure(
+                ledger_path=ledger_path, attempt_id=attempt_id, final_status="TIMEOUT",
+                failure_category="TIMEOUT", error_type="TimeoutError", http_status=None,
+            )
             raise LLMClientUnavailable(f"connection error: {exc}") from exc
         except urllib.error.URLError as exc:
-            if ledger_path is not None and finalize_provider_attempt is not None:
-                finalize_provider_attempt(path=ledger_path, attempt_id=attempt_id, final_status="ERROR")
+            _finalize_provider_failure(
+                ledger_path=ledger_path, attempt_id=attempt_id, final_status="ERROR",
+                failure_category="CONNECTION_ERROR", error_type="URLError", http_status=None,
+            )
             raise LLMClientUnavailable(f"connection error: {exc}") from exc
 
         latency_ms = (time.perf_counter() - start) * 1000
         try:
             raw = json.loads(body)
         except json.JSONDecodeError as exc:
-            if ledger_path is not None and finalize_provider_attempt is not None:
-                finalize_provider_attempt(path=ledger_path, attempt_id=attempt_id, final_status="ERROR")
+            _finalize_provider_failure(
+                ledger_path=ledger_path, attempt_id=attempt_id, final_status="ERROR",
+                failure_category="INVALID_JSON", error_type="JSONDecodeError", http_status=None,
+            )
             raise LLMClientUnavailable(f"invalid JSON response: {body[:500]}") from exc
+        if not isinstance(raw, dict):
+            _finalize_provider_failure(
+                ledger_path=ledger_path, attempt_id=attempt_id, final_status="ERROR",
+                failure_category="INVALID_RESPONSE", error_type="InvalidCompletionResponse", http_status=None,
+            )
+            raise LLMClientUnavailable("invalid completion response: top-level payload is not an object")
         choices = raw.get("choices")
         if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
-            if ledger_path is not None and finalize_provider_attempt is not None:
-                finalize_provider_attempt(path=ledger_path, attempt_id=attempt_id, final_status="ERROR")
+            _finalize_provider_failure(
+                ledger_path=ledger_path, attempt_id=attempt_id, final_status="ERROR",
+                failure_category="INVALID_RESPONSE", error_type="InvalidCompletionResponse", http_status=None,
+            )
             raise LLMClientUnavailable(f"invalid completion response: choices={choices!r}")
         choice = choices[0]
-        message = choice.get("message") or {}
+        message = choice.get("message")
         if not isinstance(message, dict):
-            if ledger_path is not None and finalize_provider_attempt is not None:
-                finalize_provider_attempt(path=ledger_path, attempt_id=attempt_id, final_status="ERROR")
+            _finalize_provider_failure(
+                ledger_path=ledger_path, attempt_id=attempt_id, final_status="ERROR",
+                failure_category="INVALID_RESPONSE", error_type="InvalidCompletionResponse", http_status=None,
+            )
             raise LLMClientUnavailable(f"invalid completion response: message={message!r}")
         usage_raw = raw.get("usage", {}) or {}
         resolved_model = str(raw.get("model") or endpoint.model)
