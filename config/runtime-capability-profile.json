@@ -1,0 +1,49 @@
+{
+  "profile_id": "findocqa",
+  "version": "2",
+  "capabilities": [
+    {
+      "capability_id": "context.retriever",
+      "plugin_id": "findocqa.retrieval",
+      "implementation_id": "lexical-hybrid",
+      "enabled": true,
+      "config": {"runtime_wired": false, "status": "active_domain_implementation"}
+    },
+    {
+      "capability_id": "context.builder",
+      "plugin_id": "findocqa.context",
+      "implementation_id": "evidence-bundle-builder",
+      "enabled": true,
+      "config": {"runtime_wired": false, "status": "active_domain_implementation"}
+    },
+    {
+      "capability_id": "execution.planner",
+      "plugin_id": "findocqa.planning",
+      "implementation_id": "query-plan-builder",
+      "enabled": true,
+      "config": {"runtime_wired": false, "status": "active_domain_implementation"}
+    },
+    {
+      "capability_id": "execution.executor",
+      "plugin_id": "findocqa.solver",
+      "implementation_id": "c3-deterministic-solver",
+      "enabled": true,
+      "config": {"runtime_wired": false, "status": "active_domain_implementation"}
+    },
+    {
+      "capability_id": "validation.validator",
+      "plugin_id": "findocqa.validation",
+      "implementation_id": "answer-evidence-validator",
+      "enabled": true,
+      "config": {"runtime_wired": false, "status": "active_domain_implementation"}
+    }
+  ],
+  "permissions": {},
+  "policy": {"fail_closed_on_missing_evidence": true},
+  "metadata": {
+    "owner_project": "FinDocQA",
+    "source_of_truth": "docs/evaluation/PROJECT_BOTTLENECK_MAP.md",
+    "domain_extensions": ["know-where strategy", "financial source-lineage model", "financial document rules"],
+    "note": "Slot-to-implementation inventory only; not yet loaded by agent-runtime-platform."
+  }
+}
