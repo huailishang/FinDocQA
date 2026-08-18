@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-08-13-r47`
+Map revision: `2026-08-18-r58`
 
-Last reviewed: `2026-08-13`
+Last reviewed: `2026-08-18`
 
 Map owner: Evaluator
 
@@ -264,53 +264,46 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 |---|---|---|---:|---|---|---|
 | B-01 | 来源绑定 request → 正常计算主链 | SUM 能力曾不可达 | 固定 SUM 3 cases | 0/3→3/3；33/33 护栏 | high | CLOSED |
 | B-02 | 结构化表格证据供给 | 真实 MinerU 表格和完整行证据曾未知 | 190 文档 | 77 份完整行证据、6071 表、77525 行 | high | CLOSED |
-| B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 + FinanceBench 3-doc/8-QA slice | Real E4 semantic review：冻结 Retrieval miss 6/6 最终语义错误；Retrieval hit 2/2 均生成语义正确答案。H-13 仍显示 miss 根因=alias 2 / derived 2 / causal 2，无单一 patch >=4 | high（局部外部端到端测量） | REOPEN_CANDIDATE |
+| B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 + FinanceBench 3-doc/8-QA slice + AMEX 7-case cohort | H-33 对同一 H-31 canonical lexical Retrieval 做零 API 重放：AMEX 官方 evidence Top5 hit=1/7、miss=6/7，Executor L2 8/8、Evaluator L3 8/8 PASS；达到 >=4 独立 case 门槛。停用词过滤反事实仍 1/7，不能作为修复变量 | high（局部外部端到端 + 独立归因） | ACTIVE |
 | B-04 | 长尾计算算子 | 剩余 unsupported operator 无通用家族达到 5 条 | 最大合格族 1 | C3 stage-exit report | high | RETIRED |
 | B-05 | 复杂表格解析 | 2124 张图像表或复杂 span 表未加载，但问题级影响未知 | 2124 张表 | `empty_or_image_table=2038` 等 | medium（现象）；low（业务影响） | WATCH |
-| B-06 | E4 Gold 与端到端结果度量 | 无法可信自动判断 freeform 最终答案语义正确性并稳定统计 paid-run 成本 | 项目全链；本地 100 题 + 外部公开 benchmark | H-28 首个 independent fresh-context Judge 对 3 个 known-wrong freeform outputs 3/3 agreement；H-29 证明旧 persisted outputs 无剩余候选；H-30 已无偏冻结第二独立 `AMERICANEXPRESS_2022_10K` 7-case cohort，并确认唯一 FinanceBench PDF blob identity，下一缺口是 bounded product generation authority | high | ACTIVE |
+| B-06 | E4 Gold 与端到端结果度量 | 无法可信自动判断 freeform 最终答案语义正确性并稳定统计 paid-run 成本 | 项目全链；本地 100 题 + 外部公开 benchmark | H-28 known-wrong Judge 3/3 agreement；H-32 AMEX reference labels=0/7 correct；known-correct 方向仍为空。但 H-33 已证明 6/7 在 Retrieval Top5 前丢失官方 evidence，因此继续扩 Judge 不是当前第一优先级 | high | SECONDARY_BLOCKED_BY_B03 |
 | B-07 | Solver/Provider → 输出门禁 → 可交付答案 | independent freeform cohort 曾出现 Provider ERROR 与输出门禁阻断 | AMD_2022_10K 7-case independent cohort | H-25 历史 Provider ERROR=4/7；H-26 补诊断；H-27 对历史 4 ERROR 重跑得到 3 COMPLETED + 1 INVALID_RESPONSE、0 transport retry，决策 `NO_COMMON_FAMILY`，无单一 Provider failure family >=4；另有 2 个 output-gate case 仍低于通用修复门槛 | high（该 cohort）；medium（全局外推） | SECONDARY_NO_SINGLE_COMMON_FAMILY |
 
 ## Active bottleneck
 
-Active bottleneck ID: `B-06`
+Active bottleneck ID: `B-03`
 
 当前判断：
 
-1. H-27 已完成对 H-25 四个历史 Provider `ERROR` case 的真实复现：3/4 当前 `COMPLETED`，仅 1/4 为 `INVALID_RESPONSE`，0 transport failure，冻结决策=`NO_COMMON_FAMILY`。
-2. 因此 H-25 的 `Provider ERROR=4/7` 不能再视为稳定通用 Provider 根因；`INVALID_RESPONSE` 只有 1 case，另外 output-gate 失败只有 2 cases，均低于项目“同一通用问题 >=4 独立案例”的实验门槛。B-07 不再作为第一瓶颈，也不继续做 Provider subtype 微修。
-3. H-28 已完成首个真正 fresh-context external Judge：`00995 / 01198 / 00757` 三题独立 L3 8/8 PASS；Evaluator 独立参考标签均为 `INCORRECT`，外部 Judge 也均判 `INCORRECT`，因此该 slice `agreement=1.0 / false_accept=0 / abstain=0`。
-4. H-29 进一步做了零 API repository-wide discovery：扫描 73 个 JSONL，实际含 `predicted_answers` 的 artifact=4、FinanceBench prediction rows=23；排除 current8 和 H-28 后结构合格候选=`0`，独立 L3 7/7 PASS。停止继续翻旧产物找 known-correct 样本。
-5. H-30 已完成第二 independent freeform document cohort 冻结：`AMERICANEXPRESS_2022_10K` 7-case，L2/L3 均 6/6 PASS；Evaluator 独立重算确认 `AMERICANEXPRESS=7 / BOEING=7`，按 `doc_name asc` 机械选择无误。FinanceBench commit=`cc39aeb4afdf33909ee1412188bf89035950c2eb`，PDF blob=`da116dc7c7b79585ece010858ed1241b18d5353e`。
-6. 因此 B-06 当前下一缺口不再是选题或输入身份，而是**对这 7 题执行一次新的 bounded product generation**，产生新的 independent persisted freeform outputs，再补 known-correct / known-wrong 两方向 Judge 证据。前次 API authority 不继承。
-7. B-03 Retrieval 仍是 `REOPEN_CANDIDATE`：历史外部 E4 有 6/8 retrieval miss，但 H-13 taxonomy 仍为 alias 2 / derived 2 / causal 2，没有单一 patch >=4；所以不回到按几道题微调 retrieval。
+1. H-35 已完成并由 Evaluator 独立 L3 8/8 复核通过：`canonical_lexical=3/15`、现有 `lexical_hybrid=1/15`、A1 corrected BM25=`3/15`。
+2. `lexical_hybrid` 对 12 个 baseline miss 恢复 `0/12`，且退化 2 个原命中；BM25 保住 3/3，但同样恢复 `0/12`。两条候选均未达到“保住3/3 + 恢复>=4/12 + 零退化”的产品实验门槛。
+3. 因此停止围绕当前 cohort 继续做 canonical lexical/BM25/停用词/TopK 的微调；这不等于宣称 pure lexical retrieval(纯词法检索)达到理论上限，而是说明现有纯词法替换路线没有产品晋级证据。
+4. H-36 升级为 Next-Generation Retrieval bake-off(下一代检索横向实验)大包，但在执行前先由 Evaluator 冻结三条路线的最小可比较实现；设计权威为 `docs/reference/B03下一代检索三路线实验设计.md`。同一 15-case/4-doc/Top5 下先隔离比较 query planning(查询规划)、Know-where Lite(轻量知道去哪里找)。semantic retrieval(语义检索)因还需文档向量化、索引构建、模型/维度/成本冻结，本轮延期为候选路线，不进入 H-36 执行。
+5. 三条 lane 共用“保住3/3 + 恢复>=4/12 + 零退化”的晋级门；本包只做路线选择，不融合。三条均不达标时，再重新评估 multi-stage retrieval(多阶段检索)、evidence representation(证据表示)或 document structure(文档结构)，而不是继续词表/参数微调。
+6. B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。
 
 ## Active hypothesis
 
-Hypothesis ID: `H-31`
+Hypothesis ID: `H-39`
 
 Falsifiable hypothesis:
 
-> 若对 H-30 已冻结的 `AMERICANEXPRESS_2022_10K` 7-case cohort 使用与 H-25 相同的现有 FinDocQA product route，在 Gold 隔离、单一 Provider/model、每题最多一次主调用、无 fallback 的 bounded generation 下生成真实 persisted freeform outputs，那么可以获得第二文档族的独立产品输出，供 Evaluator 后续建立 known-correct / known-wrong reference labels，并继续验证 B-06 的 fresh-context Judge 泛化；若没有新的 Human/API 授权，则不得执行任何真实调用。
+> H-38 已独立确认 `TABLE_ROW_LOCALIZATION(表格行定位)` 覆盖 5/12 stable miss 且 5/5 HIGH。若保持 document scope、question representation、Top5、Gold authority 和 scorer family 不变，只把 retrieval unit(检索单位)从 page/window 扩展为可审计 table/header/row unit，则应保住 baseline 3/3 controls，并恢复至少 4/5 个表格族 miss；否则表格检索单位不是当前 B-03 的主要可晋级修复路线。
 
 当前测量事实：
 
 ```text
-H-28 = PASS / NOT_APPLICABLE, known-wrong Judge 3/3 agreement
-H-29 = PASS / NOT_APPLICABLE, eligible historical candidate = 0
-H-30 = PASS / NOT_APPLICABLE, AMERICANEXPRESS_2022_10K 7-case frozen
-H-30 L2/L3 = 6/6 PASS
-FinanceBench commit = cc39aeb4afdf33909ee1412188bf89035950c2eb
-AMEX PDF blob = da116dc7c7b79585ece010858ed1241b18d5353e
-recommended product route = modelscope-1 / Qwen/Qwen3.5-397B-A17B
-recommended primary call ceiling = 7, one per qid
-Judge = NOT_RUN during generation
-authorization_api_call = false
-B-06 = ACTIVE
-B-07 = SECONDARY_NO_SINGLE_COMMON_FAMILY
-B-03 = REOPEN_CANDIDATE
+H-38 TABLE_ROW_LOCALIZATION = 5 HIGH
+H-38 DERIVED_FORMULA_EVIDENCE = 5 (3 HIGH + 2 MEDIUM)
+H-38 METRIC_ALIAS_ACRONYM = 1
+H-38 LEXICAL_PARAPHRASE = 1
+H-35 baseline controls = 3 hits
+Semantic Retrieval = DEFERRED_CANDIDATE
+B-03 = ACTIVE
 ```
 
-H-31 当前只停在新的 Human/API product-generation authorization gate；H-25/H-27/H-28 的历史授权均不可继承。
+H-39 单一主变量：candidate retrieval unit 从 page/window 扩展为 table/header/row-aware units。禁止 QueryPlan、semantic、reranker、Know-where、Parser 重跑与权重调参。
 
 ## Completed H-06 experiment gates
 
@@ -442,3 +435,31 @@ Gold source Top5 rank
 | 2026-08-13-r45 | 2026-08-13 | H-28 完成：3 primary、0 retry、3/3 structured Judge records；Executor L2 8/8 PASS，Evaluator L3 8/8 PASS。Evaluator 独立参考标签三题均为 INCORRECT，外部 fresh-context Judge 也均判 INCORRECT，agreement=1.0、false_accept=0、abstain=0 | B-06 保持 ACTIVE；当前证据只证明 known-wrong 拒绝方向，缺 independent known-correct freeform 样本，不能用空覆盖的 false_reject=0 推动 Judge authority。KDD Cup champion / Knowhere 吸收作为规划层登记，不改变当前瓶颈排序 | H-28 PASS/NOT_APPLICABLE；激活 H-29 INDEPENDENT_KNOWN_CORRECT_FREEFORM_DISCOVERY，先零 Provider 从已有 artifacts 找可审计 known-correct freeform candidate；若不存在再进入新的 bounded product-generation authorization gate |
 | 2026-08-13-r46 | 2026-08-13 | H-29 全仓零 API discovery：73 JSONL、4 个 `predicted_answers` artifacts、23 条 FinanceBench prediction rows；排除 current8 16 rows + H-28 3 rows，并识别 H-27 两条 bool-only observation 后，结构合格剩余 candidate=0。Executor L2 7/7、Evaluator L3 7/7 PASS | B-06 保持 ACTIVE；停止继续翻旧 persisted outputs。下一步先增加独立文档族多样性，机械冻结第二个完整 FinanceBench freeform cohort；冠军 Runtime/Knowhere 研究继续作为规划层，不抢当前瓶颈 | H-29 PASS/NOT_APPLICABLE；激活 H-30 SECOND_INDEPENDENT_FREEFORM_COHORT_FREEZE，按 `qa_count desc + doc_name asc` 排除已使用 3M/AMD 文档后选择 `AMERICANEXPRESS_2022_10K`，零 Provider/API |
 | 2026-08-13-r47 | 2026-08-13 | H-30 完成：`AMERICANEXPRESS_2022_10K` 完整 7-case cohort 按 `qa_count desc + doc_name asc` 无偏冻结；Executor L2 6/6、Evaluator L3 6/6 PASS，Evaluator 独立重算确认 AMEX/BOEING 7/7 tie 与 7 个 source-order qid。官方 FinanceBench commit=`cc39aeb...`，AMEX PDF blob=`da116dc...`，Provider/API/Judge/prediction=0 | B-06 保持 ACTIVE；第二独立文档族输入与唯一 PDF identity 已锁死，下一缺口是产生新的 persisted product outputs，再补 known-correct/known-wrong 两方向 Judge 证据；不回到 Retrieval 微修 | H-30 PASS/NOT_APPLICABLE；激活 H-31 AMEX_7CASE_PRODUCT_GENERATION_AUTH，新的 Human/API 授权缺失，历史 H-25/H-27/H-28 authority 不继承 |
+| 2026-08-17-r48 | 2026-08-17 | H-31 已完成并独立复核：AMEX 7-case 真实 product generation 7/7 Provider COMPLETED、7/7 persisted predictions、每题恰好 1 次、retry/fallback=0、Gold leakage=0、Judge 未运行；Executor L2 8/8、Evaluator L3 8/8 PASS | B-06 保持 ACTIVE；“缺新产品答案”已关闭，第一缺口改为为这 7 个输出建立 independent reference labels，先绑定官方 reference/evidence，不直接再次跑 Judge，也不回到 Retrieval 微修 | H-31 PASS/NOT_APPLICABLE；激活 H-32 AMEX_7CASE_REFERENCE_DOSSIER，offline、零 Provider/API/Judge，Executor 仅机械绑定，不判 CORRECT/INCORRECT |
+| 2026-08-17-r49 | 2026-08-17 | H-32 经 A1 nullable-justification 修订后 Executor L2 8/8、Evaluator L3 8/8 PASS；7-row dossier 与 FinanceBench source-exact，Evaluator 独立 semantic labels = 0/7 CORRECT、7/7 INCORRECT；至少 6/7 产品答案表现为“证据不足/无法确认”，但 H-31 未保存逐题 retrieval trace | B-06 仍 ACTIVE 但暂停继续扩第三文档族/Judge；B-03 保持 REOPEN_CANDIDATE，先用 H-33 零 API 重放同一 lexical retriever 做官方 evidence TopK 归因。只有 >=4 独立 miss 才升 B-03 ACTIVE | H-32 PASS/NOT_APPLICABLE；激活 H-33 AMEX_7CASE_RETRIEVAL_ATTRIBUTION，零 Provider/API/Judge/product-generation，禁止任何产品 patch |
+| 2026-08-17-r50 | 2026-08-17 | H-33 严格复用 H-31 canonical lexical Retrieval：AMEX 官方 evidence Top5 hit=1/7、miss=6/7，Executor L2 8/8、Evaluator L3 8/8 PASS，Gold leak/Provider/API/Judge/product change=0；Evaluator stopword-filter 反事实仍 1/7、恢复 0 | B-03 从 REOPEN_CANDIDATE 升为 ACTIVE；B-06 降为 SECONDARY_BLOCKED_BY_B03。当前只证明 Retrieval 是主瓶颈，尚无 exactly-one-variable 修复证据，禁止直接调 TopK/embedding/reranker/scoring/alias | H-33 PASS/NOT_APPLICABLE；激活 H-34 AMEX_6MISS_RETRIEVAL_LOSS_FAMILY_DIAGNOSIS，零 API/零产品修改，先判断是否有同一 query/ranking mechanism 覆盖 >=4 case |
+| 2026-08-17-r51 | 2026-08-17 | H-34 在 Executor 开始前因项目级反思被 SUPERSEDED_PRE_EXECUTION：FinanceBench E4 当前使用的是轻量 `canonical_lexical` shadow baseline，而项目默认已有 `lexical_hybrid`，研究层还登记 BM25/semantic/query-planning 等路线。继续只解剖 AMEX 6 个 miss 会过早微调影子基线 | B-03 保持 ACTIVE；先做检索路线横向实验而非逐题修词。冻结 15 QA / 4 docs：原 8 QA + AMEX 7 QA；统一 Top5/evidence-page 指标 | 激活 H-35 FINANCEBENCH_15CASE_RETRIEVAL_BAKEOFF：A canonical_lexical / B lexical_hybrid / C task-local BM25；候选必须保住 baseline 3/3 hit 且额外恢复 >=4/12 miss 才有产品实验资格 |
+
+<!-- r52 evaluator update -->
+H-35 independent L3: PASS. `canonical_lexical=3/15`, `lexical_hybrid=1/15`, corrected `BM25=3/15`; both candidates recovered `0/12` baseline misses. Active routing moves to H-36 `FINANCEBENCH_15CASE_QUERY_PLAN_RETRIEVAL_PROBE`; if it fails the same `preserve 3/3 + recover >=4/12 + regress 0` gate, move to bounded semantic embedding retrieval rather than lexical/query-term micro-tuning.
+
+<!-- r53 evaluator update -->
+Human/Task Owner 于 `2026-08-18` 要求避免把 semantic retrieval(语义检索)、query planning(查询规划)、Know-where(知道去哪里找)拆成三个连续小包。原 QueryPlanBuilder-only H-36 在执行前 `SUPERSEDED_PRE_EXECUTION`；H-36 改为 `FINANCEBENCH_15CASE_NEXTGEN_RETRIEVAL_BAKEOFF`，三 lane 同基线横向选路，但严格隔离机制、不做融合。
+
+<!-- r54 evaluator design-freeze update -->
+H-36 在 Executor 开始前增加 Evaluator Design Freeze：项目已有 semantic retrieval 接口与 QueryPlanBuilder，但没有现成 DocumentMemory/navigation runtime。`docs/reference/B03下一代检索三路线实验设计.md` 已冻结三条最小实现；Know-where 本轮仅测 `DocumentMemoryLite + Structure Probe + Local Evidence Search`，结构供给不足时必须 `BLOCKED_BY_STRUCTURE_SUPPLY`，不得临时重写 Parser 或由 Executor 自定义框架。
+
+<!-- r55 evaluator scope update -->
+H-36 暂停 semantic retrieval：即便环境已有 embedding API，公平实验仍需先完成冻结文档的 page-level embedding、向量索引、模型/维度/批次/成本控制。当前先比较 Query Planning 与 Know-where Lite；两条都不达标后再决定是否单独开启语义向量实验。
+
+<!-- r56 evaluator update -->
+H-36 L3 PASS：Query Planning 无可测增益；Know-where Lite 因结构供给不足未能有效测量。独立检查显示 3M_2022_10K 的平面 Markdown 实际保留大量 SEC PART/ITEM 标记，因此 H-37 优先做现有文本结构恢复并在同一包重放 Know-where，而不是直接重跑 Parser 或启动 semantic retrieval。
+
+<!-- r57 evaluator update -->
+H-37 L3 PASS + NO_MEASURABLE_GAIN：结构供给已恢复，但 Know-where Lite 仅 1/15、恢复 0/12、退化 2/3。H-38 转为 12-miss mechanism-level failure attribution(机制级失败归因)，先确认是否存在 >=4 独立 case 的通用失败族，再决定下一条能力路线；semantic retrieval 继续延期。
+
+<!-- r58 evaluator update -->
+H-38 L3 PASS：12 miss 收敛为两个 5-case 通用族。优先选择 5/5 HIGH 的 TABLE_ROW_LOCALIZATION；H-39 只验证 table/header/row retrieval unit 是否能恢复 >=4/5 表格族并保住 baseline 3/3。Derived-formula 与 semantic 路线继续保留为后续候选。
+
+<!-- r59 evaluator update -->
+H-39 L3 PASS + NO_MEASURABLE_GAIN：table/header/row retrieval unit 在冻结 15-case 上仍为 3/15，TABLE_ROW_LOCALIZATION 0/5 恢复、controls 3/3 保留。结合 H-38 两个 5-case 族，下一假设上移到共同前置层 Evidence Target Planning(证据目标规划)：先把问题转换为“需要哪些财务事实 / 什么操作 / 什么证据形态”，再决定后续 retrieval/binding；不直接建设完整公式 Solver。H-40 冻结 10-case（5 table + 5 derived），门槛为 >=8/10 TARGET_COMPLETE 且每族 >=4/5，零 API/Gold runtime rule/产品改动。
