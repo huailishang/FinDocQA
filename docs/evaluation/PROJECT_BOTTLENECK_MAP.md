@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-08-18-r58`
+Map revision: `2026-08-19-r60`
 
-Last reviewed: `2026-08-18`
+Last reviewed: `2026-08-19`
 
 Map owner: Evaluator
 
@@ -276,34 +276,37 @@ Active bottleneck ID: `B-03`
 
 当前判断：
 
-1. H-35 已完成并由 Evaluator 独立 L3 8/8 复核通过：`canonical_lexical=3/15`、现有 `lexical_hybrid=1/15`、A1 corrected BM25=`3/15`。
-2. `lexical_hybrid` 对 12 个 baseline miss 恢复 `0/12`，且退化 2 个原命中；BM25 保住 3/3，但同样恢复 `0/12`。两条候选均未达到“保住3/3 + 恢复>=4/12 + 零退化”的产品实验门槛。
-3. 因此停止围绕当前 cohort 继续做 canonical lexical/BM25/停用词/TopK 的微调；这不等于宣称 pure lexical retrieval(纯词法检索)达到理论上限，而是说明现有纯词法替换路线没有产品晋级证据。
-4. H-36 升级为 Next-Generation Retrieval bake-off(下一代检索横向实验)大包，但在执行前先由 Evaluator 冻结三条路线的最小可比较实现；设计权威为 `docs/reference/B03下一代检索三路线实验设计.md`。同一 15-case/4-doc/Top5 下先隔离比较 query planning(查询规划)、Know-where Lite(轻量知道去哪里找)。semantic retrieval(语义检索)因还需文档向量化、索引构建、模型/维度/成本冻结，本轮延期为候选路线，不进入 H-36 执行。
-5. 三条 lane 共用“保住3/3 + 恢复>=4/12 + 零退化”的晋级门；本包只做路线选择，不融合。三条均不达标时，再重新评估 multi-stage retrieval(多阶段检索)、evidence representation(证据表示)或 document structure(文档结构)，而不是继续词表/参数微调。
-6. B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。
+1. H-35/H-36/H-37 已连续证明：`lexical_hybrid`、corrected BM25、Query Planning(查询规划)、Know-where Lite(轻量知道去哪里找)都没有在冻结 FinanceBench cohort 上形成可测恢复；继续做词法参数或结构导航微调没有证据基础。
+2. H-38 将 12 个稳定 miss 收敛为两个各 5-case 的通用失败族：`TABLE_ROW_LOCALIZATION(表格行定位)` 与 `DERIVED_FORMULA_EVIDENCE(派生公式证据)`。
+3. H-39 只改变 retrieval unit(检索单位)到 table/header/row，独立结果仍恢复 `0/5`，因此“粒度太粗”不是主要修复变量。
+4. H-40 将问题上移到 Evidence Target Planning(证据目标规划)。Executor 报告 9/10，Evaluator 独立逐题复核仍为 `9/10 TARGET_COMPLETE`，但具体标签发生纠正：表格族 `5/5`、派生公式族 `4/5`。这证明规划表示本身大体成立，但尚未证明 Top5 Retrieval 改善。
+5. 因此 H-41 进入真正的 same-baseline capability experiment(同基线能力实验)：把冻结 `EvidenceTargetPlan` 接到现有 lexical retrieval(词法检索)前面，只新增 plan-derived target subqueries/constraints(计划派生目标子查询/约束)，看 10 个历史 miss 是否至少恢复 4 个，同时保住 3/3 controls。
+6. semantic retrieval(语义检索)继续保留为后续候选；只有 H-41 不能把已验证规划表示转化为检索收益时，才重新判断是 lexical representation/ranking(词法表示/排序)、semantic retrieval，还是 evidence binding(证据绑定)成为下一瓶颈。
+7. B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。
 
 ## Active hypothesis
 
-Hypothesis ID: `H-39`
+Hypothesis ID: `H-41`
 
 Falsifiable hypothesis:
 
-> H-38 已独立确认 `TABLE_ROW_LOCALIZATION(表格行定位)` 覆盖 5/12 stable miss 且 5/5 HIGH。若保持 document scope、question representation、Top5、Gold authority 和 scorer family 不变，只把 retrieval unit(检索单位)从 page/window 扩展为可审计 table/header/row unit，则应保住 baseline 3/3 controls，并恢复至少 4/5 个表格族 miss；否则表格检索单位不是当前 B-03 的主要可晋级修复路线。
+> 对 H-40 已验证可规划的 10 个 FinanceBench miss，在保持 document scope(文档范围)、official evidence authority(官方证据权威)、Top5 cutoff、baseline retriever family(基线检索器家族)不变时，仅把 `EvidenceTargetPlan` 转换成可审计 target subqueries / target constraints 并接入现有 lexical candidate ranking，应保住 3/3 controls、恢复至少 4/10 miss，且两个 5-case family 各恢复至少 2 个；否则 Evidence Target Planning 只是有用的中间表示，尚不能作为 B-03 的统一检索修复机制。
 
 当前测量事实：
 
 ```text
-H-38 TABLE_ROW_LOCALIZATION = 5 HIGH
-H-38 DERIVED_FORMULA_EVIDENCE = 5 (3 HIGH + 2 MEDIUM)
-H-38 METRIC_ALIAS_ACRONYM = 1
-H-38 LEXICAL_PARAPHRASE = 1
-H-35 baseline controls = 3 hits
+H-38 TABLE_ROW_LOCALIZATION = 5
+H-38 DERIVED_FORMULA_EVIDENCE = 5
+H-39 table/header/row retrieval recovery = 0/5
+H-40 Evaluator TARGET_COMPLETE = 9/10
+H-40 TABLE_ROW_LOCALIZATION = 5/5
+H-40 DERIVED_FORMULA_EVIDENCE = 4/5
+H-38 frozen controls = 3/3 baseline hits
 Semantic Retrieval = DEFERRED_CANDIDATE
 B-03 = ACTIVE
 ```
 
-H-39 单一主变量：candidate retrieval unit 从 page/window 扩展为 table/header/row-aware units。禁止 QueryPlan、semantic、reranker、Know-where、Parser 重跑与权重调参。
+H-41 单一主变量：`EvidenceTargetPlan → target-guided lexical retrieval`。禁止 semantic embedding、reranker、Know-where、QueryPlanBuilder、Parser 重跑、Solver、Provider/API/Judge 和 qid/Gold 派生规则。
 
 ## Completed H-06 experiment gates
 
@@ -463,3 +466,6 @@ H-38 L3 PASS：12 miss 收敛为两个 5-case 通用族。优先选择 5/5 HIGH 
 
 <!-- r59 evaluator update -->
 H-39 L3 PASS + NO_MEASURABLE_GAIN：table/header/row retrieval unit 在冻结 15-case 上仍为 3/15，TABLE_ROW_LOCALIZATION 0/5 恢复、controls 3/3 保留。结合 H-38 两个 5-case 族，下一假设上移到共同前置层 Evidence Target Planning(证据目标规划)：先把问题转换为“需要哪些财务事实 / 什么操作 / 什么证据形态”，再决定后续 retrieval/binding；不直接建设完整公式 Solver。H-40 冻结 10-case（5 table + 5 derived），门槛为 >=8/10 TARGET_COMPLETE 且每族 >=4/5，零 API/Gold runtime rule/产品改动。
+
+<!-- r60 evaluator update -->
+H-40 L2/L3 8/8 PASS。Evaluator 未继承 Executor 从 4/10 调整到 9/10 的 checker 结论，而是逐题独立复核 EvidenceTargetPlan：最终仍为 9/10 TARGET_COMPLETE，但标签纠正为 TABLE_ROW_LOCALIZATION=5/5、DERIVED_FORMULA_EVIDENCE=4/5；03029 升为 COMPLETE，01351 因缺 FY2022 税率输入降为 PARTIAL。H-40 只证明规划表示成立，不证明 Retrieval 改善。H-41 因此冻结为 EvidenceTargetPlan-guided lexical retrieval 同基线能力实验：10 个历史 miss + 3 controls，要求 controls 3/3、恢复 >=4/10 且两族各 >=2/5，零 semantic/reranker/Know-where/QueryPlanBuilder/Parser/Solver/API/Gold-runtime-rule。
