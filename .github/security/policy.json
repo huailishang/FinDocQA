@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "public_repositories": [
+    "FinDocQA",
+    "agentic-payment-trust-lab"
+  ],
+  "managed_repositories": [
+    "FinDocQA",
+    "agent-project-backlog",
+    "agent-runtime-platform",
+    "agentic-payment-trust-lab",
+    "credit-card-analytics-workflow",
+    "credit-card-causal-evaluation",
+    "data-warehouse-agent",
+    "enterprise-agent-lab",
+    "localagent-common",
+    "voice-studio"
+  ],
+  "public_block_extensions": [
+    ".log",
+    ".bak",
+    ".csv",
+    ".tsv",
+    ".xls",
+    ".xlsx",
+    ".sql",
+    ".db",
+    ".sqlite",
+    ".dump",
+    ".zip",
+    ".7z",
+    ".rar",
+    ".pem",
+    ".key",
+    ".p12",
+    ".jks",
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".ppt",
+    ".pptx"
+  ],
+  "external_sensitive_path_extensions": [
+    ".log",
+    ".bak",
+    ".csv",
+    ".tsv",
+    ".xls",
+    ".xlsx",
+    ".sql",
+    ".db",
+    ".sqlite",
+    ".dump",
+    ".zip",
+    ".7z",
+    ".rar",
+    ".pem",
+    ".key",
+    ".p12",
+    ".jks",
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".ppt",
+    ".pptx"
+  ],
+  "sensitive_path_terms": [
+    "internal",
+    "内部",
+    "行内",
+    "生产",
+    "prod",
+    "customer",
+    "客户",
+    "credential",
+    "secret",
+    "数据字典",
+    "ddl"
+  ],
+  "allow_paths": {
+    "*": [
+      ".env.example",
+      "**/.env.example"
+    ]
+  },
+  "local_denylist": "~/.config/localagent-security/company-denylist.txt",
+  "max_text_bytes": 2000000
+}
