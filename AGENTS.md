@@ -23,11 +23,10 @@ Keep FinDocQA reusable for financial long-document QA. Prefer generic capabiliti
 
 ## Local test environment
 
-- Run project tests with the Windows Conda `agent` environment by default.
-- Python: `<LOCAL_SOFTWARE>\Anaconda\workspace\.conda\envs\agent\python.exe`
+- Run project tests with the Windows Conda environment named `agent` by default.
 - `pytest` is installed in this environment (verified version: 9.0.3 on 2026-07-27).
-- The standalone Windows Python at `<LOCAL_SOFTWARE>\Python\install\python.exe` does not currently have `pytest`; do not use it for the project test suite unless its environment is explicitly updated.
-- Preferred command: `<LOCAL_SOFTWARE>\Anaconda\workspace\.conda\envs\agent\python.exe -m pytest -q`
+- Preferred command: `conda run -n agent python -m pytest -q`; activating `agent` and running `python -m pytest -q` is also acceptable.
+- Machine-specific Python/Conda absolute paths are local configuration and must not be committed to this public repository.
 
 <!-- BEGIN localagent-common:codexpro-shell-safety -->
 ## CodexPro Shell 与文件落盘安全
