@@ -2,7 +2,7 @@
 
 ## 1. 项目自己的主线
 
-FinDocQA 仍然是金融文档问答领域项目，不因为 Platform 采用 Capability（能力）架构就提前做通用插件化。
+FinDocQA 当前定位为 **企业知识与证据能力来源**。金融长文档问答是验证场，不再作为与数仓 Agent、Payment 并列的独立业务主线。项目继续在本仓解决解析、检索、证据、计算和验证问题；只有稳定的 Knowledge / Evidence Contract（知识 / 证据契约）才供 Enterprise Agent Control Plane 或业务 Agent 消费。
 
 当前端到端链保持：
 
@@ -95,9 +95,9 @@ subject
 
 | 联动项目 | 可比较能力 | 当前判断 |
 |---|---|---|
-| `data-warehouse-agent` | Validator（校验器）、Evidence（证据）、Source lineage（来源血缘） | **最可能形成第二消费者**。先比较 Finding / Evidence / Verdict 结构，不共用业务规则 |
-| `agentic-payment-trust-lab` | Trace（轨迹）、Source identity（来源身份）、fail-closed（失败关闭） | 可借鉴证据连续性与来源分层，但支付 Gate 不直接复用到 RAG |
-| `agent-runtime-platform` | Registry（注册）、Profile（装配）、Trace hook（轨迹挂点） | FinDocQA 先作为检索能力验证场；未证明跨项目复用前不搬代码 |
+| `agent-runtime-platform` | Runtime / Harness / Context、Registry（注册）、Profile（装配）、Trace hook（轨迹挂点） | Control Plane 只消费稳定的 Knowledge / Evidence Contract，不接管金融领域检索实现 |
+| `data-warehouse-agent` | 企业研发中的文档、规则、Evidence（证据）、Source lineage（来源血缘） | **主要业务消费者候选**。需要时复用文档与证据能力，不共享金融业务规则 |
+| `agentic-payment-trust-lab` | Trace（轨迹）、Source identity（来源身份）、fail-closed（失败关闭） | 只比较证据连续性、来源身份和审计机制；支付 Gate 不进入 RAG / Knowledge 层 |
 
 ## 4. 当前允许抽取的最小公共形状
 

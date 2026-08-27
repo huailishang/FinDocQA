@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-08-19-r60`
+Map revision: `2026-08-23-r61`
 
-Last reviewed: `2026-08-19`
+Last reviewed: `2026-08-23`
 
 Map owner: Evaluator
 
@@ -264,7 +264,7 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 |---|---|---|---:|---|---|---|
 | B-01 | 来源绑定 request → 正常计算主链 | SUM 能力曾不可达 | 固定 SUM 3 cases | 0/3→3/3；33/33 护栏 | high | CLOSED |
 | B-02 | 结构化表格证据供给 | 真实 MinerU 表格和完整行证据曾未知 | 190 文档 | 77 份完整行证据、6071 表、77525 行 | high | CLOSED |
-| B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 + FinanceBench 3-doc/8-QA slice + AMEX 7-case cohort | H-33 对同一 H-31 canonical lexical Retrieval 做零 API 重放：AMEX 官方 evidence Top5 hit=1/7、miss=6/7，Executor L2 8/8、Evaluator L3 8/8 PASS；达到 >=4 独立 case 门槛。停用词过滤反事实仍 1/7，不能作为修复变量 | high（局部外部端到端 + 独立归因） | ACTIVE |
+| B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 + FinanceBench 多文档外部 cohort | H-41 在冻结 10 miss + 3 controls 上由 Evaluator 独立复跑确认：EvidenceTargetPlan → target-guided lexical retrieval 恢复 6/10，两个失败族分别 4/5、2/5，controls 3/3；但样本外 AMD_2022_10K 7 题 baseline 0/7，H-40 metric-key planner 只覆盖 2/7，因此当前子瓶颈转为通用 EvidenceTargetPlan 生成，而非继续词法融合微调 | high（局部外部能力提升 + 样本外规划缺口） | ACTIVE |
 | B-04 | 长尾计算算子 | 剩余 unsupported operator 无通用家族达到 5 条 | 最大合格族 1 | C3 stage-exit report | high | RETIRED |
 | B-05 | 复杂表格解析 | 2124 张图像表或复杂 span 表未加载，但问题级影响未知 | 2124 张表 | `empty_or_image_table=2038` 等 | medium（现象）；low（业务影响） | WATCH |
 | B-06 | E4 Gold 与端到端结果度量 | 无法可信自动判断 freeform 最终答案语义正确性并稳定统计 paid-run 成本 | 项目全链；本地 100 题 + 外部公开 benchmark | H-28 known-wrong Judge 3/3 agreement；H-32 AMEX reference labels=0/7 correct；known-correct 方向仍为空。但 H-33 已证明 6/7 在 Retrieval Top5 前丢失官方 evidence，因此继续扩 Judge 不是当前第一优先级 | high | SECONDARY_BLOCKED_BY_B03 |
@@ -276,37 +276,40 @@ Active bottleneck ID: `B-03`
 
 当前判断：
 
-1. H-35/H-36/H-37 已连续证明：`lexical_hybrid`、corrected BM25、Query Planning(查询规划)、Know-where Lite(轻量知道去哪里找)都没有在冻结 FinanceBench cohort 上形成可测恢复；继续做词法参数或结构导航微调没有证据基础。
-2. H-38 将 12 个稳定 miss 收敛为两个各 5-case 的通用失败族：`TABLE_ROW_LOCALIZATION(表格行定位)` 与 `DERIVED_FORMULA_EVIDENCE(派生公式证据)`。
-3. H-39 只改变 retrieval unit(检索单位)到 table/header/row，独立结果仍恢复 `0/5`，因此“粒度太粗”不是主要修复变量。
-4. H-40 将问题上移到 Evidence Target Planning(证据目标规划)。Executor 报告 9/10，Evaluator 独立逐题复核仍为 `9/10 TARGET_COMPLETE`，但具体标签发生纠正：表格族 `5/5`、派生公式族 `4/5`。这证明规划表示本身大体成立，但尚未证明 Top5 Retrieval 改善。
-5. 因此 H-41 进入真正的 same-baseline capability experiment(同基线能力实验)：把冻结 `EvidenceTargetPlan` 接到现有 lexical retrieval(词法检索)前面，只新增 plan-derived target subqueries/constraints(计划派生目标子查询/约束)，看 10 个历史 miss 是否至少恢复 4 个，同时保住 3/3 controls。
-6. semantic retrieval(语义检索)继续保留为后续候选；只有 H-41 不能把已验证规划表示转化为检索收益时，才重新判断是 lexical representation/ranking(词法表示/排序)、semantic retrieval，还是 evidence binding(证据绑定)成为下一瓶颈。
-7. B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。
+1. H-35/H-36/H-37 已连续证明：`lexical_hybrid`、corrected BM25、Query Planning(查询规划)、Know-where Lite(轻量知道去哪里找)单独接在旧检索链上都没有形成可测恢复；继续做词法参数微调没有证据基础。
+2. H-38/H-39 把稳定 miss 收敛为两个 5-case 通用失败族，并排除了“只把 retrieval unit(检索单位)改成 table/header/row”这一变量。
+3. H-40 证明 Evidence Target Planning(证据目标规划)在原两个失败族上可形成 `9/10 TARGET_COMPLETE` 的上游表示，但实现依赖 metric-key registry(按指标关键词枚举的规则表)。
+4. H-41 已由 Evaluator 独立完整复跑确认 `PASS + IMPROVED`：在冻结 10 miss + 3 controls 上，固定 lexical retriever family，仅加入 `EvidenceTargetPlan → target subqueries/constraints → fixed lexical fusion`，恢复 `6/10`，两个失败族分别 `4/5`、`2/5`，controls `3/3` 无退化。由此，“有可用 plan 后怎么搜”已经得到正向证据。
+5. H-41 之后的样本外检查使用未参与 H-40/H-41 设计的 `AMD_2022_10K` 7 题：canonical lexical Top5 为 `0/7`，但 H-40 metric-key planner 只覆盖 `2/7`。这说明新的第一子瓶颈不是 lexical fusion(词法融合)，而是 generic EvidenceTargetPlan generation(通用证据目标计划生成)。
+6. 因此 H-42 不再扩 H-40 指标规则表，也不改变 H-41 fusion；只测试 operation-first + structure-aware planning(操作类型优先 + 文档结构感知规划)，即先识别 lookup/compare/driver/ratio/applicability/existence 等通用证据操作，再利用 question-visible signal(问题可见信号)与文档局部结构探查形成 required facts / region hints，最后接入冻结 H-41 fusion。
+7. 该方向与项目既有 KDD Cup 2026 吸收结论一致：`question → initial plan → inspect real document structure/local evidence → revise target → retrieve`，但本轮仍保持 deterministic/offline(确定性/离线)，不引入 LLM/API。
+8. semantic retrieval(语义检索)继续保留为后续候选；只有通用 planner 仍不能把已证明有效的 H-41 fusion 扩展到样本外问题时，再重新比较 semantic retrieval、evidence binding(证据绑定)或更完整 Active Evidence Workspace(活动证据工作区)。
+9. B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。
 
 ## Active hypothesis
 
-Hypothesis ID: `H-41`
+Hypothesis ID: `H-42`
 
 Falsifiable hypothesis:
 
-> 对 H-40 已验证可规划的 10 个 FinanceBench miss，在保持 document scope(文档范围)、official evidence authority(官方证据权威)、Top5 cutoff、baseline retriever family(基线检索器家族)不变时，仅把 `EvidenceTargetPlan` 转换成可审计 target subqueries / target constraints 并接入现有 lexical candidate ranking，应保住 3/3 controls、恢复至少 4/10 miss，且两个 5-case family 各恢复至少 2 个；否则 Evidence Target Planning 只是有用的中间表示，尚不能作为 B-03 的统一检索修复机制。
+> 在不扩 H-40 metric-specific registry(指标专用规则表)、不改变 H-41 lexical fusion(词法融合)、不读取 Gold/official evidence(标准答案/官方证据)生成计划的前提下，使用 operation-first + structure-aware planner(操作类型优先 + 文档结构感知规划)应能为完全样本外的 AMD 7 个 FinanceBench miss 全部生成可审计 EvidenceTargetPlan，并让冻结 H-41 fusion 至少恢复 `3/7`；同时对 3 个 baseline-hit controls 应保持 `3/3`。否则 H-41 的 6/10 收益仍依赖原 cohort 的手写 planning scaffold，尚不足以进入产品化。
 
 当前测量事实：
 
 ```text
-H-38 TABLE_ROW_LOCALIZATION = 5
-H-38 DERIVED_FORMULA_EVIDENCE = 5
-H-39 table/header/row retrieval recovery = 0/5
-H-40 Evaluator TARGET_COMPLETE = 9/10
-H-40 TABLE_ROW_LOCALIZATION = 5/5
-H-40 DERIVED_FORMULA_EVIDENCE = 4/5
-H-38 frozen controls = 3/3 baseline hits
+H-40 original-cohort TARGET_COMPLETE = 9/10
+H-41 recovered miss = 6/10
+H-41 TABLE_ROW_LOCALIZATION = 4/5
+H-41 DERIVED_FORMULA_EVIDENCE = 2/5
+H-41 controls = 3/3
+AMD_2022_10K unseen canonical lexical Top5 = 0/7
+H-40 metric-key planner coverage on AMD7 = 2/7
+H-40 metric-key planner unsupported on AMD7 = 5/7
 Semantic Retrieval = DEFERRED_CANDIDATE
 B-03 = ACTIVE
 ```
 
-H-41 单一主变量：`EvidenceTargetPlan → target-guided lexical retrieval`。禁止 semantic embedding、reranker、Know-where、QueryPlanBuilder、Parser 重跑、Solver、Provider/API/Judge 和 qid/Gold 派生规则。
+H-42 单一主变量：`metric-key EvidenceTargetPlan generation → operation-first + structure-aware EvidenceTargetPlan generation`。H-41 target-guided lexical fusion 必须冻结不变；禁止新增 AMD/qid/Gold 派生指标规则、semantic embedding、reranker、Provider/API/Judge/LLM、Solver 和产品代码修改。
 
 ## Completed H-06 experiment gates
 
