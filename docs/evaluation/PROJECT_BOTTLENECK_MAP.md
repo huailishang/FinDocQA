@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-08-23-r61`
+Map revision: `2026-09-05-r64`
 
-Last reviewed: `2026-08-23`
+Last reviewed: `2026-09-05`
 
 Map owner: Evaluator
 
@@ -264,7 +264,7 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 |---|---|---|---:|---|---|---|
 | B-01 | 来源绑定 request → 正常计算主链 | SUM 能力曾不可达 | 固定 SUM 3 cases | 0/3→3/3；33/33 护栏 | high | CLOSED |
 | B-02 | 结构化表格证据供给 | 真实 MinerU 表格和完整行证据曾未知 | 190 文档 | 77 份完整行证据、6071 表、77525 行 | high | CLOSED |
-| B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 + FinanceBench 多文档外部 cohort | H-41 在冻结 10 miss + 3 controls 上由 Evaluator 独立复跑确认：EvidenceTargetPlan → target-guided lexical retrieval 恢复 6/10，两个失败族分别 4/5、2/5，controls 3/3；但样本外 AMD_2022_10K 7 题 baseline 0/7，H-40 metric-key planner 只覆盖 2/7，因此当前子瓶颈转为通用 EvidenceTargetPlan 生成，而非继续词法融合微调 | high（局部外部能力提升 + 样本外规划缺口） | ACTIVE |
+| B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 + FinanceBench 多文档外部 cohort | H-41 在冻结 10 miss + 3 controls 上恢复 6/10；H-42 修正页码 authority 后 AMD 为 2/7→4/7、5 个真实 miss 恢复 2；但 H-43 在全新 Boeing 7-case 上由 Evaluator 独立复核确认 operation-first planner + 冻结 H-41 lexical fusion 为 0/7→0/7，controls 3/3，说明该 planner 路线没有跨文档稳定泛化。下一未公平执行的主要机制是纯 page-level Semantic Retrieval(语义检索) | high（Retrieval 主瓶颈明确；planner 泛化失败，semantic 仍未测） | ACTIVE |
 | B-04 | 长尾计算算子 | 剩余 unsupported operator 无通用家族达到 5 条 | 最大合格族 1 | C3 stage-exit report | high | RETIRED |
 | B-05 | 复杂表格解析 | 2124 张图像表或复杂 span 表未加载，但问题级影响未知 | 2124 张表 | `empty_or_image_table=2038` 等 | medium（现象）；low（业务影响） | WATCH |
 | B-06 | E4 Gold 与端到端结果度量 | 无法可信自动判断 freeform 最终答案语义正确性并稳定统计 paid-run 成本 | 项目全链；本地 100 题 + 外部公开 benchmark | H-28 known-wrong Judge 3/3 agreement；H-32 AMEX reference labels=0/7 correct；known-correct 方向仍为空。但 H-33 已证明 6/7 在 Retrieval Top5 前丢失官方 evidence，因此继续扩 Judge 不是当前第一优先级 | high | SECONDARY_BLOCKED_BY_B03 |
@@ -280,36 +280,44 @@ Active bottleneck ID: `B-03`
 2. H-38/H-39 把稳定 miss 收敛为两个 5-case 通用失败族，并排除了“只把 retrieval unit(检索单位)改成 table/header/row”这一变量。
 3. H-40 证明 Evidence Target Planning(证据目标规划)在原两个失败族上可形成 `9/10 TARGET_COMPLETE` 的上游表示，但实现依赖 metric-key registry(按指标关键词枚举的规则表)。
 4. H-41 已由 Evaluator 独立完整复跑确认 `PASS + IMPROVED`：在冻结 10 miss + 3 controls 上，固定 lexical retriever family，仅加入 `EvidenceTargetPlan → target subqueries/constraints → fixed lexical fusion`，恢复 `6/10`，两个失败族分别 `4/5`、`2/5`，controls `3/3` 无退化。由此，“有可用 plan 后怎么搜”已经得到正向证据。
-5. H-41 之后的样本外检查使用未参与 H-40/H-41 设计的 `AMD_2022_10K` 7 题：canonical lexical Top5 为 `0/7`，但 H-40 metric-key planner 只覆盖 `2/7`。这说明新的第一子瓶颈不是 lexical fusion(词法融合)，而是 generic EvidenceTargetPlan generation(通用证据目标计划生成)。
-6. 因此 H-42 不再扩 H-40 指标规则表，也不改变 H-41 fusion；只测试 operation-first + structure-aware planning(操作类型优先 + 文档结构感知规划)，即先识别 lookup/compare/driver/ratio/applicability/existence 等通用证据操作，再利用 question-visible signal(问题可见信号)与文档局部结构探查形成 required facts / region hints，最后接入冻结 H-41 fusion。
-7. 该方向与项目既有 KDD Cup 2026 吸收结论一致：`question → initial plan → inspect real document structure/local evidence → revise target → retrieve`，但本轮仍保持 deterministic/offline(确定性/离线)，不引入 LLM/API。
-8. semantic retrieval(语义检索)继续保留为后续候选；只有通用 planner 仍不能把已证明有效的 H-41 fusion 扩展到样本外问题时，再重新比较 semantic retrieval、evidence binding(证据绑定)或更完整 Active Evidence Workspace(活动证据工作区)。
-9. B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。
+5. H-42 使用完全样本外 `AMD_2022_10K` 7 题测试 operation-first + structure-aware planning(操作类型优先 + 文档结构感知规划)，10/10 计划可审计、3/3 controls 保留，但正式评分合同随后被 Evaluator 发现存在 FinanceBench 页码 authority(权威口径)错误：项目既有 H-33 已冻结 `evidence_page_num` 为 zero-indexed(从0开始)，canonical retrieval page(规范检索页码)为 one-indexed(从1开始)，必须 `+1`。
+6. Authority repair(权威口径修复)已独立 L3 `PASS`：保持 H-42 Planner/Retrieval trace 不变后，AMD 正确重评分为 canonical baseline `2/7`、candidate `4/7`、真实 baseline miss `5`、其中新增恢复 `2/5`、净 Top5 `+2`。因此原 `0/7 → 0/7` 失效；H-42 正式任务保持 `REJECTED / INCONCLUSIVE`，不能事后把 `2/5` 改成新的 PASS 门槛。
+7. 该修复结果仍给出正向 exploratory signal(探索性信号)：generic EvidenceTargetPlan generation(通用证据目标计划生成)不是已证伪方向，但 AMD 已被查看，不能继续作为独立泛化试卷，也不得围绕其 5 个 miss 追加 alias/规则微调。
+8. 新的 untouched document family(未参与设计的新文档族)按 H-30 的机械 tie 顺序选择 `BOEING_2022_10K`；其前置 authority/baseline freeze 已独立 L3 `PASS`，canonical lexical baseline 为 `0/7` hit、`7/7` miss。
+9. H-43 正式 fresh-cohort capability experiment(新样本能力实验)已由 Evaluator 独立复核：10/10 plans 完整、冻结 H-41 fusion/lexical settings 未变、controls `3/3` 保留、零回归，但 Boeing treatment 为 `0/7 → 0/7`，新增恢复 `0/7`。正式 verdict=`REJECTED`、project impact=`NO_MEASURABLE_GAIN`、continuation=`SWITCH`。因此禁止继续围绕 Boeing/qid/alias/metric registry 微调 operation-first planner。
+10. 下一主要候选切换到此前一直 deferred(延期)但从未公平执行的 pure page-level Semantic Retrieval(纯页级语义检索)。为避免看 Boeing 结果后临时选题，H-44 回到 H-35 早已冻结的 15-case / 4-doc cohort 与原 qualification：保住 baseline hits `3/3`、从 12 个 miss 中恢复 `>=4`、回归 `0`。仓库已有 embedding index/retriever 与 SiliconFlow adapter，本地 env 也已有 provider credential 配置，但没有本轮 API-call authorization；H-44 先停在明确 `HUMAN_REQUIRED` 授权门。B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。
 
 ## Active hypothesis
 
-Hypothesis ID: `H-42`
+Hypothesis ID: `H-44`
 
 Falsifiable hypothesis:
 
-> 在不扩 H-40 metric-specific registry(指标专用规则表)、不改变 H-41 lexical fusion(词法融合)、不读取 Gold/official evidence(标准答案/官方证据)生成计划的前提下，使用 operation-first + structure-aware planner(操作类型优先 + 文档结构感知规划)应能为完全样本外的 AMD 7 个 FinanceBench miss 全部生成可审计 EvidenceTargetPlan，并让冻结 H-41 fusion 至少恢复 `3/7`；同时对 3 个 baseline-hit controls 应保持 `3/3`。否则 H-41 的 6/10 收益仍依赖原 cohort 的手写 planning scaffold，尚不足以进入产品化。
+> 在不增加 query rewrite(查询改写)、HyDE、lexical fusion(词法融合)、reranker(重排器)、Query Planner(查询规划器)、section routing(章节路由)或 Gold-derived terms(官方答案派生词)的前提下，使用项目现有 `CanonicalEmbeddingIndex + EmbeddingEvidenceRetriever` 对 H-35 已冻结的 15-case / 4-doc page-level cohort 做纯 Semantic Retrieval(语义检索)，应能保住既有 baseline-hit controls `3/3`，并从 12 个 lexical baseline miss 中至少恢复 `4` 个，且旧命中回归 `0`。否则 pure page-level semantic embedding 不足以成为 B-03 的下一产品候选，应转向 Evidence Binding(证据绑定) / multi-stage retrieval(多阶段检索) / Active Evidence Workspace(活动证据工作区) 的机制级比较，而不是继续改 embedding 参数或围绕单题调词。
 
 当前测量事实：
 
 ```text
-H-40 original-cohort TARGET_COMPLETE = 9/10
-H-41 recovered miss = 6/10
-H-41 TABLE_ROW_LOCALIZATION = 4/5
-H-41 DERIVED_FORMULA_EVIDENCE = 2/5
-H-41 controls = 3/3
-AMD_2022_10K unseen canonical lexical Top5 = 0/7
-H-40 metric-key planner coverage on AMD7 = 2/7
-H-40 metric-key planner unsupported on AMD7 = 5/7
-Semantic Retrieval = DEFERRED_CANDIDATE
+H-35 canonical_lexical = 3/15
+H-35 baseline misses = 12/15
+H-35 lexical_hybrid recovered = 0/12
+H-35 corrected BM25 recovered = 0/12
+H-36 Query Planning = NO_MEASURABLE_GAIN
+H-37 Know-where Lite = NO_MEASURABLE_GAIN
+H-41 historical-plan-guided lexical recovered = 6/10
+H-42 corrected AMD exploratory recovered = 2/5
+H-43 fresh Boeing baseline = 0/7
+H-43 fresh Boeing candidate = 0/7
+H-43 controls = 3/3
+H-43 formal verdict = REJECTED / NO_MEASURABLE_GAIN / SWITCH
+H-44 cohort = frozen H-35 15 cases / 4 docs
+H-44 qualification = preserve 3/3 + recover >=4/12 + regress 0
+H-44 provider adapter = SiliconFlow Qwen/Qwen3-Embedding-8B candidate
+H-44 authorization = AUTHORIZED_BOUNDED_80_HTTP_ATTEMPTS
 B-03 = ACTIVE
 ```
 
-H-42 单一主变量：`metric-key EvidenceTargetPlan generation → operation-first + structure-aware EvidenceTargetPlan generation`。H-41 target-guided lexical fusion 必须冻结不变；禁止新增 AMD/qid/Gold 派生指标规则、semantic embedding、reranker、Provider/API/Judge/LLM、Solver 和产品代码修改。
+H-44 唯一主变量是 `canonical lexical page scoring → pure page embedding cosine ranking`。冻结 retrieval unit=canonical page、question-visible query、candidate-doc scope、Top5 authority 和 H-35 cohort；禁止同时加入 lexical/query-plan/fusion/rerank/LLM/Gold-derived term。由于本地只有外部 embedding API credential 配置、没有本地 embedding model，本轮必须先获得新的 bounded API-call authorization，历史 Provider/Judge/生成模型授权不得继承。
 
 ## Completed H-06 experiment gates
 
@@ -472,3 +480,15 @@ H-39 L3 PASS + NO_MEASURABLE_GAIN：table/header/row retrieval unit 在冻结 15
 
 <!-- r60 evaluator update -->
 H-40 L2/L3 8/8 PASS。Evaluator 未继承 Executor 从 4/10 调整到 9/10 的 checker 结论，而是逐题独立复核 EvidenceTargetPlan：最终仍为 9/10 TARGET_COMPLETE，但标签纠正为 TABLE_ROW_LOCALIZATION=5/5、DERIVED_FORMULA_EVIDENCE=4/5；03029 升为 COMPLETE，01351 因缺 FY2022 税率输入降为 PARTIAL。H-40 只证明规划表示成立，不证明 Retrieval 改善。H-41 因此冻结为 EvidenceTargetPlan-guided lexical retrieval 同基线能力实验：10 个历史 miss + 3 controls，要求 controls 3/3、恢复 >=4/10 且两族各 >=2/5，零 semantic/reranker/Know-where/QueryPlanBuilder/Parser/Solver/API/Gold-runtime-rule。
+
+<!-- r61 evaluator update -->
+H-41 独立复核 `PASS + IMPROVED`：10 个历史 miss 恢复 `6/10`，两个家族分别 `4/5` 与 `2/5`，controls `3/3`。随后 H-42 将单一主变量上移到 generic EvidenceTargetPlan generation(通用证据目标计划生成)，在 untouched AMD 7-case 上测试 operation-first + structure-aware planner(操作优先 + 结构感知规划器)，冻结 H-41 fusion 不变。
+
+<!-- r62 evaluator update -->
+H-42 执行结果中的 AMD `0/7 → 0/7` 被 Evaluator 复核发现使用了错误 FinanceBench page authority(页码权威口径)。项目 H-33 已冻结 `evidence_page_num` zero-indexed → canonical page one-indexed 的 `+1` 映射。独立 evidence-fix L3 `PASS` 后，保持 H-42 Top5 traces 不变的正确重评分为 baseline `2/7`、candidate `4/7`、5 个真实 baseline miss 中恢复 `2`、净 Top5 `+2`。H-42 正式合同因原 denominator(分母)失效保持 `REJECTED / INCONCLUSIVE`，但方向未被证伪。B-03 继续 ACTIVE；激活 H-43 fresh-cohort generalization(新样本泛化)，先冻结 `BOEING_2022_10K` 7-case 的 canonical page supply、正确 authority 与 unchanged lexical baseline，再决定是否进入新的 planner capability experiment。
+
+<!-- r63 evaluator update -->
+H-43 fresh Boeing capability experiment(全新 Boeing 能力实验)由 Evaluator 独立重算并跑 L3：baseline `0/7`、candidate `0/7`、recovered `0/7`，controls `3/3`、regression `0`；10/10 plans 与边界检查均成立，唯一失败是预声明 recovery gate。正式 verdict=`REJECTED`、project impact=`NO_MEASURABLE_GAIN`、continuation=`SWITCH`。停止 Boeing/alias/metric-registry 微调；激活 H-44 pure page-level Semantic Retrieval(纯页级语义检索)，回到 H-35 既有 15-case / 4-doc cohort 与原 `preserve 3/3 + recover >=4/12 + regress 0` 门槛。仓库已有 embedding index/retriever 与 SiliconFlow adapter，H-44 等待独立 bounded API-call authorization。
+
+<!-- r64 evaluator authorization update -->
+Human/Task Owner 于 `2026-09-05` 明确授权 H-44 最多 `80` 次 HTTP 尝试的 SiliconFlow `/v1/embeddings` 实验；成功 embedding 调用上限 `64`、单逻辑单元最多 `2` 次、并发 `1`。授权仅覆盖 `Qwen/Qwen3-Embedding-8B` embedding，不继承到生成/reranker/Judge/Solver。H-44 合同因此正式冻结并路由 `CONTRACT_FROZEN / Executor`。
