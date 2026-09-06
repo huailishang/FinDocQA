@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-09-05-r64`
+Map revision: `2026-09-06-r71`
 
-Last reviewed: `2026-09-05`
+Last reviewed: `2026-09-06`
 
 Map owner: Evaluator
 
@@ -264,7 +264,7 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 |---|---|---|---:|---|---|---|
 | B-01 | 来源绑定 request → 正常计算主链 | SUM 能力曾不可达 | 固定 SUM 3 cases | 0/3→3/3；33/33 护栏 | high | CLOSED |
 | B-02 | 结构化表格证据供给 | 真实 MinerU 表格和完整行证据曾未知 | 190 文档 | 77 份完整行证据、6071 表、77525 行 | high | CLOSED |
-| B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 + FinanceBench 多文档外部 cohort | H-41 在冻结 10 miss + 3 controls 上恢复 6/10；H-42 修正页码 authority 后 AMD 为 2/7→4/7、5 个真实 miss 恢复 2；但 H-43 在全新 Boeing 7-case 上由 Evaluator 独立复核确认 operation-first planner + 冻结 H-41 lexical fusion 为 0/7→0/7，controls 3/3，说明该 planner 路线没有跨文档稳定泛化。下一未公平执行的主要机制是纯 page-level Semantic Retrieval(语义检索) | high（Retrieval 主瓶颈明确；planner 泛化失败，semantic 仍未测） | ACTIVE |
+| B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 + FinanceBench 多文档外部 cohort | H-43 fresh Boeing planner 泛化为 0/7→0/7；H-44 随后对预先冻结的 H-35 15-case / 4-doc cohort 做纯 page-level Semantic Retrieval(语义检索)，Evaluator 独立 L3 8/8：canonical lexical 3/15→semantic 8/15，12 个 baseline miss 恢复 5，protected hits 3/3，regression 0，正式 `PASS + IMPROVED`。当前未知点已从“semantic 是否有效”切换为“能否跨新文档族泛化” | high（Retrieval 主瓶颈明确；semantic 在冻结资格集显著改善，但 fresh-family 泛化尚未验证） | ACTIVE |
 | B-04 | 长尾计算算子 | 剩余 unsupported operator 无通用家族达到 5 条 | 最大合格族 1 | C3 stage-exit report | high | RETIRED |
 | B-05 | 复杂表格解析 | 2124 张图像表或复杂 span 表未加载，但问题级影响未知 | 2124 张表 | `empty_or_image_table=2038` 等 | medium（现象）；low（业务影响） | WATCH |
 | B-06 | E4 Gold 与端到端结果度量 | 无法可信自动判断 freeform 最终答案语义正确性并稳定统计 paid-run 成本 | 项目全链；本地 100 题 + 外部公开 benchmark | H-28 known-wrong Judge 3/3 agreement；H-32 AMEX reference labels=0/7 correct；known-correct 方向仍为空。但 H-33 已证明 6/7 在 Retrieval Top5 前丢失官方 evidence，因此继续扩 Judge 不是当前第一优先级 | high | SECONDARY_BLOCKED_BY_B03 |
@@ -276,48 +276,85 @@ Active bottleneck ID: `B-03`
 
 当前判断：
 
-1. H-35/H-36/H-37 已连续证明：`lexical_hybrid`、corrected BM25、Query Planning(查询规划)、Know-where Lite(轻量知道去哪里找)单独接在旧检索链上都没有形成可测恢复；继续做词法参数微调没有证据基础。
-2. H-38/H-39 把稳定 miss 收敛为两个 5-case 通用失败族，并排除了“只把 retrieval unit(检索单位)改成 table/header/row”这一变量。
-3. H-40 证明 Evidence Target Planning(证据目标规划)在原两个失败族上可形成 `9/10 TARGET_COMPLETE` 的上游表示，但实现依赖 metric-key registry(按指标关键词枚举的规则表)。
-4. H-41 已由 Evaluator 独立完整复跑确认 `PASS + IMPROVED`：在冻结 10 miss + 3 controls 上，固定 lexical retriever family，仅加入 `EvidenceTargetPlan → target subqueries/constraints → fixed lexical fusion`，恢复 `6/10`，两个失败族分别 `4/5`、`2/5`，controls `3/3` 无退化。由此，“有可用 plan 后怎么搜”已经得到正向证据。
-5. H-42 使用完全样本外 `AMD_2022_10K` 7 题测试 operation-first + structure-aware planning(操作类型优先 + 文档结构感知规划)，10/10 计划可审计、3/3 controls 保留，但正式评分合同随后被 Evaluator 发现存在 FinanceBench 页码 authority(权威口径)错误：项目既有 H-33 已冻结 `evidence_page_num` 为 zero-indexed(从0开始)，canonical retrieval page(规范检索页码)为 one-indexed(从1开始)，必须 `+1`。
-6. Authority repair(权威口径修复)已独立 L3 `PASS`：保持 H-42 Planner/Retrieval trace 不变后，AMD 正确重评分为 canonical baseline `2/7`、candidate `4/7`、真实 baseline miss `5`、其中新增恢复 `2/5`、净 Top5 `+2`。因此原 `0/7 → 0/7` 失效；H-42 正式任务保持 `REJECTED / INCONCLUSIVE`，不能事后把 `2/5` 改成新的 PASS 门槛。
-7. 该修复结果仍给出正向 exploratory signal(探索性信号)：generic EvidenceTargetPlan generation(通用证据目标计划生成)不是已证伪方向，但 AMD 已被查看，不能继续作为独立泛化试卷，也不得围绕其 5 个 miss 追加 alias/规则微调。
-8. 新的 untouched document family(未参与设计的新文档族)按 H-30 的机械 tie 顺序选择 `BOEING_2022_10K`；其前置 authority/baseline freeze 已独立 L3 `PASS`，canonical lexical baseline 为 `0/7` hit、`7/7` miss。
-9. H-43 正式 fresh-cohort capability experiment(新样本能力实验)已由 Evaluator 独立复核：10/10 plans 完整、冻结 H-41 fusion/lexical settings 未变、controls `3/3` 保留、零回归，但 Boeing treatment 为 `0/7 → 0/7`，新增恢复 `0/7`。正式 verdict=`REJECTED`、project impact=`NO_MEASURABLE_GAIN`、continuation=`SWITCH`。因此禁止继续围绕 Boeing/qid/alias/metric registry 微调 operation-first planner。
-10. 下一主要候选切换到此前一直 deferred(延期)但从未公平执行的 pure page-level Semantic Retrieval(纯页级语义检索)。为避免看 Boeing 结果后临时选题，H-44 回到 H-35 早已冻结的 15-case / 4-doc cohort 与原 qualification：保住 baseline hits `3/3`、从 12 个 miss 中恢复 `>=4`、回归 `0`。仓库已有 embedding index/retriever 与 SiliconFlow adapter，本地 env 也已有 provider credential 配置，但没有本轮 API-call authorization；H-44 先停在明确 `HUMAN_REQUIRED` 授权门。B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。
+1. H-35/H-36/H-37 已排除 `lexical_hybrid`、corrected BM25、静态 Query Planning(查询规划) 与 Know-where Lite(轻量结构导航)作为单独通用解。
+2. H-41 历史 cohort 上 EvidenceTargetPlan-guided lexical fusion 恢复 `6/10`，但 H-43 fresh Boeing 为 `0/7→0/7`，再次说明历史集提升不能替代 fresh-family generalization(新文档族泛化)。
+3. H-44 pure page-level Semantic Retrieval(纯页级语义检索)在预冻结 H-35 cohort 上从 lexical `3/15` 提升到 semantic `8/15`，恢复 `5/12`、保护 `3/3`、regression=0，因此值得进入 fresh-family 验证。
+4. H-45 随后机械冻结 Fresh13：PEPSICO `0/5`、AMCOR `0/4`、ULTABEAUTY `4/4`，形成 9 个 recovery cases + 4 个 protected controls。
+5. H-46 已完整执行并由 Evaluator 独立 L3 `8/8 PASS`。pure semantic 结果为 `6/13`：恢复 `5/9`，其中 PEPSICO `2/5`、AMCOR `3/4`；但 Ulta protected controls 仅保留 `1/4`，产生 `3` 个 regression。冻结资格门因此为 false。正式 verdict=`PASS`、project impact=`REGRESSED`、continuation=`SWITCH`。
+6. H-46 说明 semantic embedding 的 recovery signal(恢复信号)真实存在，而且跨两个 fresh recovery family；但 **pure semantic 替换 lexical 会破坏已有正确证据**，所以不能产品化为单一 Retriever。
+7. Evaluator 用 H-46 已持久化结果做了一个 **zero-API / post-hoc diagnostic(零 API / 事后诊断)**：lexical Top5 与 semantic Top5 的 union oracle coverage=`9/13`；最简单 equal-weight RRF60(等权倒数排名融合)也得到 `9/13`、恢复 `5/9`、protected regression=`0/4`。该结果只生成新假设，不算 capability/generalization evidence，因为融合规则是在看到同一 cohort 结果后验证。
+8. 三个 semantic 回归的 Ulta case，其 Gold 在完整 semantic ranking 中均为 rank `7`；semantic 并非完全找不到，而是把 lexical 已正确的证据从 Top5 推到稍后位置。这进一步支持“信号互补/组合”而不是“替代”的诊断。
+9. 项目已有通用 `src/retrieval/hybrid_fusion.py::ReciprocalRankFusionRetriever`，默认 RRF `k=60`，并有 `IdentityReranker` 与单测。因此下一步无需发明新的融合算法，也无需立即上 learned reranker(学习式重排器)。
+10. Human/Task Owner 于 2026-09-06 补充历史赛制约束：原比赛**不允许 embedding model(嵌入模型)和 reranking model(重排模型)**，意图是更多检验检索编排、证据发现和逻辑处理能力。该信息当前按 Human-supplied historical constraint(人工提供的历史约束)记录；仓库尚未保存可独立复核的官方规则原文，因此不得把它伪装成已归档官方证据。
+11. 对冠军方案再次代码级复核后，需修正此前“Active Evidence Workspace 尚未做”的宽泛说法：FinDocQA 已有 financial evidence completion(财务证据补全)主链，包含 evidence sufficiency → missing/conflicting atom → targeted local retrieval → context refinement → typed fact binding → recompute → final sufficiency，且 `FinancialEvidenceCompletionAdapter` 已接入 `financial_report_claims.py`，固定最多两轮。generic `GapDrivenEvidenceController` 也已有完整状态骨架，但当前未发现产品主链调用点。
+12. 因此冠军方案真正还未被充分证明的不是“有没有动态补证”，而是更宽的 Exploration Runtime(探索运行时)：**先观察真实文档/数据结构 → 根据观察改变下一步去哪找/怎么找 → 保留可恢复的全局空间 → 用受限工具继续探索 → 再求解/验证**。这是后续高价值方向，但当前 B-03 最新实证首先指向 retrieval-lane composition(检索通道组合)。
+13. H-47 `FDQA-B03-FRESH-FUSION-HOLDOUT-READINESS-V1` 已正式 `PASS / NOT_APPLICABLE / CONTINUE`，amended L2/L3 均 `8/8 PASS`。它机械构造了 15 个 fresh cases，但只有 `2 lexical hit / 13 miss`，protected-control headroom 不足，因此没有降低门槛、没有直接启动融合。
+14. H-48 `FDQA-B03-FUSION-PROTECTED-CONTROL-EXTENSION-V1` 已正式 `PASS / NOT_APPLICABLE / CONTINUE`，L2/L3=`8/8 PASS`。rank 9 强生 8-K 为 `3/3 lexical hit`，使累计 fresh pool 达到 `18 cases / 5 hit / 13 miss`，满足 two-sided headroom。
+15. H-49 `FDQA-B03-FRESH18-LEXICAL-SEMANTIC-RRF-GENERALIZATION-V1` 已完整执行并正式 `PASS / IMPROVED / SWITCH`，L2/L3=`8/8 PASS`。API 对账为 `68/68 successful`、`68/85 physical`、retry=0，exact SiliconFlow `Qwen/Qwen3-Embedding-8B`；产品 `src/config/tests` 无修改。
+16. H-49 frozen lexical=`5/18`；pure semantic=`11/18`，恢复 `6/13`、覆盖 4 个 recovery families、protected=`5/5`、regression=0；equal-weight RRF60=`9/18`，恢复 `4/13`、覆盖 2 个 recovery families、protected=`5/5`、regression=0，满足预声明资格门。
+17. 因此 retrieval-lane composition 已获得 fresh generalization evidence，相对 lexical-only 是 `IMPROVED`；但 fixed 1:1 RRF 不是本批最强策略，因为 pure semantic 比 RRF 多恢复 2 题。H-49 中 `AES financebench_id_01319` 与 `CVS financebench_id_00790` 都是 semantic 已命中 Gold、RRF 又把 Gold 挤出 Top5。
+18. 跨 cohort 行为仍不稳定：H-44 pure semantic protected=`3/3`、H-46=`1/4`、H-49=`5/5`。所以不能得出“semantic 可直接替换 lexical”，也不能得出“RRF60 已是产品最优”。fixed RRF 当前更像 safety composition(安全组合)：在 semantic 退化时 lexical 可兜底，但 semantic 已更强时会产生候选竞争损失。
+19. 当前激活 H-50 `FDQA-B03-CROSS-COHORT-LANE-ARBITRATION-DIAGNOSTIC-V1`，只使用 H-44/H-46/H-49 已持久化的 46 个 case 做 zero-API 诊断。核心问题是能否从 Gold-free 的 lane overlap/agreement、semantic margin/spread、document size 等信号中找到“什么时候更信 semantic、什么时候 lexical 需要兜底”的可解释仲裁假设。
+20. H-50 只允许生成最多 3 个 `HYPOTHESIS_ONLY` arbitration candidates；任何规则都必须记录 counterexamples，并在未来 untouched holdout 上重新验证。若没有跨至少 2 cohort、影响至少 4 cases 的稳定 Gold-free signal，则返回 `NO_STABLE_SIGNAL`，不得继续事后调阈值。
+21. H-50 model/API/embedding/fusion execution/reranker/LLM/Judge/Solver 全部为 0，不改产品路由。如果 H-50 无稳定信号，则保留 RRF 作为安全 baseline，并把 B-03 下一主线切向 Exploration Runtime(探索运行时)而不是继续调融合参数。
+22. B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。B-03 继续 ACTIVE。
 
 ## Active hypothesis
 
-Hypothesis ID: `H-44`
+Hypothesis ID: `H-50`
 
-Falsifiable hypothesis:
+Task: `FDQA-B03-CROSS-COHORT-LANE-ARBITRATION-DIAGNOSTIC-V1`
 
-> 在不增加 query rewrite(查询改写)、HyDE、lexical fusion(词法融合)、reranker(重排器)、Query Planner(查询规划器)、section routing(章节路由)或 Gold-derived terms(官方答案派生词)的前提下，使用项目现有 `CanonicalEmbeddingIndex + EmbeddingEvidenceRetriever` 对 H-35 已冻结的 15-case / 4-doc page-level cohort 做纯 Semantic Retrieval(语义检索)，应能保住既有 baseline-hit controls `3/3`，并从 12 个 lexical baseline miss 中至少恢复 `4` 个，且旧命中回归 `0`。否则 pure page-level semantic embedding 不足以成为 B-03 的下一产品候选，应转向 Evidence Binding(证据绑定) / multi-stage retrieval(多阶段检索) / Active Evidence Workspace(活动证据工作区) 的机制级比较，而不是继续改 embedding 参数或围绕单题调词。
+Task kind: `evaluator_design`
+
+Falsifiable readiness rule:
+
+> H-49 已证明 fixed equal-weight RRF 相对 lexical-only 有 fresh gain，但同批 pure semantic 更强，而 H-46 pure semantic 又曾出现 protected regression。H-50 不再调 RRF，也不做新检索，只检查 H-44/H-46/H-49 三批共 46 个 persisted cases：是否存在只依赖 Gold-free retrieval signals 的 deterministic arbitration hypothesis，在至少 2 个 source cohorts 中有支持、总影响至少 4 cases，并且有明确 counterexample accounting 与未来 fresh falsification rule。若没有，则 `NO_STABLE_SIGNAL`。
+
+Frozen diagnostic:
+
+```text
+H44 = 15 cases, lexical 3/15, semantic 8/15, protected 3/3
+H46 = 13 cases, lexical 4/13, semantic 6/13, protected 1/4
+H49 = 18 cases, lexical 5/18, semantic 11/18, RRF 9/18, protected semantic 5/5
+total = 46 persisted cases
+
+Gold-free signals:
+- Top5 overlap / union size
+- top1 agreement
+- reciprocal-rank agreement
+- semantic score margin/spread/mean/std where available
+- document page count
+- shared-page rank positions
+
+ready = CANDIDATE_SIGNAL_FOUND only if
+support cohorts >= 2
+AND affected cases >= 4
+AND counterexamples explicit
+AND future untouched-holdout rule exists
+
+otherwise = NO_STABLE_SIGNAL
+new API calls = 0
+product changes = 0
+```
 
 当前测量事实：
 
 ```text
-H-35 canonical_lexical = 3/15
-H-35 baseline misses = 12/15
-H-35 lexical_hybrid recovered = 0/12
-H-35 corrected BM25 recovered = 0/12
-H-36 Query Planning = NO_MEASURABLE_GAIN
-H-37 Know-where Lite = NO_MEASURABLE_GAIN
-H-41 historical-plan-guided lexical recovered = 6/10
-H-42 corrected AMD exploratory recovered = 2/5
-H-43 fresh Boeing baseline = 0/7
-H-43 fresh Boeing candidate = 0/7
-H-43 controls = 3/3
-H-43 formal verdict = REJECTED / NO_MEASURABLE_GAIN / SWITCH
-H-44 cohort = frozen H-35 15 cases / 4 docs
-H-44 qualification = preserve 3/3 + recover >=4/12 + regress 0
-H-44 provider adapter = SiliconFlow Qwen/Qwen3-Embedding-8B candidate
-H-44 authorization = AUTHORIZED_BOUNDED_80_HTTP_ATTEMPTS
+H-49 = PASS / IMPROVED / SWITCH
+H-49 L2 = 8/8 PASS
+H-49 L3 = 8/8 PASS
+H-49 API = 68/68 success, 68 physical attempts
+lexical = 5/18
+pure semantic = 11/18
+RRF60 = 9/18
+RRF qualification = true
+
+H-50 authorization_api_call = false
 B-03 = ACTIVE
 ```
 
-H-44 唯一主变量是 `canonical lexical page scoring → pure page embedding cosine ranking`。冻结 retrieval unit=canonical page、question-visible query、candidate-doc scope、Top5 authority 和 H-35 cohort；禁止同时加入 lexical/query-plan/fusion/rerank/LLM/Gold-derived term。由于本地只有外部 embedding API credential 配置、没有本地 embedding model，本轮必须先获得新的 bounded API-call authorization，历史 Provider/Judge/生成模型授权不得继承。
+H-50 的输出只能决定“是否值得冻结一个 lane-arbitration 新假设”，不能直接改变产品检索策略。
 
 ## Completed H-06 experiment gates
 
@@ -492,3 +529,24 @@ H-43 fresh Boeing capability experiment(全新 Boeing 能力实验)由 Evaluator
 
 <!-- r64 evaluator authorization update -->
 Human/Task Owner 于 `2026-09-05` 明确授权 H-44 最多 `80` 次 HTTP 尝试的 SiliconFlow `/v1/embeddings` 实验；成功 embedding 调用上限 `64`、单逻辑单元最多 `2` 次、并发 `1`。授权仅覆盖 `Qwen/Qwen3-Embedding-8B` embedding，不继承到生成/reranker/Judge/Solver。H-44 合同因此正式冻结并路由 `CONTRACT_FROZEN / Executor`。
+
+<!-- r65 evaluator update -->
+H-44 pure page-level Semantic Retrieval(纯页级语义检索)由 Evaluator 完成验证层机械修复后独立 L3 `8/8 PASS`，并额外直接重算结果/Gold 隔离/API 账本：canonical lexical `3/15`→semantic `8/15`，12 个 baseline miss 恢复 `5`，protected hits `3/3`，regression `0`，正式 verdict=`PASS`、project impact=`IMPROVED`、continuation=`CONTINUE`。由于 H-41 历史集提升曾在 H-43 fresh Boeing 失效，本轮不直接 productize semantic；激活 H-45 fresh semantic generalization staging，按 H-30 既有 `qa_count desc + doc_name asc` 规则选下一 untouched `PEPSICO_2022_10K` 5-case，先执行零 API evidence/page-authority/lexical-baseline freeze；baseline misses `>=3` 才进入后续全 5-case semantic capability experiment。
+
+<!-- r66 evaluator packaging update -->
+Human/Task Owner 要求减少频繁评估/审查。H-45 因此不再逐文档拆包：`PEPSICO5` 在执行前 `SUPERSEDED_PRE_EXECUTION`，改为一个 v2.2 单任务、多 work-unit 的 `FDQA-B03-FRESH3-SEMANTIC-GENERALIZATION-READINESS-WAVE-V1`。冻结 5 个候选队列，目标一次完成 3 个 fresh family 的 PDF/page/authority/unchanged lexical baseline/readiness aggregation，最多检查 5 个候选；只有 source/evidence-supply 硬阻断可 fallback，禁止按 baseline 难度换样本。本包 model/API=0，最后统一产出 whole-document eligibility 与 future H-44-style embedding 调用预算，之后仅需一次 Evaluator review，再决定一个 bulk semantic wave。
+
+<!-- r67 evaluator update -->
+H-45 Fresh3 readiness wave 已通过 L2/L3 `9/9` 并正式 `PASS / NOT_APPLICABLE / CONTINUE`。PepsiCo `0/5`、Amcor `0/4`、Ulta `4/4`。H-46 冻结为 Fresh13 bulk semantic generalization：9 个 recovery cases + 4 个 protected controls，复用 H-44 pure page embedding cosine ranking；资格门槛为 total recover `>=3/9` + PepsiCo `>=1` + Amcor `>=1` + Ulta controls `4/4` + regression `0`。项目同时明确：原比赛路线只是参考基线，embedding semantic ranking 是基于现代 LLM/RAG 架构主动加入、必须靠项目证据证明价值的扩展；learned reranker 暂不加入 H-46。
+
+<!-- r68 evaluator update -->
+H-46 Fresh13 pure semantic 已正式 `PASS / REGRESSED / SWITCH`，Evaluator L3 `8/8 PASS`：lexical `4/13`→semantic `6/13`，恢复 `5/9`，但 Ulta protected controls `4/4→1/4`，产生 3 个 regression，因此 pure semantic replacement 不得产品化。Evaluator 零 API 事后诊断发现 lexical+semantic 等权 RRF60 在同一 Fresh13 为 `9/13`、恢复 `5/9`、regression 0，但只作为 hypothesis generator。H-47 冻结 fresh fusion holdout readiness：从 H-45 原机械队列 rank 4 AES / rank 5 BestBuy 开始，必要时依序扩 rank 6–8；只做 lexical baseline，要求 misses>=4 且 hits>=3，model/API/fusion/reranker=0。Human 同时补充原比赛禁止 embedding/reranking model 的历史赛制约束，当前按人工提供事实记录，待后续补官方规则原文。
+
+<!-- r69 evaluator update -->
+H-47 经 Evaluator 复核正式 `PASS / NOT_APPLICABLE / CONTINUE`。原 L2 VP-02 的 blank-page 零容忍属于 checker 过约束，已用 evaluator amendment 修正；amended L2/L3 均 `8/8 PASS`，实验事实不变。H-47 机械扩展 rank 4–8 后得到 15 cases / 2 lexical hit / 13 miss，恢复空间充足但 protected-control 仍差 1 个，故禁止把门槛从 3 降到 2。H-48 冻结 rank 9–14 继续 zero-API lexical readiness extension，累计命中达到 3 后按最早完整文档前缀停止；仍不运行 semantic/RRF/reranker。
+
+<!-- r70 evaluator update -->
+H-48 经 Evaluator 正式复核为 `PASS / NOT_APPLICABLE / CONTINUE`，L2/L3 均 `8/8 PASS`。rank 9 强生 8-K 为 3/3 lexical hit，使 fresh pool 达到 18 cases / 5 protected hit / 13 recovery miss，并按 earliest full-document prefix 停止。H-49 已冻结为 Fresh18 lexical+semantic equal-weight RRF60 generalization capability experiment：资格门为 recovered>=4/13、至少 2 个 recovery families、protected=5/5、regression=0；pure semantic 同批保留作对照。未来 embedding 预算 68 successful / 85 physical，当前未授权。
+
+<!-- r71 evaluator update -->
+H-49 经 Evaluator 正式收口为 `PASS / IMPROVED / SWITCH`。Fresh18 lexical=`5/18`，pure semantic=`11/18`，equal-weight RRF60=`9/18`；RRF 达到预声明 `4/13` recovery / >=2 families / protected 5/5 / regression 0，但并未优于 pure semantic。结合 H-44 protected 3/3、H-46 1/4、H-49 5/5 的跨 cohort 差异，H-50 转为 zero-API lane-arbitration diagnostic，检查 Gold-free agreement/confidence signals 是否足以形成下一 fresh hypothesis；不继续事后调 RRF 权重。
