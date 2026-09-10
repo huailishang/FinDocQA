@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-09-06-r71`
+Map revision: `2026-09-10-r72`
 
-Last reviewed: `2026-09-06`
+Last reviewed: `2026-09-10`
 
 Map owner: Evaluator
 
@@ -294,67 +294,58 @@ Active bottleneck ID: `B-03`
 16. H-49 frozen lexical=`5/18`；pure semantic=`11/18`，恢复 `6/13`、覆盖 4 个 recovery families、protected=`5/5`、regression=0；equal-weight RRF60=`9/18`，恢复 `4/13`、覆盖 2 个 recovery families、protected=`5/5`、regression=0，满足预声明资格门。
 17. 因此 retrieval-lane composition 已获得 fresh generalization evidence，相对 lexical-only 是 `IMPROVED`；但 fixed 1:1 RRF 不是本批最强策略，因为 pure semantic 比 RRF 多恢复 2 题。H-49 中 `AES financebench_id_01319` 与 `CVS financebench_id_00790` 都是 semantic 已命中 Gold、RRF 又把 Gold 挤出 Top5。
 18. 跨 cohort 行为仍不稳定：H-44 pure semantic protected=`3/3`、H-46=`1/4`、H-49=`5/5`。所以不能得出“semantic 可直接替换 lexical”，也不能得出“RRF60 已是产品最优”。fixed RRF 当前更像 safety composition(安全组合)：在 semantic 退化时 lexical 可兜底，但 semantic 已更强时会产生候选竞争损失。
-19. 当前激活 H-50 `FDQA-B03-CROSS-COHORT-LANE-ARBITRATION-DIAGNOSTIC-V1`，只使用 H-44/H-46/H-49 已持久化的 46 个 case 做 zero-API 诊断。核心问题是能否从 Gold-free 的 lane overlap/agreement、semantic margin/spread、document size 等信号中找到“什么时候更信 semantic、什么时候 lexical 需要兜底”的可解释仲裁假设。
-20. H-50 只允许生成最多 3 个 `HYPOTHESIS_ONLY` arbitration candidates；任何规则都必须记录 counterexamples，并在未来 untouched holdout 上重新验证。若没有跨至少 2 cohort、影响至少 4 cases 的稳定 Gold-free signal，则返回 `NO_STABLE_SIGNAL`，不得继续事后调阈值。
-21. H-50 model/API/embedding/fusion execution/reranker/LLM/Judge/Solver 全部为 0，不改产品路由。如果 H-50 无稳定信号，则保留 RRF 作为安全 baseline，并把 B-03 下一主线切向 Exploration Runtime(探索运行时)而不是继续调融合参数。
-22. B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。B-03 继续 ACTIVE。
+19. H-50 `FDQA-B03-CROSS-COHORT-LANE-ARBITRATION-DIAGNOSTIC-V1` 已完成并由 Evaluator 独立 L3 `8/8 PASS`。任务正式 verdict=`PASS`、project impact=`NOT_APPLICABLE`、continuation=`CONTINUE`；46 条冻结 case 与 H-44/H-46/H-49 历史指标全部精确复现，model/API/embedding/fusion execution/reranker/LLM/Judge/Solver 全部为 0，产品路由未改变。
+20. H-50 输出 `CANDIDATE_SIGNAL_FOUND`，但只代表 hypothesis readiness(假设已值得继续验证)，不代表 capability qualification(能力已合格)。候选 A `ZERO-OVERLAP-ESCALATE` 在 17/46 case 触发，覆盖 H44/H46/H49 三个 cohort，触发结果为 7 `SEMANTIC_ONLY` + 10 `BOTH_MISS`、当前 `BOTH_HIT` 反例为 0；候选 B `TOP1-CONSENSUS` 仅触发 4/46，覆盖 H46/H49，4/4 为 `BOTH_HIT`。
+21. 下一预算优先给候选 A，而不是继续调 RRF 权重或单独为候选 B 扩样。原因是 A 的支持跨 3 cohort、触发面更大，并且它只表达“检索通道严重分歧时进入 bounded exploration(有界探索)”，不尝试事后判断 lexical/semantic 谁必胜；候选 B 保留为 `HYPOTHESIS_ONLY`，只有未来自然出现足够 Top1-agreement 样本时再单独冻结验证。
+22. 激活 H-51 `FDQA-B03-FRESH-ARBITRATION-HOLDOUT-READINESS-V1`：继续使用 H-48 在看到后续 lexical/semantic 结果前已预声明、但尚未执行的 FinanceBench rank 10–14 queue，零 API 地机械形成下一份 fresh two-sided holdout(全新双侧留出集)，并只为 H50-A 计算未来 semantic-call budget(语义调用预算)。如果按固定队列无法获得足够 lexical hit/miss headroom，则直接阻断，不跳选文档、不降低门槛。
+23. B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。B-03 继续 ACTIVE。若 H-51 readiness 成立，后续真实 H50-A fresh validation 需要单独合同和明确 API 授权；若 H-51 不成立，则优先切向更宽的 Exploration Runtime(探索运行时)，不再围绕融合细节扩样。
 
 ## Active hypothesis
 
-Hypothesis ID: `H-50`
+Hypothesis ID: `H-51`
 
-Task: `FDQA-B03-CROSS-COHORT-LANE-ARBITRATION-DIAGNOSTIC-V1`
+Task: `FDQA-B03-FRESH-ARBITRATION-HOLDOUT-READINESS-V1`
 
 Task kind: `evaluator_design`
 
 Falsifiable readiness rule:
 
-> H-49 已证明 fixed equal-weight RRF 相对 lexical-only 有 fresh gain，但同批 pure semantic 更强，而 H-46 pure semantic 又曾出现 protected regression。H-50 不再调 RRF，也不做新检索，只检查 H-44/H-46/H-49 三批共 46 个 persisted cases：是否存在只依赖 Gold-free retrieval signals 的 deterministic arbitration hypothesis，在至少 2 个 source cohorts 中有支持、总影响至少 4 cases，并且有明确 counterexample accounting 与未来 fresh falsification rule。若没有，则 `NO_STABLE_SIGNAL`。
+> H-50 已在 46 个历史/新鲜 cohort case 上找到两个只依赖 Gold-free retrieval signals(无 Gold 检索信号)的候选，其中 `overlap == 0 → EXPLORE` 覆盖 17/46、跨 3 cohort，更值得优先花下一轮预算。H-51 不运行 semantic/embedding，而是从 H-48 预先冻结但尚未执行的 rank 10–14 queue 顺序取完整文档族，仅运行不变 lexical Top5，形成同时包含 recovery headroom(恢复空间)和 protected-control headroom(保护样本空间)的 untouched holdout(未触碰留出集)。
 
-Frozen diagnostic:
+Frozen readiness:
 
 ```text
-H44 = 15 cases, lexical 3/15, semantic 8/15, protected 3/3
-H46 = 13 cases, lexical 4/13, semantic 6/13, protected 1/4
-H49 = 18 cases, lexical 5/18, semantic 11/18, RRF 9/18, protected semantic 5/5
-total = 46 persisted cases
-
-Gold-free signals:
-- Top5 overlap / union size
-- top1 agreement
-- reciprocal-rank agreement
-- semantic score margin/spread/mean/std where available
-- document page count
-- shared-page rank positions
-
-ready = CANDIDATE_SIGNAL_FOUND only if
-support cohorts >= 2
-AND affected cases >= 4
-AND counterexamples explicit
-AND future untouched-holdout rule exists
-
-otherwise = NO_STABLE_SIGNAL
-new API calls = 0
+source queue = H-48 predeclared FinanceBench ranks 10–14
+selection = whole-document prefix only, no skip/reorder
+lexical settings = unchanged canonical lexical Top5
+readiness = lexical misses >= 4 AND lexical hits >= 3
+semantic / embedding / RRF / reranker / LLM / Judge / Solver / Provider calls = 0
 product changes = 0
+
+future H50-A rule remains exactly:
+IF lexical_semantic_top5_overlap_count == 0
+THEN ARBITRATION = EXPLORE
+
+future validation minimum support:
+zero-overlap triggered cases >= 4
+counterexamples must be explicit
+no overlap threshold tuning after outcomes
 ```
 
 当前测量事实：
 
 ```text
-H-49 = PASS / IMPROVED / SWITCH
-H-49 L2 = 8/8 PASS
-H-49 L3 = 8/8 PASS
-H-49 API = 68/68 success, 68 physical attempts
-lexical = 5/18
-pure semantic = 11/18
-RRF60 = 9/18
-RRF qualification = true
-
-H-50 authorization_api_call = false
+H-50 = PASS / NOT_APPLICABLE / CONTINUE
+H-50 L2 = 8/8 PASS
+H-50 L3 = 8/8 PASS
+H-50 decision = CANDIDATE_SIGNAL_FOUND
+H50-A trigger = 17/46 across H44/H46/H49, observed BOTH_HIT counterexample = 0
+H50-B trigger = 4/46 across H46/H49, parked as HYPOTHESIS_ONLY
+H-51 authorization_api_call = false
 B-03 = ACTIVE
 ```
 
-H-50 的输出只能决定“是否值得冻结一个 lane-arbitration 新假设”，不能直接改变产品检索策略。
+H-51 只决定是否具备下一次 H50-A fresh validation 的试卷与预算条件；它本身不能改变产品检索或探索策略。
 
 ## Completed H-06 experiment gates
 
@@ -550,3 +541,6 @@ H-48 经 Evaluator 正式复核为 `PASS / NOT_APPLICABLE / CONTINUE`，L2/L3 �
 
 <!-- r71 evaluator update -->
 H-49 经 Evaluator 正式收口为 `PASS / IMPROVED / SWITCH`。Fresh18 lexical=`5/18`，pure semantic=`11/18`，equal-weight RRF60=`9/18`；RRF 达到预声明 `4/13` recovery / >=2 families / protected 5/5 / regression 0，但并未优于 pure semantic。结合 H-44 protected 3/3、H-46 1/4、H-49 5/5 的跨 cohort 差异，H-50 转为 zero-API lane-arbitration diagnostic，检查 Gold-free agreement/confidence signals 是否足以形成下一 fresh hypothesis；不继续事后调 RRF 权重。
+
+<!-- r72 evaluator update -->
+H-50 经 Evaluator 独立 L3 `8/8 PASS`，正式 `PASS / NOT_APPLICABLE / CONTINUE`。46-case 诊断输出 `CANDIDATE_SIGNAL_FOUND`：`ZERO-OVERLAP-ESCALATE` 触发 17/46，跨 H44/H46/H49 三批，观察结果为 7 `SEMANTIC_ONLY` + 10 `BOTH_MISS`、0 `BOTH_HIT`；`TOP1-CONSENSUS` 仅 4/46，跨 H46/H49，4/4 `BOTH_HIT`。两者仍全部是 `HYPOTHESIS_ONLY`，产品路由未改变。下一轮不继续 RRF/阈值微调，优先 H-51 zero-API fresh arbitration holdout readiness：复用 H-48 预声明但尚未执行的 rank 10–14 queue，只做 unchanged lexical Top5 和未来调用预算；若无法得到 misses>=4 且 hits>=3 的双侧 headroom，则停止并转向 Exploration Runtime。
