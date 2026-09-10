@@ -284,6 +284,36 @@ Metric / Oracle（可跨模块复用）
 所有测试代码都硬塞进 E1/E2/E3/E4 四个大文件
 ```
 
+### 6.1 统一理解：E4 是 E2E Eval，E1～E3 / 模块指标是 Process Eval
+
+当前架构其实已经具备“端到端 + 过程”两层，不需要重做：
+
+```text
+E2E Eval（端到端评测）
+→ E4：最终答案、证据、稳定性和可接受性是否成立
+
+Process Eval（过程评测）
+→ E1～E3 + 各模块 ReliabilityProfile
+→ Parser / Retrieval / Context / Calculation / Verification / Recovery
+```
+
+以后如果 E4 下降，Process Eval 用来定位最早异常点；如果所有过程指标正常但 E4 仍下降，则应把它视为新的未知 Case，而不是继续盲目微调已有模块指标。
+
+### 6.2 Bad Case 同时进入两条 Loop
+
+历史 Failure-Regression 已经承担“以前犯过的错不能再犯”的职责；在此基础上再补一条边界：新 Bad Case 不默认等于产品链错误。
+
+```text
+Bad Case
+→ Evidence / 原始文档 / Trace 复核
+├─ Agent / Retrieval / Calculation / Verification 真有问题
+│  → 修业务链 → Regression → Agent Evolution
+└─ Gold / Evidence Label / Rubric / Benchmark 环境有问题
+   → 修 Evaluation Asset → Evaluation Evolution
+```
+
+因此 `EvaluationCase`、Gold、Rubric 和 Benchmark 本身也属于可校准资产。现有 `DRAFT → REVIEWED → GOLD → DISPUTED / RETIRED` 生命周期继续保留；只有证据充分、可复现且具有重复价值的 Case 才晋级 Regression / Gold / Challenge，不因为某次模型或 Judge 判错就自动固化成标准答案。
+
 ---
 
 ## 7. 推荐代码结构
