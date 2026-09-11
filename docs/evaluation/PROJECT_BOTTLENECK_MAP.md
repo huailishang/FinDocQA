@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-09-10-r72`
+Map revision: `2026-09-11-r74`
 
-Last reviewed: `2026-09-10`
+Last reviewed: `2026-09-11`
 
 Map owner: Evaluator
 
@@ -299,53 +299,79 @@ Active bottleneck ID: `B-03`
 21. 下一预算优先给候选 A，而不是继续调 RRF 权重或单独为候选 B 扩样。原因是 A 的支持跨 3 cohort、触发面更大，并且它只表达“检索通道严重分歧时进入 bounded exploration(有界探索)”，不尝试事后判断 lexical/semantic 谁必胜；候选 B 保留为 `HYPOTHESIS_ONLY`，只有未来自然出现足够 Top1-agreement 样本时再单独冻结验证。
 22. 激活 H-51 `FDQA-B03-FRESH-ARBITRATION-HOLDOUT-READINESS-V1`：继续使用 H-48 在看到后续 lexical/semantic 结果前已预声明、但尚未执行的 FinanceBench rank 10–14 queue，零 API 地机械形成下一份 fresh two-sided holdout(全新双侧留出集)，并只为 H50-A 计算未来 semantic-call budget(语义调用预算)。如果按固定队列无法获得足够 lexical hit/miss headroom，则直接阻断，不跳选文档、不降低门槛。
 23. B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。B-03 继续 ACTIVE。若 H-51 readiness 成立，后续真实 H50-A fresh validation 需要单独合同和明确 API 授权；若 H-51 不成立，则优先切向更宽的 Exploration Runtime(探索运行时)，不再围绕融合细节扩样。
+24. H-51 已由 Evaluator 独立 L3 `8/8 PASS`。固定 rank 10–14 共 14 个 untouched case 得到 lexical `1 hit / 13 miss`，未满足 `hits>=3 AND misses>=4`，正式 stop reason=`BLOCKED_INSUFFICIENT_TWO_SIDED_HEADROOM`。因此 H50-A 没有被证伪，但当前 fresh queue 不再适合作为仲裁能力验证集；禁止继续向后挑题凑 protected hits，也不降低门槛。下一步切到 H-52 Exploration Runtime shadow diagnostic(探索运行时影子诊断)：先用已观察的 13 miss 生成通用探索机制假设，机制冻结后再消费新的 untouched cohort。
+
+## Direction admission policy｜方向准入标准
+
+本项目不再使用“固定 `>=4 case` 才能形成方向”的单一硬门槛。方向发现与能力证明分开：
+
+```text
+1 case  = 个例，只记录
+2 cases = 信号，继续观察
+>=3 independent cases + >=2 document families + 同一机制 + 可证伪
+        = CANDIDATE_DIRECTION（候选方向）
+```
+
+`CANDIDATE_DIRECTION` 只表示值得冻结一个小实验，不表示能力已经成立。必须同时满足：
+
+1. `independent cases >= 3`；
+2. `document families >= 2`（对文档检索类问题）；
+3. 三个案例能用同一 mechanism(机制)与同一 principal change(主变量)解释，不能只是同名归类；
+4. 机制不得依赖 qid、Gold、reference answer 或单文档硬编码；
+5. 能提前写出 fresh validation(新鲜样本验证)的失败条件。
+
+达到候选方向门后，**停止继续在旧 cohort 中凑数量或优化阈值**，冻结机制并转入新的 untouched cohort(未触碰样本集)验证。若 3 个案例全部来自同一文档族，只记为 `LOCAL_CLUSTER(局部簇)`，不升级为跨文档方向。
+
+能力资格仍由后续预声明 fresh cohort 决定，不从“旧题达到 3/4/5 道”直接外推。
 
 ## Active hypothesis
 
-Hypothesis ID: `H-51`
+Hypothesis ID: `H-52`
 
-Task: `FDQA-B03-FRESH-ARBITRATION-HOLDOUT-READINESS-V1`
+Task: `FDQA-B03-EXPLORATION-RUNTIME-SHADOW-DIAGNOSTIC-V1`
 
 Task kind: `evaluator_design`
 
-Falsifiable readiness rule:
+Falsifiable diagnostic rule:
 
-> H-50 已在 46 个历史/新鲜 cohort case 上找到两个只依赖 Gold-free retrieval signals(无 Gold 检索信号)的候选，其中 `overlap == 0 → EXPLORE` 覆盖 17/46、跨 3 cohort，更值得优先花下一轮预算。H-51 不运行 semantic/embedding，而是从 H-48 预先冻结但尚未执行的 rank 10–14 queue 顺序取完整文档族，仅运行不变 lexical Top5，形成同时包含 recovery headroom(恢复空间)和 protected-control headroom(保护样本空间)的 untouched holdout(未触碰留出集)。
+> H-51 证明继续为 H50-A 机械扩 fresh question(新题)并不能自然得到双边保护空间。下一步不继续找题，而是把 H-51 的 13 个 lexical miss 当作 development/diagnostic cohort(开发/诊断集)，验证“首次检索失败后，基于可观察的文档结构与局部检索反馈，是否存在一个不依赖 Gold、qid 或数据集特例的 bounded exploration mechanism(有界探索机制)，能在至少 3 个独立 miss、且跨至少 2 个文档族上生成更有用的下一步证据请求”。
 
-Frozen readiness:
+Frozen diagnostic boundary:
 
 ```text
-source queue = H-48 predeclared FinanceBench ranks 10–14
-selection = whole-document prefix only, no skip/reorder
-lexical settings = unchanged canonical lexical Top5
-readiness = lexical misses >= 4 AND lexical hits >= 3
-semantic / embedding / RRF / reranker / LLM / Judge / Solver / Provider calls = 0
+discovery cohort = H-51 lexical misses only (13 observed cases)
+new question acquisition = 0
 product changes = 0
+model / embedding / reranker / LLM / Judge / Solver / Provider calls = 0
+Gold may score only after shadow trace is persisted
+qid-specific aliases/rules = forbidden
+post-outcome threshold tuning = forbidden
 
-future H50-A rule remains exactly:
-IF lexical_semantic_top5_overlap_count == 0
-THEN ARBITRATION = EXPLORE
+allowed observation/action families:
+1. STRUCTURE_INSPECT = section/table/page structure observation
+2. LOCAL_SEARCH = revised local lexical evidence request derived from visible question + observed structure
+3. NEIGHBOR_EXPAND = bounded adjacent-page/section expansion around an observed candidate
 
-future validation minimum support:
-zero-overlap triggered cases >= 4
-counterexamples must be explicit
-no overlap threshold tuning after outcomes
+candidate hypothesis gate:
+one generic mechanism must reach previously missed Gold in >=3 independent H-51 cases
+and span >=2 document families
+and every proposed next action must be reconstructable from Gold-free observations
+and counted cases must share the same principal change
 ```
 
 当前测量事实：
 
 ```text
-H-50 = PASS / NOT_APPLICABLE / CONTINUE
-H-50 L2 = 8/8 PASS
-H-50 L3 = 8/8 PASS
-H-50 decision = CANDIDATE_SIGNAL_FOUND
-H50-A trigger = 17/46 across H44/H46/H49, observed BOTH_HIT counterexample = 0
-H50-B trigger = 4/46 across H46/H49, parked as HYPOTHESIS_ONLY
-H-51 authorization_api_call = false
+H-51 = PASS / NOT_APPLICABLE / SWITCH
+H-51 L2 = 8/8 PASS
+H-51 L3 = 8/8 PASS
+H-51 cases = 14
+H-51 lexical = 1 hit / 13 miss
+H-51 readiness = BLOCKED_INSUFFICIENT_TWO_SIDED_HEADROOM
 B-03 = ACTIVE
 ```
 
-H-51 只决定是否具备下一次 H50-A fresh validation 的试卷与预算条件；它本身不能改变产品检索或探索策略。
+H-52 只负责找“探索机制假设”，不负责证明产品能力。只有 H-52 冻结出 `>=3` 个独立 case、跨 `>=2` 个文档族、且共享同一机制与 principal change(主变量)的候选方向之后，才重新获取或预声明新的 untouched cohort(未触碰样本集)做正式 capability validation(能力验证)。
 
 ## Completed H-06 experiment gates
 
@@ -544,3 +570,9 @@ H-49 经 Evaluator 正式收口为 `PASS / IMPROVED / SWITCH`。Fresh18 lexical=
 
 <!-- r72 evaluator update -->
 H-50 经 Evaluator 独立 L3 `8/8 PASS`，正式 `PASS / NOT_APPLICABLE / CONTINUE`。46-case 诊断输出 `CANDIDATE_SIGNAL_FOUND`：`ZERO-OVERLAP-ESCALATE` 触发 17/46，跨 H44/H46/H49 三批，观察结果为 7 `SEMANTIC_ONLY` + 10 `BOTH_MISS`、0 `BOTH_HIT`；`TOP1-CONSENSUS` 仅 4/46，跨 H46/H49，4/4 `BOTH_HIT`。两者仍全部是 `HYPOTHESIS_ONLY`，产品路由未改变。下一轮不继续 RRF/阈值微调，优先 H-51 zero-API fresh arbitration holdout readiness：复用 H-48 预声明但尚未执行的 rank 10–14 queue，只做 unchanged lexical Top5 和未来调用预算；若无法得到 misses>=4 且 hits>=3 的双侧 headroom，则停止并转向 Exploration Runtime。
+
+<!-- r73 evaluator update -->
+H-51 经 Evaluator 独立 L3 `8/8 PASS`，正式 `PASS / NOT_APPLICABLE / SWITCH`。固定 rank 10–14 的 14 个 untouched FinanceBench case 得到 lexical `1/14 hit`、`13/14 miss`，因此 `two_sided_headroom_ready=false`，按冻结合同停在 `BLOCKED_INSUFFICIENT_TWO_SIDED_HEADROOM`。该结果不证伪 H50-A，但明确否决“继续向后找题凑 3 个 protected hit 再验证仲裁”的路径，因为那会形成 post-outcome sample construction(看结果后构样)。B-03 继续 ACTIVE，但研究对象上移到 Exploration Runtime。激活 H-52 `FDQA-B03-EXPLORATION-RUNTIME-SHADOW-DIAGNOSTIC-V1`：先复用 H-51 的 13 个 observed miss 做零 API、零产品改动的 hypothesis-generation(假设生成)，只有形成 >=4 独立 case 的通用 Gold-free exploration action family 后，才消费新的 untouched cohort 做 capability validation。
+
+<!-- r74 evaluator standard update -->
+Human/Task Owner 与 Evaluator 重新校准“方向形成”门槛：不再把固定 `>=4 case` 当作所有 hypothesis-generation(假设生成)任务的硬门槛。新标准为 `>=3 independent cases + >=2 document families + same mechanism/principal change + falsifiable fresh test`；1 个是个例、2 个是信号、3 个但单文档只算 `LOCAL_CLUSTER(局部簇)`。H-51 的双侧 holdout readiness(留出集就绪性)门槛不属于此标准，因此 H-51 verdict 不变。H-52 在执行前原包直接 amended(修订)，不另开碎包：候选方向达到新门后即停止旧 cohort 继续凑数，转向后续 untouched cohort 做 capability validation。
