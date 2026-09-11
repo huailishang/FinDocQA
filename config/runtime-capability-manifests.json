@@ -1,0 +1,44 @@
+{
+  "schema_version": "capability-manifest-bundle-v0.1",
+  "manifests": [
+    {
+      "plugin_id": "findocqa.validation",
+      "implementation_id": "answer-evidence-validator",
+      "version": "0.1.0",
+      "capability": {
+        "capability_id": "validation.validator",
+        "kind": "validation",
+        "version": "1",
+        "description": "FinDocQA evidence-sufficiency validator exposed through the Platform ValidationResult v0.1 boundary.",
+        "input_schema": {
+          "type": "object",
+          "description": "Domain-owned FinDocQA validation input; Platform does not interpret this schema."
+        },
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "schema_version",
+            "verdict",
+            "validator_id",
+            "validator_version",
+            "findings",
+            "evidence_refs",
+            "limitations"
+          ],
+          "properties": {
+            "schema_version": {"const": "validation-result-v0.1"},
+            "verdict": {"enum": ["PASS", "FAIL", "BLOCKED", "INDETERMINATE"]}
+          }
+        }
+      },
+      "config_schema": {},
+      "permissions": [],
+      "loading": "deferred",
+      "source": "domain-repository",
+      "metadata": {
+        "adapter": "src/evaluation/platform_validation_adapter.py",
+        "integration_boundary": "result-only"
+      }
+    }
+  ]
+}

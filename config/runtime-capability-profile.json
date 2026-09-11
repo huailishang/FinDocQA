@@ -35,7 +35,7 @@
       "plugin_id": "findocqa.validation",
       "implementation_id": "answer-evidence-validator",
       "enabled": true,
-      "config": {"runtime_wired": false, "status": "active_domain_implementation"}
+      "config": {"runtime_wired": true, "status": "platform_validation_wired"}
     }
   ],
   "permissions": {},
@@ -44,6 +44,6 @@
     "owner_project": "FinDocQA",
     "source_of_truth": "docs/evaluation/PROJECT_BOTTLENECK_MAP.md",
     "domain_extensions": ["know-where strategy", "financial source-lineage model", "financial document rules"],
-    "note": "Slot-to-implementation inventory only; not yet loaded by agent-runtime-platform."
+    "note": "validation.validator is wired through agent-runtime-platform capability loader; other slots remain declaration-only."
   }
 }
