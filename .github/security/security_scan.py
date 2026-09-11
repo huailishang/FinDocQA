@@ -110,6 +110,18 @@ COMPANY_META_SAFE = re.compile(
     r"(?:不等于|待确认|后面.{0,20}(?:再)?填|后续.{0,30}(?:确认|适配|填写|映射)"
     r"|空白模板.{0,80}才能填写|(?:样例映射|示例映射).{0,80}(?:最终需接|后续|不等于))"
 )
+COMPANY_NEGATIVE_GOVERNANCE = re.compile(
+    r"(?:不(?:记录|保存|包含|写入|写回|进入|提交|上传|同步到|维护(?:到)?)"
+    r"|禁止.{0,20}(?:记录|写入|提交|上传)"
+    r"|仅(?:使用|保留).{0,30}(?:公开|合成|脱敏)"
+    r"|只向(?:公共|公开)仓.{0,40}(?:脱敏|泛化))",
+    re.IGNORECASE,
+)
+COMPANY_CONCRETE_IDENTIFIER = re.compile(
+    r"(?:真实)?(?:表名|字段名|Topic|主键|状态码|码表|生产表|生产字段|系统名|接口名)"
+    r"\s*(?:[:：=]|(?:名称)?(?:为|是))?\s*[`'\"]?[A-Za-z][A-Za-z0-9_.:/-]{3,}",
+    re.IGNORECASE,
+)
 
 FORBIDDEN_FILENAMES = {".env", "internal_integration.json"}
 
@@ -221,7 +233,10 @@ def is_known_non_card_number(text: str, match: re.Match[str]) -> bool:
 
 def is_company_meta_boundary(text: str, start: int, end: int) -> bool:
     line, line_start = line_slice(text, start, end)
-    if COMPANY_META_SAFE.search(line):
+    has_concrete_identifier = bool(COMPANY_CONCRETE_IDENTIFIER.search(line))
+    if COMPANY_META_SAFE.search(line) and not has_concrete_identifier:
+        return True
+    if COMPANY_NEGATIVE_GOVERNANCE.search(line) and not has_concrete_identifier:
         return True
 
     # Boundary sections intentionally describe fields/rules that are still unknown and
@@ -229,7 +244,7 @@ def is_company_meta_boundary(text: str, start: int, end: int) -> bool:
     # metadata, not as evidence that real internal identifiers are present.
     context_start = max(0, line_start - 500)
     context = text[context_start:end]
-    return bool(
+    return not has_concrete_identifier and bool(
         re.search(r"(?:企业适配边界|企业映射\s*[:：]\s*待确认|以下继续保持.{0,40}待确认)", context, re.IGNORECASE | re.DOTALL)
     )
 
