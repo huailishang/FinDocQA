@@ -18,6 +18,26 @@ Keep FinDocQA reusable for financial long-document QA. Prefer generic capabiliti
 - Preserve document/page/source lineage for evidence used in an answer.
 - Retrieval and recovery logic should fail closed when evidence, lineage or binding is ambiguous.
 
+## Evaluation communication rule
+
+Evaluator-facing responses must preserve a global project view, not only report the current micro-task.
+
+Before each formal evaluation/review, first summarize in plain Chinese:
+
+1. the end-to-end project capability chain;
+2. which major stages are already closed/usable;
+3. the current first bottleneck and the secondary bottlenecks;
+4. exactly where the active task sits on that chain and what it is trying to unblock.
+
+After the evaluation/review, summarize again:
+
+1. whether the active bottleneck moved forward, stayed blocked, or switched direction;
+2. what new capability/evidence is now established;
+3. what remains unresolved and why it is now the next bottleneck;
+4. the next task and how it advances the overall project rather than only the local case.
+
+Keep this overview compact and bottleneck-oriented. Do not repeat the full historical ledger unless needed. The goal is that a reader can understand both the local verdict and the project's current position from every Evaluator response.
+
 ## Engineering rules
 
 - Put reusable logic in src/; keep scripts thin.

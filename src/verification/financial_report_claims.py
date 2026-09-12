@@ -26,6 +26,7 @@ from verification.derived_option_evidence import (
 )
 from evidence_completion.adapters.financial_reports import FinancialEvidenceCompletionAdapter
 from verification.evidence_sufficiency import assess_financial_evidence_sufficiency
+from verification.evidence_workspace import EvidenceWorkspaceScope, IN_SCOPE
 from verification.financial_claim_ast import parse_financial_claim
 from verification.financial_claim_evaluator import evaluate_financial_claim_spec
 from verification.financial_metric_ledger import (
@@ -371,10 +372,21 @@ def _narratives(structured_root: str, domain: str, doc_id: str) -> tuple[tuple[s
 
 
 class FinancialContext:
-    def __init__(self, question: Question, structured_root: str | Path) -> None:
+    def __init__(
+        self,
+        question: Question,
+        structured_root: str | Path,
+        workspace_scope: EvidenceWorkspaceScope | None = None,
+    ) -> None:
         self.question = question
         self.root = str(Path(structured_root))
-        self.ledger = FinancialMetricLedger.from_documents(self.root, question.domain, question.doc_ids)
+        self.workspace_scope = workspace_scope
+        self.ledger = FinancialMetricLedger.from_documents(
+            self.root,
+            question.domain,
+            question.doc_ids,
+            workspace_scope=workspace_scope,
+        )
         self.docs_by_entity: dict[str, list[str]] = {}
         for doc_id in question.doc_ids:
             entity = document_meta(str(doc_id)).entity_name
@@ -455,6 +467,11 @@ class FinancialContext:
 
     def narrative(self, doc_id: str, required: Sequence[str]) -> tuple[str, str] | None:
         for source, text in _narratives(self.root, self.question.domain, doc_id):
+            if (
+                self.workspace_scope is not None
+                and self.workspace_scope.classify_source(doc_id, source) != IN_SCOPE
+            ):
+                continue
             compact = _compact(text)
             if all(_compact(token) in compact for token in required):
                 return source, text
@@ -1021,6 +1038,7 @@ def _evaluate_with_semantic_contract(
         option_label=label,
         claim_spec=claim_spec,
         structured_root=structured_root,
+        workspace_scope=context.workspace_scope,
     )
     completion = adapter.complete(
         initial_evidence=initial_evidence,
@@ -1052,6 +1070,36 @@ def _evaluate_with_semantic_contract(
             "missing_atoms": [],
             "conflicting_atoms": [],
         }
+
+    workspace_final_audit: Mapping[str, Any] = {}
+    if context.workspace_scope is not None:
+        workspace_final_audit = context.workspace_scope.audit_source_facts(
+            final_evidence.source_facts
+        )
+        if workspace_final_audit.get("safe_for_trusted_evidence") is not True:
+            counts = dict(workspace_final_audit.get("counts") or {})
+            workspace_conflicts = tuple(
+                f"workspace_scope:{status}"
+                for status in ("OUTSIDE_SCOPE", "UNKNOWN_PAGE", "IDENTITY_CONFLICT")
+                if int(counts.get(status) or 0) > 0
+            )
+            final_evidence = DerivedOptionEvidence(**{
+                **final_evidence.__dict__,
+                "trusted_for_option_gate": False,
+                "conflicts": tuple(sorted(set((
+                    *final_evidence.conflicts,
+                    *workspace_conflicts,
+                )))),
+            })
+            final_sufficiency = {
+                **final_sufficiency,
+                "safe_to_decide": False,
+                "safe_to_override": False,
+                "conflicting_atoms": sorted(set((
+                    *tuple(final_sufficiency.get("conflicting_atoms") or ()),
+                    *workspace_conflicts,
+                ))),
+            }
     formula_from_ast = bool(
         initial_formula_from_ast
         or legacy_dual_pass
@@ -1082,6 +1130,8 @@ def _evaluate_with_semantic_contract(
         "comparison_formula_derived_from_ast": formula_from_ast,
         "no_default_comparator_fallback": bool(claim_spec.relation) or legacy_dual_pass,
         "dual_entity_exact_closure": legacy_dual_audit,
+        "workspace_scope_enabled": context.workspace_scope is not None,
+        "workspace_final_audit": dict(workspace_final_audit),
         "production_capability": (
             "financial_reports:corpus_lineage_corrective_retrieval_v2"
             if safe_to_override
@@ -1101,10 +1151,15 @@ def _evaluate_with_semantic_contract(
 def build_financial_report_option_evidence(
     question: Question,
     structured_root: str | Path,
+    workspace_scope: EvidenceWorkspaceScope | None = None,
 ) -> tuple[DerivedOptionEvidence, ...]:
     if question.domain != "financial_reports":
         return ()
-    context = FinancialContext(question, structured_root)
+    context = FinancialContext(
+        question,
+        structured_root,
+        workspace_scope=workspace_scope,
+    )
     return tuple(
         _evaluate_with_semantic_contract(
             question, str(text), str(label), structured_root, context
@@ -1130,7 +1185,12 @@ def build_financial_report_truth_false_contract(
     solver_answer = _canonical_answer(result.answer)
     solver_validation = validate_answer_against_contract(solver_answer, contract)
     clauses = _split_proposition(question.text)
-    context = FinancialContext(question, root) if root else None
+    raw_scope = bundle.metadata.get("evidence_workspace_scope")
+    workspace_scope = raw_scope if isinstance(raw_scope, EvidenceWorkspaceScope) else None
+    context = (
+        FinancialContext(question, root, workspace_scope=workspace_scope)
+        if root else None
+    )
     clause_results = tuple(
         _evaluate_with_semantic_contract(
             question, clause, f"P{index + 1}", root, context

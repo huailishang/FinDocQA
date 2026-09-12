@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-09-11-r74`
+Map revision: `2026-09-12-r79`
 
-Last reviewed: `2026-09-11`
+Last reviewed: `2026-09-12`
 
 Map owner: Evaluator
 
@@ -27,6 +27,31 @@ Status: `ACTIVE`
 → 答案与来源血缘校验
 → 可交付答案
 ```
+
+## Evaluator global-view response protocol
+
+每次正式评估 / 复核都必须同时回答“局部任务结果”和“整体项目现在走到哪一步”。
+
+评估前先简要给出：
+
+```text
+全链路
+→ 已完成能力
+→ 第一瓶颈 / 次级瓶颈
+→ 当前任务位于哪一段、试图打通什么
+```
+
+评估后再简要给出：
+
+```text
+本次结论
+→ 第一瓶颈是否前移 / 原地阻塞 / 切换方向
+→ 新建立了什么能力或证据
+→ 剩余最主要未知点
+→ 下一任务如何推动整体链路，而不是只修局部 case
+```
+
+默认保持简洁，不重复完整历史 ledger；目标是用户每次都能看到“项目全局地图 + 当前红点 + 红点移动方向”。
 
 ## Measurement basis
 
@@ -264,7 +289,7 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 |---|---|---|---:|---|---|---|
 | B-01 | 来源绑定 request → 正常计算主链 | SUM 能力曾不可达 | 固定 SUM 3 cases | 0/3→3/3；33/33 护栏 | high | CLOSED |
 | B-02 | 结构化表格证据供给 | 真实 MinerU 表格和完整行证据曾未知 | 190 文档 | 77 份完整行证据、6071 表、77525 行 | high | CLOSED |
-| B-03 | 问题 → 文档/表格/行证据 | 正确文档、表格或完整成员范围未进入 Top5 | 54 官方题 / 46 文档闭集 + FinanceBench 多文档外部 cohort | H-43 fresh Boeing planner 泛化为 0/7→0/7；H-44 随后对预先冻结的 H-35 15-case / 4-doc cohort 做纯 page-level Semantic Retrieval(语义检索)，Evaluator 独立 L3 8/8：canonical lexical 3/15→semantic 8/15，12 个 baseline miss 恢复 5，protected hits 3/3，regression 0，正式 `PASS + IMPROVED`。当前未知点已从“semantic 是否有效”切换为“能否跨新文档族泛化” | high（Retrieval 主瓶颈明确；semantic 在冻结资格集显著改善，但 fresh-family 泛化尚未验证） | ACTIVE |
+| B-03 | 问题 → 可靠页面/证据工作区 | 正确文档已知时，页面证据仍无法稳定进入可验证候选；不同 retrieval lane 在固定 Top5 前过早竞争 | 54 官方题 / 46 文档闭集 + FinanceBench 多文档 fresh cohorts | H-50 46-case：lexical 12/46、semantic 25/46、两者 union oracle 28/46，分布 9 BOTH_HIT / 3 LEXICAL_ONLY / 16 SEMANTIC_ONLY / 18 BOTH_MISS；H-53 fresh12 lexical=0/12，固定 ±2 邻页只恢复 2/12 且平均新增 12.75 页，`NOT_QUALIFIED`。说明单 lane / 固定 Top5 / 无差别扩页都不足，主未知点上移为 bounded multi-lane Evidence Workspace + evidence-sufficiency-driven exploration + late contraction | high（主瓶颈与架构失配均有多批 fresh evidence；下一架构尚未 capability-validated） | ACTIVE |
 | B-04 | 长尾计算算子 | 剩余 unsupported operator 无通用家族达到 5 条 | 最大合格族 1 | C3 stage-exit report | high | RETIRED |
 | B-05 | 复杂表格解析 | 2124 张图像表或复杂 span 表未加载，但问题级影响未知 | 2124 张表 | `empty_or_image_table=2038` 等 | medium（现象）；low（业务影响） | WATCH |
 | B-06 | E4 Gold 与端到端结果度量 | 无法可信自动判断 freeform 最终答案语义正确性并稳定统计 paid-run 成本 | 项目全链；本地 100 题 + 外部公开 benchmark | H-28 known-wrong Judge 3/3 agreement；H-32 AMEX reference labels=0/7 correct；known-correct 方向仍为空。但 H-33 已证明 6/7 在 Retrieval Top5 前丢失官方 evidence，因此继续扩 Judge 不是当前第一优先级 | high | SECONDARY_BLOCKED_BY_B03 |
@@ -274,32 +299,52 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 
 Active bottleneck ID: `B-03`
 
-当前判断：
+当前复合判断（2026-09-12 r79）：
 
-1. H-35/H-36/H-37 已排除 `lexical_hybrid`、corrected BM25、静态 Query Planning(查询规划) 与 Know-where Lite(轻量结构导航)作为单独通用解。
-2. H-41 历史 cohort 上 EvidenceTargetPlan-guided lexical fusion 恢复 `6/10`，但 H-43 fresh Boeing 为 `0/7→0/7`，再次说明历史集提升不能替代 fresh-family generalization(新文档族泛化)。
-3. H-44 pure page-level Semantic Retrieval(纯页级语义检索)在预冻结 H-35 cohort 上从 lexical `3/15` 提升到 semantic `8/15`，恢复 `5/12`、保护 `3/3`、regression=0，因此值得进入 fresh-family 验证。
-4. H-45 随后机械冻结 Fresh13：PEPSICO `0/5`、AMCOR `0/4`、ULTABEAUTY `4/4`，形成 9 个 recovery cases + 4 个 protected controls。
-5. H-46 已完整执行并由 Evaluator 独立 L3 `8/8 PASS`。pure semantic 结果为 `6/13`：恢复 `5/9`，其中 PEPSICO `2/5`、AMCOR `3/4`；但 Ulta protected controls 仅保留 `1/4`，产生 `3` 个 regression。冻结资格门因此为 false。正式 verdict=`PASS`、project impact=`REGRESSED`、continuation=`SWITCH`。
-6. H-46 说明 semantic embedding 的 recovery signal(恢复信号)真实存在，而且跨两个 fresh recovery family；但 **pure semantic 替换 lexical 会破坏已有正确证据**，所以不能产品化为单一 Retriever。
-7. Evaluator 用 H-46 已持久化结果做了一个 **zero-API / post-hoc diagnostic(零 API / 事后诊断)**：lexical Top5 与 semantic Top5 的 union oracle coverage=`9/13`；最简单 equal-weight RRF60(等权倒数排名融合)也得到 `9/13`、恢复 `5/9`、protected regression=`0/4`。该结果只生成新假设，不算 capability/generalization evidence，因为融合规则是在看到同一 cohort 结果后验证。
-8. 三个 semantic 回归的 Ulta case，其 Gold 在完整 semantic ranking 中均为 rank `7`；semantic 并非完全找不到，而是把 lexical 已正确的证据从 Top5 推到稍后位置。这进一步支持“信号互补/组合”而不是“替代”的诊断。
-9. 项目已有通用 `src/retrieval/hybrid_fusion.py::ReciprocalRankFusionRetriever`，默认 RRF `k=60`，并有 `IdentityReranker` 与单测。因此下一步无需发明新的融合算法，也无需立即上 learned reranker(学习式重排器)。
-10. Human/Task Owner 于 2026-09-06 补充历史赛制约束：原比赛**不允许 embedding model(嵌入模型)和 reranking model(重排模型)**，意图是更多检验检索编排、证据发现和逻辑处理能力。该信息当前按 Human-supplied historical constraint(人工提供的历史约束)记录；仓库尚未保存可独立复核的官方规则原文，因此不得把它伪装成已归档官方证据。
-11. 对冠军方案再次代码级复核后，需修正此前“Active Evidence Workspace 尚未做”的宽泛说法：FinDocQA 已有 financial evidence completion(财务证据补全)主链，包含 evidence sufficiency → missing/conflicting atom → targeted local retrieval → context refinement → typed fact binding → recompute → final sufficiency，且 `FinancialEvidenceCompletionAdapter` 已接入 `financial_report_claims.py`，固定最多两轮。generic `GapDrivenEvidenceController` 也已有完整状态骨架，但当前未发现产品主链调用点。
-12. 因此冠军方案真正还未被充分证明的不是“有没有动态补证”，而是更宽的 Exploration Runtime(探索运行时)：**先观察真实文档/数据结构 → 根据观察改变下一步去哪找/怎么找 → 保留可恢复的全局空间 → 用受限工具继续探索 → 再求解/验证**。这是后续高价值方向，但当前 B-03 最新实证首先指向 retrieval-lane composition(检索通道组合)。
-13. H-47 `FDQA-B03-FRESH-FUSION-HOLDOUT-READINESS-V1` 已正式 `PASS / NOT_APPLICABLE / CONTINUE`，amended L2/L3 均 `8/8 PASS`。它机械构造了 15 个 fresh cases，但只有 `2 lexical hit / 13 miss`，protected-control headroom 不足，因此没有降低门槛、没有直接启动融合。
-14. H-48 `FDQA-B03-FUSION-PROTECTED-CONTROL-EXTENSION-V1` 已正式 `PASS / NOT_APPLICABLE / CONTINUE`，L2/L3=`8/8 PASS`。rank 9 强生 8-K 为 `3/3 lexical hit`，使累计 fresh pool 达到 `18 cases / 5 hit / 13 miss`，满足 two-sided headroom。
-15. H-49 `FDQA-B03-FRESH18-LEXICAL-SEMANTIC-RRF-GENERALIZATION-V1` 已完整执行并正式 `PASS / IMPROVED / SWITCH`，L2/L3=`8/8 PASS`。API 对账为 `68/68 successful`、`68/85 physical`、retry=0，exact SiliconFlow `Qwen/Qwen3-Embedding-8B`；产品 `src/config/tests` 无修改。
-16. H-49 frozen lexical=`5/18`；pure semantic=`11/18`，恢复 `6/13`、覆盖 4 个 recovery families、protected=`5/5`、regression=0；equal-weight RRF60=`9/18`，恢复 `4/13`、覆盖 2 个 recovery families、protected=`5/5`、regression=0，满足预声明资格门。
-17. 因此 retrieval-lane composition 已获得 fresh generalization evidence，相对 lexical-only 是 `IMPROVED`；但 fixed 1:1 RRF 不是本批最强策略，因为 pure semantic 比 RRF 多恢复 2 题。H-49 中 `AES financebench_id_01319` 与 `CVS financebench_id_00790` 都是 semantic 已命中 Gold、RRF 又把 Gold 挤出 Top5。
-18. 跨 cohort 行为仍不稳定：H-44 pure semantic protected=`3/3`、H-46=`1/4`、H-49=`5/5`。所以不能得出“semantic 可直接替换 lexical”，也不能得出“RRF60 已是产品最优”。fixed RRF 当前更像 safety composition(安全组合)：在 semantic 退化时 lexical 可兜底，但 semantic 已更强时会产生候选竞争损失。
-19. H-50 `FDQA-B03-CROSS-COHORT-LANE-ARBITRATION-DIAGNOSTIC-V1` 已完成并由 Evaluator 独立 L3 `8/8 PASS`。任务正式 verdict=`PASS`、project impact=`NOT_APPLICABLE`、continuation=`CONTINUE`；46 条冻结 case 与 H-44/H-46/H-49 历史指标全部精确复现，model/API/embedding/fusion execution/reranker/LLM/Judge/Solver 全部为 0，产品路由未改变。
-20. H-50 输出 `CANDIDATE_SIGNAL_FOUND`，但只代表 hypothesis readiness(假设已值得继续验证)，不代表 capability qualification(能力已合格)。候选 A `ZERO-OVERLAP-ESCALATE` 在 17/46 case 触发，覆盖 H44/H46/H49 三个 cohort，触发结果为 7 `SEMANTIC_ONLY` + 10 `BOTH_MISS`、当前 `BOTH_HIT` 反例为 0；候选 B `TOP1-CONSENSUS` 仅触发 4/46，覆盖 H46/H49，4/4 为 `BOTH_HIT`。
-21. 下一预算优先给候选 A，而不是继续调 RRF 权重或单独为候选 B 扩样。原因是 A 的支持跨 3 cohort、触发面更大，并且它只表达“检索通道严重分歧时进入 bounded exploration(有界探索)”，不尝试事后判断 lexical/semantic 谁必胜；候选 B 保留为 `HYPOTHESIS_ONLY`，只有未来自然出现足够 Top1-agreement 样本时再单独冻结验证。
-22. 激活 H-51 `FDQA-B03-FRESH-ARBITRATION-HOLDOUT-READINESS-V1`：继续使用 H-48 在看到后续 lexical/semantic 结果前已预声明、但尚未执行的 FinanceBench rank 10–14 queue，零 API 地机械形成下一份 fresh two-sided holdout(全新双侧留出集)，并只为 H50-A 计算未来 semantic-call budget(语义调用预算)。如果按固定队列无法获得足够 lexical hit/miss headroom，则直接阻断，不跳选文档、不降低门槛。
-23. B-06 保持 `SECONDARY_BLOCKED_BY_B03`；B-07 保持 `SECONDARY_NO_SINGLE_COMMON_FAMILY`。B-03 继续 ACTIVE。若 H-51 readiness 成立，后续真实 H50-A fresh validation 需要单独合同和明确 API 授权；若 H-51 不成立，则优先切向更宽的 Exploration Runtime(探索运行时)，不再围绕融合细节扩样。
-24. H-51 已由 Evaluator 独立 L3 `8/8 PASS`。固定 rank 10–14 共 14 个 untouched case 得到 lexical `1 hit / 13 miss`，未满足 `hits>=3 AND misses>=4`，正式 stop reason=`BLOCKED_INSUFFICIENT_TWO_SIDED_HEADROOM`。因此 H50-A 没有被证伪，但当前 fresh queue 不再适合作为仲裁能力验证集；禁止继续向后挑题凑 protected hits，也不降低门槛。下一步切到 H-52 Exploration Runtime shadow diagnostic(探索运行时影子诊断)：先用已观察的 13 miss 生成通用探索机制假设，机制冻结后再消费新的 untouched cohort。
+1. **主损失仍在 B-03 页面/证据工作区，不回到文档身份或 lexical 微调。** H-53 在正确文档已冻结时 lexical Top5 仍为 `0/12`；H-35/H-36/H-37/H-41/H-43 已说明继续 BM25/Query Planning/Know-where 类微调缺乏稳定 fresh 泛化。
+2. **多通道互补已经成立，但不能过早压成统一 Top5。** H-50 46-case 为 `BOTH_HIT=9 / LEXICAL_ONLY=3 / SEMANTIC_ONLY=16 / BOTH_MISS=18`，lexical=`12/46`、semantic=`25/46`、union oracle=`28/46`；union 平均约 `8.98` 页、最大 `10` 页。
+3. **H-55 已把接口设计问题关掉。** one-based canonical page 与 zero-based `FinancialFact.source_page` 可确定性对齐；同一个 immutable scope 必须同时约束 initial + completion evidence，并对 unknown/outside/conflicting page fail closed。
+4. **H-56 已实现 scope-capable modules，但产品路由还没有真正把 scope 传下去。** `EvidenceWorkspaceScope`、ledger/context/completion/final audit 的模块行为和回归均通过，修正 Evaluator 自身验证脚本后 L2/L3 都是 `8/8 PASS`。
+5. **H-56 独立复核仍判 `REJECTED / IMPROVED_BUT_INCOMPLETE / REPAIR_REQUIRED`。** 原因不是模块实现失败，而是 `production_typed_evidence.py → build_derived_option_evidence → build_financial_report_option_evidence` 的真实非-TF产品调用链仍没有传播 `workspace_scope`；现有测试是直接实例化 scoped 模块，不能证明产品路由可达。
+6. **因此当前红点已经缩到最后一层 reachability(可达性)接线。** 下一修复只允许把 `EvidenceBundle.metadata['evidence_workspace_scope']` 传过 `production_typed_evidence` 和 `derived_claim_router`，H-56 核心 scope/ledger/completion 文件冻结不动。
+7. **fresh experiment 继续后置。** 在产品路由 scope 可达之前，不运行 lexical Top5 vs lexical+semantic union 的新样本能力实验，也不花 embedding/API 预算。
+8. **B-06 仍是第二瓶颈。** 最终 freeform Gold/Judge 仍不足，但 Answer 前的 evidence loss 尚未解决，因此继续 `SECONDARY_BLOCKED_BY_B03`。
+9. **B-05 继续 WATCH，B-07 继续 secondary。** 复杂表格问题级影响仍未量化；Provider 历史失败仍未形成足够大的统一家族。
+
+当前主线：
+
+```text
+Question
+→ lexical / semantic lanes
+→ bounded Evidence Workspace
+→ [当前红点] EvidenceBundle / production route scope propagation
+→ Evidence Sufficiency / Binding
+→ late contraction + solve
+→ 后续 fresh generalization
+```
+
+## Active hypothesis
+
+Hypothesis ID: `H-56R1`
+
+Task: `FDQA-B03-EVIDENCE-WORKSPACE-PRODUCT-ROUTE-WIRING-REPAIR-V1`
+
+Task kind: `repair`
+
+Composite basis:
+
+> H-56 模块级 scope enforcement(范围约束)有效并保留，但产品主路由尚不可达 scoped mode。当前真实缺口是 `EvidenceBundle.metadata → production_typed_evidence → derived_claim_router → financial_report_claims` 的显式 scope 传播。
+
+H-56R1 只修这一层 route propagation(路由传播)：
+
+```text
+EvidenceBundle.metadata['evidence_workspace_scope']
+→ build_production_typed_option_evidence
+→ build_derived_option_evidence(workspace_scope=...)
+→ build_financial_report_option_evidence(workspace_scope=...)
+```
+
+H-56 的 `EvidenceWorkspaceScope`、ledger、financial claims 和 completion 核心实现全部按冻结 Hash 保持不变；普通无 scope 调用保持原行为。H-56R1 不自动启用 scope、不改 Retriever/Parser/Solver/Judge/模型，也不调用 API。只有该 repair 独立 L3 通过后，才进入 fresh workspace generalization readiness。
 
 ## Direction admission policy｜方向准入标准
 
@@ -326,52 +371,53 @@ Active bottleneck ID: `B-03`
 
 ## Active hypothesis
 
-Hypothesis ID: `H-52`
+Hypothesis ID: `H-53`
 
-Task: `FDQA-B03-EXPLORATION-RUNTIME-SHADOW-DIAGNOSTIC-V1`
+Task: `FDQA-B03-FRESH12-NEIGHBOR-EXPANSION-GENERALIZATION-V1`
 
-Task kind: `evaluator_design`
+Task kind: `capability_experiment`
 
-Falsifiable diagnostic rule:
+Strategic basis:
 
-> H-51 证明继续为 H50-A 机械扩 fresh question(新题)并不能自然得到双边保护空间。下一步不继续找题，而是把 H-51 的 13 个 lexical miss 当作 development/diagnostic cohort(开发/诊断集)，验证“首次检索失败后，基于可观察的文档结构与局部检索反馈，是否存在一个不依赖 Gold、qid 或数据集特例的 bounded exploration mechanism(有界探索机制)，能在至少 3 个独立 miss、且跨至少 2 个文档族上生成更有用的下一步证据请求”。
+> H-52 independently passed L3 `8/8` and found one Gold-free candidate direction: fixed same-document `+/-2` physical-page neighbor expansion around the frozen lexical Top5. It reached previously missed Gold in `3/13` diagnostic misses across `2` document families, satisfying the project direction-admission threshold but only at its minimum boundary. H-52 made no product change and has `capability_qualification=false`.
 
-Frozen diagnostic boundary:
+Frozen H-53 principal change:
 
 ```text
-discovery cohort = H-51 lexical misses only (13 observed cases)
-new question acquisition = 0
+baseline = unchanged canonical lexical Top5 physical pages
+candidate = baseline Top5 UNION same-document non-seed pages at distance 1..2
+mechanism = bounded_neighbor_expand_r2
+radius = exactly 2
+query rewrite = none
+qid/document rules = none
+model/API calls = 0
 product changes = 0
-model / embedding / reranker / LLM / Judge / Solver / Provider calls = 0
-Gold may score only after shadow trace is persisted
-qid-specific aliases/rules = forbidden
-post-outcome threshold tuning = forbidden
-
-allowed observation/action families:
-1. STRUCTURE_INSPECT = section/table/page structure observation
-2. LOCAL_SEARCH = revised local lexical evidence request derived from visible question + observed structure
-3. NEIGHBOR_EXPAND = bounded adjacent-page/section expansion around an observed candidate
-
-candidate hypothesis gate:
-one generic mechanism must reach previously missed Gold in >=3 independent H-51 cases
-and span >=2 document families
-and every proposed next action must be reconstructable from Gold-free observations
-and counted cases must share the same principal change
 ```
 
-当前测量事实：
+Fresh cohort is frozen before retrieval/Gold outcomes using the FinanceBench source revision `cc39aeb4afdf33909ee1412188bf89035950c2eb`:
 
 ```text
-H-51 = PASS / NOT_APPLICABLE / SWITCH
-H-51 L2 = 8/8 PASS
-H-51 L3 = 8/8 PASS
-H-51 cases = 14
-H-51 lexical = 1 hit / 13 miss
-H-51 readiness = BLOCKED_INSUFFICIENT_TWO_SIDED_HEADROOM
-B-03 = ACTIVE
+12 questions / 6 whole document families
+ADOBE_2022_10K
+AMAZON_2017_10K
+AMCOR_2023Q4_EARNINGS
+BLOCK_2020_10K
+CORNING_2022_10K
+GENERALMILLS_2020_10K
 ```
 
-H-52 只负责找“探索机制假设”，不负责证明产品能力。只有 H-52 冻结出 `>=3` 个独立 case、跨 `>=2` 个文档族、且共享同一机制与 principal change(主变量)的候选方向之后，才重新获取或预声明新的 untouched cohort(未触碰样本集)做正式 capability validation(能力验证)。
+Selection rule: `qa_count desc + doc_name asc`, excluding every document family already exposed in prior B-03 JSON/JSONL artifacts; take the first six remaining whole documents. No substitution, early stop, extension, or outcome-based selection is allowed.
+
+Fresh capability qualification:
+
+```text
+QUALIFIED iff
+recovered lexical misses >= 3
+AND recovered document families >= 2
+AND protected loss = 0
+```
+
+Candidate-page expansion cost/noise must be reported. Even `QUALIFIED` proves only fresh generalization of the bounded evidence-reach mechanism; it does not authorize product integration. If the gate fails, stop this mechanism rather than tuning radius or adding a second exploration family.
 
 ## Completed H-06 experiment gates
 
@@ -576,3 +622,15 @@ H-51 经 Evaluator 独立 L3 `8/8 PASS`，正式 `PASS / NOT_APPLICABLE / SWITCH
 
 <!-- r74 evaluator standard update -->
 Human/Task Owner 与 Evaluator 重新校准“方向形成”门槛：不再把固定 `>=4 case` 当作所有 hypothesis-generation(假设生成)任务的硬门槛。新标准为 `>=3 independent cases + >=2 document families + same mechanism/principal change + falsifiable fresh test`；1 个是个例、2 个是信号、3 个但单文档只算 `LOCAL_CLUSTER(局部簇)`。H-51 的双侧 holdout readiness(留出集就绪性)门槛不属于此标准，因此 H-51 verdict 不变。H-52 在执行前原包直接 amended(修订)，不另开碎包：候选方向达到新门后即停止旧 cohort 继续凑数，转向后续 untouched cohort 做 capability validation。
+
+<!-- r75 evaluator update -->
+H-52 经 Evaluator 正式复核为 `PASS / NOT_APPLICABLE / CONTINUE`，L2/L3 均 `8/8 PASS`。`bounded_neighbor_expand_r2` 在 13 个 H-51 lexical miss 中恢复 `3` 个、跨 `2` 个文档族，达到候选方向最低门槛；Evaluator 额外敏感性审计显示 radius=1 为 `0`、radius=2/3 为 `3`、radius=4 为 `5`，因此该信号存在但半径敏感，禁止继续在旧 cohort 调半径。激活 H-53 Fresh12：机械冻结此前 B-03 未暴露的下一 6 个完整 FinanceBench 文档 / 12 题，固定 radius=2 做零 API fresh generalization(新样本泛化)；若恢复 `<3` 或跨文档族 `<2`，则停止该机制，不扩样、不调半径。
+
+<!-- r76 evaluator update -->
+H-53 经 Evaluator 独立 L3 `8/8 PASS`，任务本身 `PASS`，page-level reach 从 lexical `0/12` 到 fixed `±2` neighbor `2/12`，属于可测但不足的改善；因未达到 frozen `>=3` recovery gate 且平均每题新增 `12.75` 页，fresh decision=`NOT_QUALIFIED`，continuation=`SWITCH`。正式停止邻页半径方向。复合评估将 B-03 上移为 premature Top5 contraction / evidence-workspace composition(过早 Top5 收敛 / 证据工作区组合)瓶颈：H-50 46-case 显示 lexical=`12/46`、semantic=`25/46`、union oracle=`28/46`，存在 `16 SEMANTIC_ONLY + 3 LEXICAL_ONLY`，同时仍有 `18 BOTH_MISS`。激活 H-54 zero-API architecture readiness：验证 bounded multi-lane Evidence Workspace + Evidence Sufficiency + late contraction 是否能形成一个可证伪、单一主变量的新能力实验。
+
+<!-- r77 evaluator update -->
+H-54 经复合检查：L2/L3 均 `8/8 PASS`，其 lane complementarity(通道互补)数据结论保留，但 Evaluator 否决 `CANDIDATE_READY`，正式 verdict=`REJECTED / NOT_READY_INTERFACE_CONTRACT_GAP / SWITCH`。原因：`CanonicalLexicalEvidenceRetriever` 输出 page-scoped `EvidenceCandidate`，而 `build_financial_report_option_evidence(question, structured_root)` / `FinancialContext` / `FinancialEvidenceCompletionAdapter` 当前均从完整结构化文档建立 ledger，没有 page-workspace 输入契约；若直接 fresh 验证，workspace 可能只做旁路统计而下游仍读取全量证据，无法隔离“late contraction”主变量。激活 H-55 zero-API interface compatibility：只冻结统一 page scope 如何同时约束 initial + completion evidence，以及 unknown page fail-closed；通过后才允许下一 fresh capability experiment。
+
+<!-- r78 evaluator update -->
+H-55 经 Evaluator 独立 L3 `8/8 PASS` 并完成代码级复核，正式 verdict=`PASS / INTERFACE_READY / CONTINUE`。`EvidenceCandidate` 的 one-based canonical page 与 `FinancialFact.source_page` 的 zero-based MinerU page_idx 可通过 `canonical_physical_page = source_page + 1` 确定性对齐；同一 scope 必须同时约束 initial ledger/narrative 与 completion ledger/corrective retrieval，未知页/越界页/身份冲突必须 fail closed。激活 H-56 `repair`：本地实现并贯穿 `EvidenceWorkspaceScope`，用离线反例证明无 scope 越界和 unscoped regression；不调用 semantic/API，不做 fresh 能力结论。

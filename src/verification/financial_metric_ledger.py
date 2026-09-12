@@ -16,6 +16,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from evidence.structured_tables import StructuredTableRow, load_structured_table_rows
 from verification.derived_option_evidence import SourceFact
+from verification.evidence_workspace import EvidenceWorkspaceScope, IN_SCOPE
 
 
 @dataclass(frozen=True)
@@ -887,12 +888,20 @@ class FinancialMetricLedger:
         structured_root: str | Path,
         domain: str,
         doc_ids: Sequence[str],
+        workspace_scope: EvidenceWorkspaceScope | None = None,
     ) -> "FinancialMetricLedger":
         facts = [
             fact
             for doc_id in doc_ids
             for fact in load_document_financial_facts(str(Path(structured_root)), domain, str(doc_id))
         ]
+        if workspace_scope is not None:
+            facts = [
+                fact for fact in facts
+                if workspace_scope.classify_financial_page(
+                    fact.document_id, fact.source_page
+                ) == IN_SCOPE
+            ]
         return cls(facts)
 
     @property

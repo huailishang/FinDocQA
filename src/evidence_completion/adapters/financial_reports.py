@@ -32,6 +32,7 @@ from verification.claim_fact_binding import (
     unit_family,
 )
 from verification.derived_option_evidence import DerivedOptionEvidence, SourceFact
+from verification.evidence_workspace import EvidenceWorkspaceScope, IN_SCOPE
 from verification.evidence_gap_classifier import classify_financial_gaps, retrievable_atoms
 from verification.evidence_sufficiency import (
     FinancialEvidenceSufficiency,
@@ -125,6 +126,9 @@ def _financial_fact_mapping(fact: FinancialFact) -> dict[str, Any]:
             "raw_unit": fact.raw_unit,
             "precision_rank": fact.precision_rank,
             "per_share_basis": fact.per_share_basis,
+            "source_page": fact.source_page,
+            "source_table": fact.source_table,
+            "source_row": fact.source_row,
         },
     }
 
@@ -269,6 +273,7 @@ def _policy_candidates(
     *,
     structured_root: Path,
     domain: str,
+    workspace_scope: EvidenceWorkspaceScope | None = None,
 ) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     for doc_id in request.allowed_doc_ids:
@@ -291,7 +296,7 @@ def _policy_candidates(
                 hit = "现金分红" in compact and bool(state)
             if not hit:
                 continue
-            candidates.append({
+            candidate = {
                 "entity": entity,
                 "metric": request.metric,
                 "period": request.period,
@@ -305,7 +310,13 @@ def _policy_candidates(
                 "canonical_source": str(path).replace("\\", "/") + f"#line={index}",
                 "local_window": line[:3000],
                 "metadata": {"policy_stage": state},
-            })
+            }
+            if (
+                workspace_scope is not None
+                and workspace_scope.audit_source_fact(candidate)["status"] != IN_SCOPE
+            ):
+                continue
+            candidates.append(candidate)
             if len(candidates) >= 8:
                 return candidates
     return candidates
@@ -439,10 +450,14 @@ def search_financial_candidates(
     structured_root: str | Path,
     domain: str,
     ledger: FinancialMetricLedger,
+    workspace_scope: EvidenceWorkspaceScope | None = None,
 ) -> tuple[EvidenceHit, ...]:
     if request.metric in {"cash_dividend_policy", "share_repurchase_history"}:
         raw_candidates = _policy_candidates(
-            request, structured_root=Path(structured_root), domain=domain
+            request,
+            structured_root=Path(structured_root),
+            domain=domain,
+            workspace_scope=workspace_scope,
         )
     else:
         all_candidates = [
@@ -475,12 +490,28 @@ def search_financial_candidates(
     for raw_candidate in raw_candidates:
         candidate = dict(raw_candidate)
         refinement_audit: Mapping[str, Any] = {}
+        if (
+            workspace_scope is not None
+            and workspace_scope.audit_source_fact(candidate)["status"] != IN_SCOPE
+        ):
+            continue
         if request.round == 2:
             candidate, refinement_audit = refine_financial_candidate_with_context(
                 candidate,
                 structured_root=structured_root,
                 domain=domain,
             )
+            if workspace_scope is not None:
+                source_page = (candidate.get("metadata") or {}).get("source_page")
+                refined_page = refinement_audit.get("page_idx")
+                if (
+                    source_page is not None
+                    and refined_page is not None
+                    and int(source_page) != int(refined_page)
+                ):
+                    continue
+                if workspace_scope.audit_source_fact(candidate)["status"] != IN_SCOPE:
+                    continue
         compact = _compact(candidate.get("local_window"))
         matched = tuple(term for term in request.query_terms if _compact(term) in compact)
         hits.append(EvidenceHit(
@@ -564,13 +595,18 @@ class FinancialEvidenceCompletionAdapter:
         option_label: str,
         claim_spec: FinancialClaimSpec,
         structured_root: str | Path,
+        workspace_scope: EvidenceWorkspaceScope | None = None,
     ) -> None:
         self.question = question
         self.option_label = option_label
         self.claim_spec = claim_spec
         self.structured_root = str(Path(structured_root))
+        self.workspace_scope = workspace_scope
         self.ledger = FinancialMetricLedger.from_documents(
-            self.structured_root, question.domain, question.doc_ids
+            self.structured_root,
+            question.domain,
+            question.doc_ids,
+            workspace_scope=workspace_scope,
         )
 
     def classify_gaps(
@@ -620,6 +656,7 @@ class FinancialEvidenceCompletionAdapter:
                     structured_root=self.structured_root,
                     domain=self.question.domain,
                     ledger=self.ledger,
+                    workspace_scope=self.workspace_scope,
                 )
                 atom_correct = False
                 atom_ambiguous = False
@@ -690,11 +727,80 @@ class FinancialEvidenceCompletionAdapter:
 
         raw_typed = tuple(typed_facts)
         unique_typed = tuple(unique_facts(raw_typed))
-        initial_facts = tuple(initial_evidence.source_facts)
+        raw_initial_facts = tuple(initial_evidence.source_facts)
+        scoped_initial_evidence = initial_evidence
+        workspace_initial_audit: Mapping[str, Any] = {}
+        workspace_completion_audit: Mapping[str, Any] = {}
+
+        if self.workspace_scope is not None:
+            workspace_initial_audit = self.workspace_scope.audit_source_facts(raw_initial_facts)
+            initial_pairs = tuple(
+                (fact, self.workspace_scope.audit_source_fact(fact))
+                for fact in raw_initial_facts
+            )
+            initial_facts = tuple(
+                fact for fact, audit in initial_pairs if audit["status"] == IN_SCOPE
+            )
+            initial_violations = tuple(
+                audit for _, audit in initial_pairs if audit["status"] != IN_SCOPE
+            )
+            if initial_violations:
+                violation_conflicts = tuple(
+                    f"workspace_scope:{audit['status']}"
+                    for audit in initial_violations
+                )
+                scoped_initial_evidence = DerivedOptionEvidence(**{
+                    **initial_evidence.__dict__,
+                    "source_facts": initial_facts,
+                    "canonical_sources": tuple(
+                        dict.fromkeys(
+                            fact.canonical_source for fact in initial_facts
+                            if fact.canonical_source
+                        )
+                    ),
+                    "result": None,
+                    "status": "unresolved",
+                    "trusted_for_option_gate": False,
+                    "conflicts": tuple(sorted(set((
+                        *initial_evidence.conflicts,
+                        *violation_conflicts,
+                    )))),
+                    "diagnostics": {
+                        **dict(initial_evidence.diagnostics or {}),
+                        "workspace_scope_audit": dict(workspace_initial_audit),
+                    },
+                })
+        else:
+            initial_facts = raw_initial_facts
+
         candidate_source_facts = tuple(_source_from_typed(fact) for fact in unique_typed)
+        if self.workspace_scope is not None:
+            completion_pairs = tuple(
+                (typed, fact, self.workspace_scope.audit_source_fact(fact))
+                for typed, fact in zip(unique_typed, candidate_source_facts)
+            )
+            unique_typed = tuple(
+                typed for typed, _, audit in completion_pairs
+                if audit["status"] == IN_SCOPE
+            )
+            candidate_source_facts = tuple(
+                fact for _, fact, audit in completion_pairs
+                if audit["status"] == IN_SCOPE
+            )
+            workspace_completion_audit = self.workspace_scope.audit_source_facts(
+                candidate_source_facts
+            )
+
         raw_accepted_count = len(raw_typed)
         unique_accepted_source_facts = tuple(unique_facts(candidate_source_facts))
         merged = _deduplicate_source_facts((*initial_facts, *unique_accepted_source_facts))
+        workspace_merged_audit: Mapping[str, Any] = {}
+        if self.workspace_scope is not None:
+            workspace_merged_audit = self.workspace_scope.audit_source_facts(merged)
+            merged = tuple(
+                fact for fact in merged
+                if self.workspace_scope.audit_source_fact(fact)["status"] == IN_SCOPE
+            )
 
         binding_summary = assess_claim_fact_bindings(self.claim_spec, merged)
         binding_rows = tuple(binding_summary.get("bindings") or [])
@@ -753,23 +859,48 @@ class FinancialEvidenceCompletionAdapter:
                 self.question, self.option_label, self.claim_spec, safe_merged
             )
             if safe_merged
-            else initial_evidence
+            else scoped_initial_evidence
         )
         if final_evidence is None:
-            final_evidence = initial_evidence
+            final_evidence = scoped_initial_evidence
+        workspace_final_audit: Mapping[str, Any] = {}
+        if self.workspace_scope is not None:
+            workspace_final_audit = self.workspace_scope.audit_source_facts(
+                final_evidence.source_facts
+            )
         final_diagnostics = {
             **dict(final_evidence.diagnostics or {}),
             "claim_fact_binding": binding_summary,
             "initial_and_completion_facts_share_binding_gate": True,
+            "workspace_scope_enabled": self.workspace_scope is not None,
+            "workspace_initial_audit": dict(workspace_initial_audit),
+            "workspace_completion_audit": dict(workspace_completion_audit),
+            "workspace_merged_audit": dict(workspace_merged_audit),
+            "workspace_final_audit": dict(workspace_final_audit),
         }
         final_evidence = DerivedOptionEvidence(**{
             **final_evidence.__dict__,
             "diagnostics": final_diagnostics,
         })
-        if conflicts:
+        workspace_final_conflicts: tuple[str, ...] = ()
+        if (
+            self.workspace_scope is not None
+            and workspace_final_audit.get("safe_for_trusted_evidence") is not True
+        ):
+            counts = dict(workspace_final_audit.get("counts") or {})
+            workspace_final_conflicts = tuple(
+                f"workspace_scope:{status}"
+                for status in ("OUTSIDE_SCOPE", "UNKNOWN_PAGE", "IDENTITY_CONFLICT")
+                if int(counts.get(status) or 0) > 0
+            )
+        if conflicts or workspace_final_conflicts:
             final_evidence = DerivedOptionEvidence(**{
                 **final_evidence.__dict__,
-                "conflicts": tuple(sorted(set((*final_evidence.conflicts, *conflicts)))),
+                "conflicts": tuple(sorted(set((
+                    *final_evidence.conflicts,
+                    *conflicts,
+                    *workspace_final_conflicts,
+                )))),
                 "trusted_for_option_gate": False,
             })
         final_sufficiency = assess_financial_evidence_sufficiency(
