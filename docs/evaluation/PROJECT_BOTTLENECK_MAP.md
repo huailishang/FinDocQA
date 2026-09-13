@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-09-12-r79`
+Map revision: `2026-09-13-r83`
 
-Last reviewed: `2026-09-12`
+Last reviewed: `2026-09-13`
 
 Map owner: Evaluator
 
@@ -299,17 +299,16 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 
 Active bottleneck ID: `B-03`
 
-当前复合判断（2026-09-12 r79）：
+当前复合判断（2026-09-13 r83）：
 
-1. **主损失仍在 B-03 页面/证据工作区，不回到文档身份或 lexical 微调。** H-53 在正确文档已冻结时 lexical Top5 仍为 `0/12`；H-35/H-36/H-37/H-41/H-43 已说明继续 BM25/Query Planning/Know-where 类微调缺乏稳定 fresh 泛化。
-2. **多通道互补已经成立，但不能过早压成统一 Top5。** H-50 46-case 为 `BOTH_HIT=9 / LEXICAL_ONLY=3 / SEMANTIC_ONLY=16 / BOTH_MISS=18`，lexical=`12/46`、semantic=`25/46`、union oracle=`28/46`；union 平均约 `8.98` 页、最大 `10` 页。
-3. **H-55 已把接口设计问题关掉。** one-based canonical page 与 zero-based `FinancialFact.source_page` 可确定性对齐；同一个 immutable scope 必须同时约束 initial + completion evidence，并对 unknown/outside/conflicting page fail closed。
-4. **H-56 已实现 scope-capable modules，但产品路由还没有真正把 scope 传下去。** `EvidenceWorkspaceScope`、ledger/context/completion/final audit 的模块行为和回归均通过，修正 Evaluator 自身验证脚本后 L2/L3 都是 `8/8 PASS`。
-5. **H-56 独立复核仍判 `REJECTED / IMPROVED_BUT_INCOMPLETE / REPAIR_REQUIRED`。** 原因不是模块实现失败，而是 `production_typed_evidence.py → build_derived_option_evidence → build_financial_report_option_evidence` 的真实非-TF产品调用链仍没有传播 `workspace_scope`；现有测试是直接实例化 scoped 模块，不能证明产品路由可达。
-6. **因此当前红点已经缩到最后一层 reachability(可达性)接线。** 下一修复只允许把 `EvidenceBundle.metadata['evidence_workspace_scope']` 传过 `production_typed_evidence` 和 `derived_claim_router`，H-56 核心 scope/ledger/completion 文件冻结不动。
-7. **fresh experiment 继续后置。** 在产品路由 scope 可达之前，不运行 lexical Top5 vs lexical+semantic union 的新样本能力实验，也不花 embedding/API 预算。
-8. **B-06 仍是第二瓶颈。** 最终 freeform Gold/Judge 仍不足，但 Answer 前的 evidence loss 尚未解决，因此继续 `SECONDARY_BLOCKED_BY_B03`。
-9. **B-05 继续 WATCH，B-07 继续 secondary。** 复杂表格问题级影响仍未量化；Provider 历史失败仍未形成足够大的统一家族。
+1. **B-03 继续是第一瓶颈，而且 fresh 证据更强了。** H-58 在完全新鲜的 9 个 FinanceBench 文档族 / 12 题上得到 lexical Top5 `4 hit / 8 miss`，8 个 miss 横跨 7 个文档族；这已经不是局部 case 或单文档问题。
+2. **workspace 接口问题已经关闭，当前缺的是正式能力证明。** H-55/H-56/H-56R1 已连续关闭 page-scope contract、scope enforcement 和 product-route reachability；H-58 L2/L3 均 `8/8 PASS`，确认 fresh capability experiment 具备足够两侧 headroom。
+3. **H-58 的 scanner deviation 不改变样本选择。** 首次 probe 漏识别 H-57 的 `document_family` 字段，但 H-58 合同事前已经冻结“最早 whole-family prefix 直到累计 >=12 cases”；首次看到的 3 个 family 仅 6 题，无论 outcome 如何都必须继续选，修正后的 29-family exposed set + source metadata 唯一推出最终 9-family / 12-case prefix，因此记录偏差但不判 outcome-driven sampling。
+4. **下一步不再做 readiness，也不再做 Retriever 微调。** 正式进入 H-59 fresh capability experiment，唯一 principal change 是 `early fixed Top5 contraction → bounded union workspace before verification`；lexical/semantic 两条 lane、TopK、模型、RRF 权重、Parser、Solver、Judge 全冻结。
+5. **H-59 使用双层 measurement。** Primary 为 verification-boundary evidence reach(验证边界证据可达率)：baseline RRF60 Top5 vs candidate union workspace(max10)；Secondary 为现有 deterministic ClaimSpec/Binding/Sufficiency 支持题上的 trusted reach(可信证据可达)。`VERIFIER_UNSUPPORTED` 只表示下游覆盖不足，不能算 workspace 失败。
+6. **B-06 仍是第二瓶颈。** known-correct Judge coverage 仍不足，但 H-33 曾显示 AMEX 6/7 在 Judge 前丢 evidence；H-58 又给出 fresh lexical 8/12 miss，因此当前先验证 B-03 的 workspace 架构更有因果价值。
+7. **B-05 继续 WATCH。** 2124 张复杂/图像表的 parser 现象明确，但题目级影响仍没有 B-03 这批 fresh evidence 强；B-07 继续 secondary。
+8. **H-59 的 embedding-only 授权和 Provider 预检已经完成。** 冻结模型仍为 `Qwen/Qwen3-Embedding-8B`，HF Inference Providers → Scaleway 的 Windows-side route 已真实探针通过，4096 维；精确 Qwen3 tokenizer 计数为 `819652 input tokens`，成本预检为 `PASS_WITH_LOW_MARGIN`。当前保守预算上限仍为 `80 successful calls / 240 physical attempts`，只允许 embedding；Generative LLM/Judge/Solver/reranker 仍不授权。Cloudflare `@cf/qwen/qwen3-embedding-0.6b` 已作为项目级备用验证通过，但不得进入 H-59。
 
 当前主线：
 
@@ -317,34 +316,42 @@ Active bottleneck ID: `B-03`
 Question
 → lexical / semantic lanes
 → bounded Evidence Workspace
-→ [当前红点] EvidenceBundle / production route scope propagation
-→ Evidence Sufficiency / Binding
-→ late contraction + solve
-→ 后续 fresh generalization
+→ scope / product-route reachability 已打通
+→ H-58 fresh12 readiness: 8 miss / 7 miss families + 4 protected hits ✅
+→ [当前红点] H-59 early Top5 vs bounded workspace capability
+→ 通过：再决定是否做产品自动 scope writer / 下游工程化
+→ 不通过：停止该 workspace 方向并重排 B-03 vs B-06/B-05
 ```
 
 ## Active hypothesis
 
-Hypothesis ID: `H-56R1`
+Hypothesis ID: `H-59`
 
-Task: `FDQA-B03-EVIDENCE-WORKSPACE-PRODUCT-ROUTE-WIRING-REPAIR-V1`
+Proposed task: `FDQA-B03-FRESH12-BOUNDED-WORKSPACE-CAPABILITY-V1`
 
-Task kind: `repair`
+Task kind: `capability_experiment`
 
 Composite basis:
 
-> H-56 模块级 scope enforcement(范围约束)有效并保留，但产品主路由尚不可达 scoped mode。当前真实缺口是 `EvidenceBundle.metadata → production_typed_evidence → derived_claim_router → financial_report_claims` 的显式 scope 传播。
+> H-58 已独立证明 fresh12 有足够 miss-side 与 protected-control headroom。下一步必须直接检验 contraction timing，而不是继续寻找新题或调 Retriever。为避免把 downstream verifier coverage 混成第二变量，Primary 只测 verification-boundary evidence reach；Secondary 才记录 scoped deterministic trusted reach。
 
-H-56R1 只修这一层 route propagation(路由传播)：
+H-59 frozen comparison：
 
 ```text
-EvidenceBundle.metadata['evidence_workspace_scope']
-→ build_production_typed_option_evidence
-→ build_derived_option_evidence(workspace_scope=...)
-→ build_financial_report_option_evidence(workspace_scope=...)
+BASELINE
+same lexical Top5 + same semantic Top5
+→ equal-weight RRF60
+→ fixed Top5
+→ verification boundary
+
+CANDIDATE
+same lexical Top5 + same semantic Top5
+→ deduplicated union workspace(max10)
+→ EvidenceWorkspaceScope / deterministic verification
+→ late contraction where supported
 ```
 
-H-56 的 `EvidenceWorkspaceScope`、ledger、financial claims 和 completion 核心实现全部按冻结 Hash 保持不变；普通无 scope 调用保持原行为。H-56R1 不自动启用 scope、不改 Retriever/Parser/Solver/Judge/模型，也不调用 API。只有该 repair 独立 L3 通过后，才进入 fresh workspace generalization readiness。
+Primary qualification：`recovered_cases>=3 + recovered_families>=2 + protected_loss=0 + workspace<=10`。H-59 合同和 Validation Plan 已冻结，Provider 与成本预检已通过，当前已路由给 Executor；H-59 只允许冻结的 8B embedding 路线，Cloudflare 备用不进入本轮实验。
 
 ## Direction admission policy｜方向准入标准
 
@@ -634,3 +641,15 @@ H-54 经复合检查：L2/L3 均 `8/8 PASS`，其 lane complementarity(通道互
 
 <!-- r78 evaluator update -->
 H-55 经 Evaluator 独立 L3 `8/8 PASS` 并完成代码级复核，正式 verdict=`PASS / INTERFACE_READY / CONTINUE`。`EvidenceCandidate` 的 one-based canonical page 与 `FinancialFact.source_page` 的 zero-based MinerU page_idx 可通过 `canonical_physical_page = source_page + 1` 确定性对齐；同一 scope 必须同时约束 initial ledger/narrative 与 completion ledger/corrective retrieval，未知页/越界页/身份冲突必须 fail closed。激活 H-56 `repair`：本地实现并贯穿 `EvidenceWorkspaceScope`，用离线反例证明无 scope 越界和 unscoped regression；不调用 semantic/API，不做 fresh 能力结论。
+
+<!-- r79 evaluator update -->
+H-56 模块实现 L2/L3 均 `8/8 PASS`，但独立代码复核发现真实 `production_typed_evidence → derived_claim_router → financial_report_claims` 非-TF 路由没有传播 `workspace_scope`。模块能力保留但任务正式 `REJECTED / IMPROVED_BUT_INCOMPLETE / REPAIR_REQUIRED`；B-03 红点缩到 product route reachability(产品路由可达性)，激活 H-56R1 窄修复。
+
+<!-- r80 evaluator update -->
+H-56R1 Executor L2=`8/8 PASS`；Evaluator 独立 L3=`8/8 PASS`，product-route scoped tests `2 passed`、相关 regression `51 passed`，范围外金融事实无法形成 trusted evidence，范围内与 unscoped 行为保持，H-56 核心 Hash 不变。正式 verdict=`PASS / NOT_APPLICABLE / CONTINUE`。B-03 的 route reachability blocker 关闭，第一红点前移到 fresh workspace generalization readiness；激活 H-57 zero-API readiness，冻结未触碰 whole-document cohort、page authority、lexical baseline、future semantic budget 与单变量 workspace experiment。
+
+<!-- r81 evaluator update -->
+H-57 按 outcome-blind 规则冻结 3 个全新 whole-document families / 6 cases，source/PDF/page authority 与 lexical 双重重放均稳定，但 lexical=`4 hit / 2 miss`，且 2 个 miss 只来自 1 个文档族；冻结 `lexical_misses>=3` mandatory gate 失败，L2=`7/8`，无 L3，正式 verdict=`REJECTED / NOT_APPLICABLE / CONTINUE`，reason=`BLOCKED_BY_READINESS_HEADROOM`。不降低门槛、不扩已观察 cohort。排除 H-57 后仍有 55 families / 58 questions 未暴露；激活 H-58 最后一次 zero-API Fresh12 two-sided readiness wave：按 source metadata 固定排序取最短完整文档前缀直到 >=12 cases，要求 misses>=3、miss families>=2、hits>=3。若仍失败，停止滚动找题并重排 B-03 vs B-06/B-05。
+
+<!-- r82 evaluator update -->
+H-58 Executor L2=`8/8 PASS`；Evaluator 独立 L3=`8/8 PASS`。最终 fresh cohort 为 9 families / 12 cases，lexical=`4 hit / 8 miss`，8 miss 跨 7 families，满足 `misses>=3 + miss families>=2 + hits>=3` two-sided readiness。首次 probe 的 exposure-scanner 字段缺口已独立复核为不改变最终 selection 的过程偏差：合同事前固定 >=12-case whole-family prefix，首次看到的 3 families 仅 6 cases，修正后的 exposed set + source metadata 唯一推出最终 9-family prefix。正式 verdict=`PASS / NOT_APPLICABLE / CONTINUE`。B-03 保持第一瓶颈；H-59 fresh capability experiment 已冻结为 `early RRF60 Top5` vs `bounded union workspace(max10)`，Primary 测 verification-boundary evidence reach，Secondary 测 deterministic trusted reach。H-59 需要 semantic embedding 外部调用，当前 `authorization_api_call=false`，保守预算上限 80 successful / 240 physical attempts，等待 Human 明确授权。

@@ -30,6 +30,7 @@ from verification.derived_option_evidence import (
     policy_execution_state,
     yoy_growth,
 )
+from verification.evidence_workspace import EvidenceWorkspaceScope
 from verification.financial_metric_ledger import FinancialMetricLedger
 from verification.financial_report_claims import build_financial_report_option_evidence
 from verification.research_near_ready_evidence import build_research_option_evidence
@@ -593,6 +594,7 @@ def _cached_structured_rows(
 def build_derived_option_evidence(
     question: Question,
     structured_root: str | Path | None,
+    workspace_scope: EvidenceWorkspaceScope | None = None,
 ) -> tuple[DerivedOptionEvidence, ...]:
     """Build all compound option evidence for one question.
 
@@ -606,7 +608,11 @@ def build_derived_option_evidence(
     if question.domain == "research":
         return build_research_option_evidence(question, root)
     if question.domain == "financial_reports":
-        evidence_rows = build_financial_report_option_evidence(question, root)
+        evidence_rows = build_financial_report_option_evidence(
+            question,
+            root,
+            workspace_scope=workspace_scope,
+        )
         enriched: list[DerivedOptionEvidence] = []
         for evidence in evidence_rows:
             option_text = str(question.options.get(evidence.option_label) or "")

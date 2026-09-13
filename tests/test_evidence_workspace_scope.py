@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from contracts import Question
+from contracts import ClassificationResult, EvidenceBundle, Question, SolverResult
 from evidence_completion.adapters.financial_reports import (
     FinancialEvidenceCompletionAdapter,
     search_financial_candidates,
@@ -23,6 +23,7 @@ from verification.evidence_workspace import (
 from verification.financial_claim_ast import parse_financial_claim
 from verification.financial_metric_ledger import FinancialFact, FinancialMetricLedger
 from verification.financial_report_claims import FinancialContext
+from verification.production_typed_evidence import build_production_typed_option_evidence
 
 
 DOC = "annual_byd_2022"
@@ -367,3 +368,125 @@ def test_narrative_or_policy_or_completion_or_final_audit_rejects_outside_initia
         row["metadata"].get("source_page") == 0
         for row in result.merged_source_facts
     )
+
+
+_UNSET_SCOPE = object()
+
+
+def _product_route_payload(
+    monkeypatch: pytest.MonkeyPatch,
+    facts: tuple[FinancialFact, ...],
+    workspace_scope: object = _UNSET_SCOPE,
+) -> dict[str, object]:
+    import verification.financial_metric_ledger as ledger_module
+
+    monkeypatch.setattr(
+        ledger_module,
+        "load_document_financial_facts",
+        lambda *_args, **_kwargs: facts,
+    )
+    metadata: dict[str, object] = {"structured_table_root": "unused"}
+    if workspace_scope is not _UNSET_SCOPE:
+        metadata["evidence_workspace_scope"] = workspace_scope
+    question = _question()
+    bundle = EvidenceBundle(
+        question=question,
+        classification=ClassificationResult(labels=()),
+        candidates=(),
+        prompt_context="",
+        estimated_tokens=0,
+        metadata=metadata,
+    )
+    result = SolverResult(
+        qid=question.qid,
+        answer="",
+        solver="scope-product-route-test",
+        metadata={"judgments": {"A": "unresolved"}},
+    )
+    return build_production_typed_option_evidence(bundle, result)
+
+
+def _product_route_derived(payload: dict[str, object]) -> dict[str, object]:
+    rows = payload.get("production_derived_option_evidence") or []
+    assert isinstance(rows, list) and len(rows) == 1
+    row = rows[0]
+    assert isinstance(row, dict)
+    return row
+
+
+def test_product_route_scope_filters_outside_fact_and_keeps_in_scope_fact(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outside_scope = EvidenceWorkspaceScope.from_pages([(DOC, 1)])
+    outside_payload = _product_route_payload(
+        monkeypatch,
+        (_fact(1, value=200.0),),
+        outside_scope,
+    )
+    outside = _product_route_derived(outside_payload)
+    assert outside["trusted_for_option_gate"] is False
+    assert outside["source_facts"] == []
+    assert (outside.get("diagnostics") or {}).get("workspace_scope_enabled") is True
+
+    in_scope = EvidenceWorkspaceScope.from_pages([(DOC, 2)])
+    in_scope_payload = _product_route_payload(
+        monkeypatch,
+        (_fact(1, value=200.0),),
+        in_scope,
+    )
+    inside = _product_route_derived(in_scope_payload)
+    assert inside["status"] == "supported"
+    assert inside["trusted_for_option_gate"] is True
+    assert len(inside["source_facts"]) == 1
+    assert inside["source_facts"][0]["metadata"]["source_page"] == 1
+    assert (inside.get("diagnostics") or {}).get("workspace_scope_enabled") is True
+
+
+def test_product_route_scope_preserves_identity_and_rejects_mapping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import verification.derived_claim_router as router_module
+
+    captured: list[object] = []
+
+    def fake_financial_builder(
+        question: Question,
+        structured_root: str | Path,
+        workspace_scope: EvidenceWorkspaceScope | None = None,
+    ) -> tuple[DerivedOptionEvidence, ...]:
+        assert question.domain == "financial_reports"
+        assert str(structured_root) == "unused"
+        captured.append(workspace_scope)
+        return ()
+
+    monkeypatch.setattr(
+        router_module,
+        "build_financial_report_option_evidence",
+        fake_financial_builder,
+    )
+    scope = EvidenceWorkspaceScope.from_pages([(DOC, 1)])
+    _product_route_payload(monkeypatch, (), scope)
+    assert captured[-1] is scope
+    assert captured[-1].allowed_pages == frozenset({(DOC, 1)})
+
+    _product_route_payload(
+        monkeypatch,
+        (),
+        {"allowed_pages": [[DOC, 1]]},
+    )
+    assert captured[-1] is None
+
+
+def test_product_route_unscoped_preserves_historical_financial_fact_visibility(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _product_route_payload(
+        monkeypatch,
+        (_fact(1, value=200.0),),
+    )
+    derived = _product_route_derived(payload)
+    assert derived["status"] == "supported"
+    assert derived["trusted_for_option_gate"] is True
+    assert len(derived["source_facts"]) == 1
+    assert derived["source_facts"][0]["metadata"]["source_page"] == 1
+    assert (derived.get("diagnostics") or {}).get("workspace_scope_enabled") is False

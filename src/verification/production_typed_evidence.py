@@ -56,6 +56,7 @@ from verification.derived_option_evidence import (
     SourceFact,
     merge_derived_option_evidence,
 )
+from verification.evidence_workspace import EvidenceWorkspaceScope
 from verification.insurance_clause_claims import build_insurance_clause_option_evidence
 from verification.insurance_calculation_compiler import build_insurance_calculation_option_evidence
 from verification.regulatory_option_evidence import build_regulatory_option_evidence
@@ -707,6 +708,12 @@ def build_production_typed_option_evidence(
     contract violation produces an untrusted contract.
     """
     contract = contract_from_mapping(answer_contract) or contract_from_question(bundle.question)
+    raw_workspace_scope = (bundle.metadata or {}).get("evidence_workspace_scope")
+    workspace_scope = (
+        raw_workspace_scope
+        if isinstance(raw_workspace_scope, EvidenceWorkspaceScope)
+        else None
+    )
     if (
         bundle.question.domain == "regulatory"
         and dict(bundle.metadata or {}).get("regulatory_option_verification_enabled") is True
@@ -1282,11 +1289,18 @@ def build_production_typed_option_evidence(
         ),
     }
     structured_root = str(bundle.metadata.get("structured_table_root") or "").strip()
-    routed_derived = (
-        build_derived_option_evidence(bundle.question, structured_root)
-        if structured_root
-        else ()
-    )
+    if structured_root and bundle.question.domain == "financial_reports":
+        routed_derived = build_derived_option_evidence(
+            bundle.question,
+            structured_root,
+            workspace_scope=workspace_scope,
+        )
+    else:
+        routed_derived = (
+            build_derived_option_evidence(bundle.question, structured_root)
+            if structured_root
+            else ()
+        )
     derived = (
         tuple(derived_from_certifications)
         + tuple(routed_derived)
