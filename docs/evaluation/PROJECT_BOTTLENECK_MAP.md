@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-09-13-r83`
+Map revision: `2026-09-16-r84`
 
-Last reviewed: `2026-09-13`
+Last reviewed: `2026-09-16`
 
 Map owner: Evaluator
 
@@ -299,16 +299,17 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 
 Active bottleneck ID: `B-03`
 
-当前复合判断（2026-09-13 r83）：
+当前复合判断（2026-09-16 r84）：
 
-1. **B-03 继续是第一瓶颈，而且 fresh 证据更强了。** H-58 在完全新鲜的 9 个 FinanceBench 文档族 / 12 题上得到 lexical Top5 `4 hit / 8 miss`，8 个 miss 横跨 7 个文档族；这已经不是局部 case 或单文档问题。
-2. **workspace 接口问题已经关闭，当前缺的是正式能力证明。** H-55/H-56/H-56R1 已连续关闭 page-scope contract、scope enforcement 和 product-route reachability；H-58 L2/L3 均 `8/8 PASS`，确认 fresh capability experiment 具备足够两侧 headroom。
-3. **H-58 的 scanner deviation 不改变样本选择。** 首次 probe 漏识别 H-57 的 `document_family` 字段，但 H-58 合同事前已经冻结“最早 whole-family prefix 直到累计 >=12 cases”；首次看到的 3 个 family 仅 6 题，无论 outcome 如何都必须继续选，修正后的 29-family exposed set + source metadata 唯一推出最终 9-family / 12-case prefix，因此记录偏差但不判 outcome-driven sampling。
-4. **下一步不再做 readiness，也不再做 Retriever 微调。** 正式进入 H-59 fresh capability experiment，唯一 principal change 是 `early fixed Top5 contraction → bounded union workspace before verification`；lexical/semantic 两条 lane、TopK、模型、RRF 权重、Parser、Solver、Judge 全冻结。
-5. **H-59 使用双层 measurement。** Primary 为 verification-boundary evidence reach(验证边界证据可达率)：baseline RRF60 Top5 vs candidate union workspace(max10)；Secondary 为现有 deterministic ClaimSpec/Binding/Sufficiency 支持题上的 trusted reach(可信证据可达)。`VERIFIER_UNSUPPORTED` 只表示下游覆盖不足，不能算 workspace 失败。
-6. **B-06 仍是第二瓶颈。** known-correct Judge coverage 仍不足，但 H-33 曾显示 AMEX 6/7 在 Judge 前丢 evidence；H-58 又给出 fresh lexical 8/12 miss，因此当前先验证 B-03 的 workspace 架构更有因果价值。
-7. **B-05 继续 WATCH。** 2124 张复杂/图像表的 parser 现象明确，但题目级影响仍没有 B-03 这批 fresh evidence 强；B-07 继续 secondary。
-8. **H-59 的 embedding-only 授权和 Provider 预检已经完成。** 冻结模型仍为 `Qwen/Qwen3-Embedding-8B`，HF Inference Providers → Scaleway 的 Windows-side route 已真实探针通过，4096 维；精确 Qwen3 tokenizer 计数为 `819652 input tokens`，成本预检为 `PASS_WITH_LOW_MARGIN`。当前保守预算上限仍为 `80 successful calls / 240 physical attempts`，只允许 embedding；Generative LLM/Judge/Solver/reranker 仍不授权。Cloudflare `@cf/qwen/qwen3-embedding-0.6b` 已作为项目级备用验证通过，但不得进入 H-59。
+1. **B-03 仍是第一瓶颈。** H-58 在全新 9 个 FinanceBench 文档族 / 12 题上得到 lexical Top5 `4 hit / 8 miss`，8 个 miss 横跨 7 个文档族；H-55/H-56/H-56R1 已把 page scope、scope enforcement 和 product-route reachability 打通，当前真正未闭环的是“多 retrieval lane 的证据是否在 verification 前被过早 Top5 收缩”。
+2. **H-59 没有证伪这个方向，只是被外部额度阻断。** HF/Scaleway 路线在 `9` 个 successful embedding calls 后遇到 terminal HTTP 402，Executor L2=`4/8`，Primary=`NOT_MEASURED`，project impact=`INCONCLUSIVE`。不把“没跑完”写成“无收益”。
+3. **Human 已选择换 Provider/model 并重开新实验。** 因 Cloudflare 备用 profile 已真实 preflight `PASS`，H-60 冻结为 `cloudflare-workers-ai / @cf/qwen/qwen3-embedding-0.6b / 1024d`。这是新任务，不在 H-59 里做 fallback；H-59 的 4096d 8B cache 只能保留审计，不能进入 H-60 runtime。
+4. **H-60 仍只测一个 principal change。** baseline/candidate 共用同一 H-58 lexical Top5 与同一 Cloudflare semantic Top5；唯一差异仍是 `early fixed Top5 contraction → bounded union workspace before verification`。H-60 不回答“0.6B 是否优于 8B”，也不允许借模型变化解释 workspace 收益。
+5. **Primary/Secondary measurement 不变。** Primary 仍测 verification-boundary evidence reach：RRF60 Top5 vs union workspace(max10)；Secondary 只在现有 deterministic ClaimSpec/Binding/Sufficiency 支持的题上记录 trusted reach。`VERIFIER_UNSUPPORTED` 仍是下游覆盖不足，不算 workspace 失败。
+6. **B-06 是最明确的后续链路阻碍。** freeform 最终答案的语义正确性自动裁决还没有完整 known-correct 覆盖；现有 layered scoring/Judge harness 已搭好，known-wrong 方向有证据，但 Judge authority 还不能泛化。它现在被 B-03 的上游 evidence loss 压住，因此保持 `SECONDARY_BLOCKED_BY_B03`。
+7. **B-05 是可能前移的 Parser/复杂表格阻碍。** 2124 张复杂/图像/span 表未加载的现象明确，但当前题目级影响证据仍弱于 B-03；一旦 workspace 证据可达改善后出现“页面找到了但表格事实仍不可用”，B-05 会升级。
+8. **B-07 仍是次级 Provider/输出门禁问题。** AMD cohort 曾有 Provider ERROR 和 output-gate 阻断，但 H-27 没找到覆盖 >=3 independent cases + >=2 families 的单一公共 failure family，因此暂不抢主线。
+9. **C3 确定性计算、来源绑定和 workspace scope 本身不是当前主要阻碍。** 已有 Factory SUM、Binder fail-closed、H-56R1 product-route scope 等证据；后续若 H-60 通过，先决定 product auto scope writer / 下游工程化，再让真实 E4 重新排序 B-06/B-05/B-07。
 
 当前主线：
 
@@ -318,40 +319,41 @@ Question
 → bounded Evidence Workspace
 → scope / product-route reachability 已打通
 → H-58 fresh12 readiness: 8 miss / 7 miss families + 4 protected hits ✅
-→ [当前红点] H-59 early Top5 vs bounded workspace capability
-→ 通过：再决定是否做产品自动 scope writer / 下游工程化
-→ 不通过：停止该 workspace 方向并重排 B-03 vs B-06/B-05
+→ H-59: external credit blocker，未形成能力结论
+→ [当前红点] H-60 Cloudflare semantic lane 下验证 early Top5 vs bounded workspace
+→ 若通过：产品化 scope/workspace，再跑真实 E4 看下一个实际失败层
+→ 后续已知候选：B-06 freeform answer judging / B-05 complex-table parser / B-07 provider-output gate
 ```
 
 ## Active hypothesis
 
-Hypothesis ID: `H-59`
+Hypothesis ID: `H-60`
 
-Proposed task: `FDQA-B03-FRESH12-BOUNDED-WORKSPACE-CAPABILITY-V1`
+Proposed task: `FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1`
 
 Task kind: `capability_experiment`
 
 Composite basis:
 
-> H-58 已独立证明 fresh12 有足够 miss-side 与 protected-control headroom。下一步必须直接检验 contraction timing，而不是继续寻找新题或调 Retriever。为避免把 downstream verifier coverage 混成第二变量，Primary 只测 verification-boundary evidence reach；Secondary 才记录 scoped deterministic trusted reach。
+> H-58 已独立证明 fresh12 有足够 miss-side 与 protected-control headroom；H-59 因 HF/Scaleway included-credit HTTP 402 停止，未形成 capability measurement。Human 选择换已配置并真实 preflight 通过的 Cloudflare 0.6B profile 重开，因此继续用同一 Fresh12 直接检验 contraction timing，而不是再次找题或调 Retriever。
 
-H-59 frozen comparison：
+H-60 frozen comparison：
 
 ```text
 BASELINE
-same lexical Top5 + same semantic Top5
+same H-58 lexical Top5 + same Cloudflare semantic Top5
 → equal-weight RRF60
 → fixed Top5
 → verification boundary
 
 CANDIDATE
-same lexical Top5 + same semantic Top5
+same H-58 lexical Top5 + same Cloudflare semantic Top5
 → deduplicated union workspace(max10)
 → EvidenceWorkspaceScope / deterministic verification
 → late contraction where supported
 ```
 
-Primary qualification：`recovered_cases>=3 + recovered_families>=2 + protected_loss=0 + workspace<=10`。H-59 合同和 Validation Plan 已冻结，Provider 与成本预检已通过，当前已路由给 Executor；H-59 只允许冻结的 8B embedding 路线，Cloudflare 备用不进入本轮实验。
+Primary qualification：`recovered_cases>=3 + recovered_families>=2 + protected_loss=0 + workspace<=10`。H-60 冻结 `cloudflare-workers-ai / @cf/qwen/qwen3-embedding-0.6b / 1024d`，先做 1 次 task-local preflight，再最多完成 80 个 runtime successful embedding calls；successful ceiling=`81`、physical ceiling=`162`、max per logical unit=`2`、max parallelism=`2`。只授权 embedding，不授权 paid fallback、Generative LLM/Judge/Solver/reranker。
 
 ## Direction admission policy｜方向准入标准
 
@@ -653,3 +655,9 @@ H-57 按 outcome-blind 规则冻结 3 个全新 whole-document families / 6 case
 
 <!-- r82 evaluator update -->
 H-58 Executor L2=`8/8 PASS`；Evaluator 独立 L3=`8/8 PASS`。最终 fresh cohort 为 9 families / 12 cases，lexical=`4 hit / 8 miss`，8 miss 跨 7 families，满足 `misses>=3 + miss families>=2 + hits>=3` two-sided readiness。首次 probe 的 exposure-scanner 字段缺口已独立复核为不改变最终 selection 的过程偏差：合同事前固定 >=12-case whole-family prefix，首次看到的 3 families 仅 6 cases，修正后的 exposed set + source metadata 唯一推出最终 9-family prefix。正式 verdict=`PASS / NOT_APPLICABLE / CONTINUE`。B-03 保持第一瓶颈；H-59 fresh capability experiment 已冻结为 `early RRF60 Top5` vs `bounded union workspace(max10)`，Primary 测 verification-boundary evidence reach，Secondary 测 deterministic trusted reach。H-59 需要 semantic embedding 外部调用，当前 `authorization_api_call=false`，保守预算上限 80 successful / 240 physical attempts，等待 Human 明确授权。
+
+<!-- r83 evaluator/provider update -->
+Human 授权 H-59 embedding-only 调用后，Evaluator 完成 SiliconFlow / ModelScope / HF / Cloudflare 预检。HF Inference Providers → Scaleway → `Qwen/Qwen3-Embedding-8B` Windows route 实际 probe PASS，4096d；冻结输入 `819652` tokens，成本预检 `PASS_WITH_LOW_MARGIN`。Cloudflare `@cf/qwen/qwen3-embedding-0.6b` 1024d 独立 backup profile 也实际 probe PASS，但因模型/维度不同不得作为 H-59 fallback。H-59 路由 Executor，API=true，其他外部模型调用仍禁用。
+
+<!-- r84 evaluator switch update -->
+H-59 执行到第 10 次物理尝试时，HF/Scaleway 返回 terminal HTTP 402；最终 `9 successful + 1 terminal`，L2=`4/8`，Primary=`NOT_MEASURED`，project impact=`INCONCLUSIVE`，没有形成 capability verdict。Human 于 `2026-09-16` 选择“换一个油、重开一个”，不补原 HF 额度。Evaluator 因此保留 H-59 审计与 8B partial cache，正式 `SWITCH` 到 H-60 `FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1`：复用同一 H-58 Fresh12 与同一 contraction-timing 主假设，但冻结 Cloudflare `@cf/qwen/qwen3-embedding-0.6b` 1024d 独立 profile。H-60 不做 0.6B-vs-8B 优劣比较；只在本任务内部比较同一 Cloudflare semantic lane 下 `RRF60 Top5` 与 `bounded union workspace(max10)`。B-03 继续 ACTIVE；B-06 明确为后续第二瓶颈，B-05 WATCH，B-07 secondary。
