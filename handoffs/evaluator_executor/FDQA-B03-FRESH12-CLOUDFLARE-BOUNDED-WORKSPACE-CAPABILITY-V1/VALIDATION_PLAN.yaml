@@ -1,0 +1,172 @@
+schema: evaluator-executor-validation-plan/v1
+task_id: FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1
+checks:
+- id: VP-00
+  ac: [AC-02, AC-07]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - >-
+    import hashlib,json; from pathlib import Path; d=Path('handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1'); g=json.loads((d/'RUNTIME_TEXT_PREFLIGHT.json').read_text(encoding='utf-8')); p=d/'H60_RUNTIME_INPUTS.jsonl'; assert g['status']=='PASS' and g['no_dependency_install_policy']=='ENFORCED'; assert g['dependency_install_attempts']==0 and g['dependency_download_attempts']==0; assert g['h59_canonical_refs_checked']==15 and g['h59_canonical_hash_mismatches']==15 and g['h59_runtime_source_accepted'] is False; assert g['extractor']=='PyMuPDF' and g['extractor_version']=='1.28.0' and g['financebench_revision']=='cc39aeb4afdf33909ee1412188bf89035950c2eb'; assert g['page_count']==1019 and g['query_count']==12 and g['canonical_hash_checks']==15 and g['canonical_hash_mismatches']==0; assert p.exists() and hashlib.sha256(p.read_bytes()).hexdigest()==g['runtime_input_sha256']; print('runtime_text_gate=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-01
+  ac: [AC-01]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - >-
+    import json,re; from pathlib import Path; p=Path('handoffs/evaluator_executor/FDQA-B03-FRESH12-WORKSPACE-GENERALIZATION-READINESS-WAVE-V1'); g=json.loads((p/'evidence/l3/L3-GATE.json').read_text(encoding='utf-8')); r=(p/'REVIEW.md').read_text(encoding='utf-8'); assert g['result']=='PASS' and g['checks_total']==8 and g['mandatory_failures']==0; assert re.search(r'## Final verdict\s+PASS(?:\s|$)', r) and 'lexical misses = 8' in r and 'miss document families = 7' in r; print('parent_h58=PASS_READY')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-02
+  ac: [AC-02, AC-03]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import hashlib, json
+    from pathlib import Path
+    p=Path('handoffs/evaluator_executor/FDQA-B03-FRESH12-WORKSPACE-GENERALIZATION-READINESS-WAVE-V1')
+    d=Path('handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1')
+    cohort=p/'FRESH12_COHORT_MANIFEST.json'
+    m=json.loads(cohort.read_text(encoding='utf-8'))
+    lanes=json.loads((d/'LANE_INPUT_HASHES.json').read_text(encoding='utf-8'))
+    sem=json.loads((d/'SEMANTIC_EMBEDDING_MANIFEST.json').read_text(encoding='utf-8'))
+    pre=json.loads((d/'CLOUDFLARE_PREFLIGHT.json').read_text(encoding='utf-8'))
+    assert m['case_count']==12 and len(m['document_families'])==9
+    assert lanes['h58_cohort_sha256']==hashlib.sha256(cohort.read_bytes()).hexdigest()
+    assert lanes['same_runtime_lane_inputs'] is True and lanes['gold_reference_in_runtime_inputs'] is False
+    assert pre['status']=='PASS' and pre['provider']=='cloudflare-workers-ai' and pre['model']=='@cf/qwen/qwen3-embedding-0.6b' and pre['embedding_dimension']==1024
+    assert sem['provider']=='cloudflare-workers-ai' and sem['model']=='@cf/qwen/qwen3-embedding-0.6b' and sem['embedding_dimension']==1024
+    assert sem['document_embedding_batch_size']==16 and sem['query_embedding_unit']=='one query vector per case'
+    assert sem['case_count']==12 and sem['top_k_per_doc']==5
+    assert sem.get('h59_8b_cache_reused') is False
+    print('cohort_and_cloudflare_semantic_lane=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-03
+  ac: [AC-03, AC-04]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import json
+    from pathlib import Path
+    d=Path('handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1')
+    b=[json.loads(x) for x in (d/'BASELINE_RRF60_RESULTS.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
+    c=[json.loads(x) for x in (d/'CANDIDATE_WORKSPACE_RESULTS.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
+    assert len(b)==12 and len(c)==12
+    bm={x['qid']:x for x in b}; cm={x['qid']:x for x in c}; assert set(bm)==set(cm)
+    for qid in bm:
+      x,y=bm[qid],cm[qid]
+      assert x['lexical_top5_hash']==y['lexical_top5_hash'] and x['semantic_top5_hash']==y['semantic_top5_hash']
+      assert x['fusion']=='rrf60_equal_weight' and len(x['verification_pages'])<=5
+      assert y['workspace_kind']=='deduplicated_union_no_score_reweighting_before_verification'
+      assert len(y['verification_workspace_pages'])<=10
+    print('same_cloudflare_lanes_baseline_candidate=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-04
+  ac: [AC-05]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import json
+    from pathlib import Path
+    s=json.loads(Path('handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/BOUNDARY_CAPABILITY_SUMMARY.json').read_text(encoding='utf-8'))
+    assert s['case_count']==12
+    assert s['runtime_outputs_frozen_before_gold_scoring'] is True
+    expected=(s['recovered_cases']>=3 and s['recovered_document_families']>=2 and s['protected_loss']==0 and s['workspace_max_unique_pages']<=10)
+    assert s['qualification_rule']=={'min_recovered_cases':3,'min_recovered_document_families':2,'protected_loss_max':0,'workspace_max_unique_pages':10}
+    assert s['qualified'] is expected
+    print('boundary_capability_qualified=', expected)
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-05
+  ac: [AC-06]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import json
+    from pathlib import Path
+    d=Path('handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1')
+    rows=[json.loads(x) for x in (d/'DOWNSTREAM_TRUSTED_REACH.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
+    s=json.loads((d/'DOWNSTREAM_TRUSTED_SUMMARY.json').read_text(encoding='utf-8'))
+    assert len(rows)==12
+    allowed={'VERIFIER_SUPPORTED_TRUSTED','VERIFIER_SUPPORTED_NOT_TRUSTED','VERIFIER_UNSUPPORTED'}
+    assert all(x['baseline_status'] in allowed and x['candidate_status'] in allowed for x in rows)
+    assert s['unsupported_counted_as_workspace_failure'] is False
+    assert s['candidate_trusted_losses_from_baseline_supported_trusted']==0
+    assert all((x.get('candidate_late_contraction_pages') is None or len(x['candidate_late_contraction_pages'])<=5) for x in rows)
+    print('downstream_trusted_reach=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-06
+  ac: [AC-07]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import json
+    from pathlib import Path
+    d=Path('handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1')
+    rows=[json.loads(x) for x in (d/'API_ATTEMPT_LEDGER.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
+    s=json.loads((d/'RUN_COST_SUMMARY.json').read_text(encoding='utf-8'))
+    assert s['successful_calls']<=81 and s['physical_attempts']<=162 and s['max_attempts_per_successful_call']<=2 and s['max_parallelism']<=2
+    assert s['preflight_calls']>=1 and s['preflight_calls']<=2 and s['runtime_embedding_calls']<=80
+    assert s['unauthorized_generative_calls']==0 and s['judge_calls']==0 and s['solver_calls']==0 and s['reranker_calls']==0
+    assert all(x.get('operation') in {'embedding','embedding_preflight'} for x in rows)
+    assert all(x.get('model')=='@cf/qwen/qwen3-embedding-0.6b' for x in rows)
+    assert all(x.get('provider')=='cloudflare-workers-ai' for x in rows)
+    assert all(x.get('paid_fallback_used') in (None,False) for x in rows)
+    print('cloudflare_api_budget_and_scope=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-07
+  ac: [AC-08, AC-09]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import hashlib, json, subprocess
+    from pathlib import Path
+    h=json.loads(Path('handoffs/evaluator_executor/FDQA-B03-FRESH12-WORKSPACE-GENERALIZATION-READINESS-WAVE-V1/INHERITED_ACCEPTED_HASHES.json').read_text(encoding='utf-8'))
+    for p,e in h['files'].items(): assert hashlib.sha256(Path(p).read_bytes()).hexdigest()==e, p
+    rows=subprocess.check_output(['git','status','--porcelain'],text=True,encoding='utf-8',errors='replace').splitlines()
+    product=[]
+    for row in rows:
+      p=row[3:].strip().strip('"').replace('\\','/')
+      if p.startswith(('src/','config/','tests/')): product.append(p)
+    assert product==[], product
+    report=Path('handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/REPORT.md').read_text(encoding='utf-8')
+    assert 'Impact comparison' in report and 'Project-impact verdict' in report
+    assert '0.6B-vs-8B' in report or '0.6B vs 8B' in report
+    print('product_snapshot_and_report=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-08
+  ac: [AC-07, AC-09]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - >-
+    from pathlib import Path; cur=Path('handoffs/evaluator_executor/state/CURRENT.md').read_text(encoding='utf-8'); assert 'task_id: FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1' in cur and 'authorization_api_call: true' in cur and 'state: EXECUTING' in cur and 'current_role: Executor' in cur; print('authorized_executor_routing=PASS')
+  evaluator_command:
+  - python3
+  - -c
+  - >-
+    from pathlib import Path; cur=Path('handoffs/evaluator_executor/state/CURRENT.md').read_text(encoding='utf-8'); assert 'task_id: FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1' in cur and 'authorization_api_call: true' in cur and 'state: READY_FOR_REVIEW' in cur and 'current_role: Evaluator' in cur; print('authorized_evaluator_routing=PASS')
+  expected_exit_code: 0
+  mandatory: true

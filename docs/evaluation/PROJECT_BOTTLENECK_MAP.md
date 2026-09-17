@@ -289,7 +289,7 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 |---|---|---|---:|---|---|---|
 | B-01 | 来源绑定 request → 正常计算主链 | SUM 能力曾不可达 | 固定 SUM 3 cases | 0/3→3/3；33/33 护栏 | high | CLOSED |
 | B-02 | 结构化表格证据供给 | 真实 MinerU 表格和完整行证据曾未知 | 190 文档 | 77 份完整行证据、6071 表、77525 行 | high | CLOSED |
-| B-03 | 问题 → 可靠页面/证据工作区 | 正确文档已知时，页面证据仍无法稳定进入可验证候选；不同 retrieval lane 在固定 Top5 前过早竞争 | 54 官方题 / 46 文档闭集 + FinanceBench 多文档 fresh cohorts | H-50 46-case：lexical 12/46、semantic 25/46、两者 union oracle 28/46，分布 9 BOTH_HIT / 3 LEXICAL_ONLY / 16 SEMANTIC_ONLY / 18 BOTH_MISS；H-53 fresh12 lexical=0/12，固定 ±2 邻页只恢复 2/12 且平均新增 12.75 页，`NOT_QUALIFIED`。说明单 lane / 固定 Top5 / 无差别扩页都不足，主未知点上移为 bounded multi-lane Evidence Workspace + evidence-sufficiency-driven exploration + late contraction | high（主瓶颈与架构失配均有多批 fresh evidence；下一架构尚未 capability-validated） | ACTIVE |
+| B-03 | 问题 → 可靠页面/证据工作区 | bounded multi-lane workspace 已证明可减少一部分 fixed-Top5 lane competition，但 workspace 内仍存在 evidence-supply / selective-exploration 缺口 | 54 官方题 / 46 文档闭集 + FinanceBench 多文档 fresh cohorts | H-50 46-case：lexical 12/46、semantic 25/46、union oracle 28/46，仍有 18 BOTH_MISS；H-53 固定 ±2 邻页 fresh12 仅恢复 2/12，`NOT_QUALIFIED`；H-60 同 lane 比较 RRF60 Top5 `7/12` → bounded workspace `9/12`，恢复 2 case / 2 families、protected loss=0，但低于预声明 >=3 门槛，仍有 3/12 union miss。H-60 的局部 gap-fill 信号在 H-50 18 BOTH_MISS 上 `0/18` 复现 | high（late contraction 有真实正向证据但不足；剩余 supply loss 跨批次存在，尚无新的单一通用机制） | ACTIVE |
 | B-04 | 长尾计算算子 | 剩余 unsupported operator 无通用家族达到 5 条 | 最大合格族 1 | C3 stage-exit report | high | RETIRED |
 | B-05 | 复杂表格解析 | 2124 张图像表或复杂 span 表未加载，但问题级影响未知 | 2124 张表 | `empty_or_image_table=2038` 等 | medium（现象）；low（业务影响） | WATCH |
 | B-06 | E4 Gold 与端到端结果度量 | 无法可信自动判断 freeform 最终答案语义正确性并稳定统计 paid-run 成本 | 项目全链；本地 100 题 + 外部公开 benchmark | H-28 known-wrong Judge 3/3 agreement；H-32 AMEX reference labels=0/7 correct；known-correct 方向仍为空。但 H-33 已证明 6/7 在 Retrieval Top5 前丢失官方 evidence，因此继续扩 Judge 不是当前第一优先级 | high | SECONDARY_BLOCKED_BY_B03 |
@@ -299,61 +299,45 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 
 Active bottleneck ID: `B-03`
 
-当前复合判断（2026-09-16 r84）：
+当前复合判断（2026-09-17 r85）：
 
-1. **B-03 仍是第一瓶颈。** H-58 在全新 9 个 FinanceBench 文档族 / 12 题上得到 lexical Top5 `4 hit / 8 miss`，8 个 miss 横跨 7 个文档族；H-55/H-56/H-56R1 已把 page scope、scope enforcement 和 product-route reachability 打通，当前真正未闭环的是“多 retrieval lane 的证据是否在 verification 前被过早 Top5 收缩”。
-2. **H-59 没有证伪这个方向，只是被外部额度阻断。** HF/Scaleway 路线在 `9` 个 successful embedding calls 后遇到 terminal HTTP 402，Executor L2=`4/8`，Primary=`NOT_MEASURED`，project impact=`INCONCLUSIVE`。不把“没跑完”写成“无收益”。
-3. **Human 已选择换 Provider/model 并重开新实验。** 因 Cloudflare 备用 profile 已真实 preflight `PASS`，H-60 冻结为 `cloudflare-workers-ai / @cf/qwen/qwen3-embedding-0.6b / 1024d`。这是新任务，不在 H-59 里做 fallback；H-59 的 4096d 8B cache 只能保留审计，不能进入 H-60 runtime。
-4. **H-60 仍只测一个 principal change。** baseline/candidate 共用同一 H-58 lexical Top5 与同一 Cloudflare semantic Top5；唯一差异仍是 `early fixed Top5 contraction → bounded union workspace before verification`。H-60 不回答“0.6B 是否优于 8B”，也不允许借模型变化解释 workspace 收益。
-5. **Primary/Secondary measurement 不变。** Primary 仍测 verification-boundary evidence reach：RRF60 Top5 vs union workspace(max10)；Secondary 只在现有 deterministic ClaimSpec/Binding/Sufficiency 支持的题上记录 trusted reach。`VERIFIER_UNSUPPORTED` 仍是下游覆盖不足，不算 workspace 失败。
-6. **B-06 是最明确的后续链路阻碍。** freeform 最终答案的语义正确性自动裁决还没有完整 known-correct 覆盖；现有 layered scoring/Judge harness 已搭好，known-wrong 方向有证据，但 Judge authority 还不能泛化。它现在被 B-03 的上游 evidence loss 压住，因此保持 `SECONDARY_BLOCKED_BY_B03`。
-7. **B-05 是可能前移的 Parser/复杂表格阻碍。** 2124 张复杂/图像/span 表未加载的现象明确，但当前题目级影响证据仍弱于 B-03；一旦 workspace 证据可达改善后出现“页面找到了但表格事实仍不可用”，B-05 会升级。
-8. **B-07 仍是次级 Provider/输出门禁问题。** AMD cohort 曾有 Provider ERROR 和 output-gate 阻断，但 H-27 没找到覆盖 >=3 independent cases + >=2 families 的单一公共 failure family，因此暂不抢主线。
-9. **C3 确定性计算、来源绑定和 workspace scope 本身不是当前主要阻碍。** 已有 Factory SUM、Binder fail-closed、H-56R1 product-route scope 等证据；后续若 H-60 通过，先决定 product auto scope writer / 下游工程化，再让真实 E4 重新排序 B-06/B-05/B-07。
+1. **B-03 仍是第一瓶颈，但红点已经移动。** H-60 独立 L3=`9/9 PASS`，同一 lexical + Cloudflare semantic lanes 下，bounded workspace 把 verification-boundary Gold reach 从 `7/12` 提升到 `9/12`，恢复 `2 cases / 2 families`、`protected_loss=0`；说明 premature Top5 contraction 确实造成一部分损失，但未达到冻结 `>=3 recovery` 资格线。
+2. **H-60 正式结论是 `PASS / IMPROVED / SWITCH`，方向决策 `NOT_QUALIFIED`。** 不继续在 H-60 内改 TopK、RRF 权重、阈值、provider/model 或 cohort 追第 3 个 recovery；H-60 只证明 late contraction 有限有效，不支持产品化晋级，也不支持 0.6B-vs-8B 比较。
+3. **剩余第一未知点转为 evidence supply / selective exploration。** H-60 candidate 仍有 `3/12` union miss：ULTA 2023、ADOBE 2015、AMCOR 2020；Gold 均不在 lexical Top5 ∪ semantic Top5。ULTA/AMCOR 有近邻页信号，ADOBE 是更深定位 miss，说明残余并非单一“再多保几页”问题。
+4. **不重开固定邻页/简单 gap-fill。** H-53 已证明固定 ±2 邻页 fresh12 仅恢复 `2/12` 且新增页过多；Evaluator 将 H-60 局部 gap-fill 信号拿到 H-50 的 `18 BOTH_MISS` 上复核，`max_gap=2/3/4` 均为 `0/18` recovery。该信号不足以形成新能力方向。
+5. **下一步先做零 API residual evidence-supply direction reassessment。** 复用 H-60 persisted embeddings/lanes 与 H-50/H-53/H-43 历史证据，检查是否存在跨 case、跨 family、Gold-free、且未被历史 fresh 失败否决的单一 supply/exploration 机制；若没有，必须返回 `NO_SINGLE_DIRECTION` 并重排 B-03 vs B-06/B-05，而不是继续微调 Retrieval。
+6. **B-06 仍是最明确的下游候选瓶颈。** freeform Judge authority 仍缺 known-correct 泛化；但在 B-03 仍有 `3/12` fresh union miss、历史 H-50 仍有 `18/46 BOTH_MISS` 的情况下，暂不把 B-06 提升为第一瓶颈。
+7. **B-05 保持 WATCH，B-07 保持 secondary。** 当前还没有“页面已找到但复杂表事实不可用”足够题目级证据把 B-05 前移；B-07 也没有新的 common failure family。
+8. **C3 / Binder / workspace scope / product-route reachability 已不是当前阻碍。** H-56R1 与 H-60 共同证明 scope 路由和 bounded workspace 执行边界可用；下一轮只研究 evidence supply 方向，不再重复修 scope。
 
 当前主线：
 
 ```text
 Question
 → lexical / semantic lanes
-→ bounded Evidence Workspace
-→ scope / product-route reachability 已打通
-→ H-58 fresh12 readiness: 8 miss / 7 miss families + 4 protected hits ✅
-→ H-59: external credit blocker，未形成能力结论
-→ [当前红点] H-60 Cloudflare semantic lane 下验证 early Top5 vs bounded workspace
-→ 若通过：产品化 scope/workspace，再跑真实 E4 看下一个实际失败层
-→ 后续已知候选：B-06 freeform answer judging / B-05 complex-table parser / B-07 provider-output gate
+→ bounded Evidence Workspace ✅（scope / product-route reachability 已打通）
+→ H-60: RRF60 Top5 7/12 → workspace 9/12，+2 cases / 2 families，0 loss；NOT_QUALIFIED
+→ remaining: 3/12 union miss + H-50 historical 18/46 BOTH_MISS
+→ [当前红点] H-61 residual evidence-supply direction reassessment（zero API）
+→ 若找到 >=3 cases / >=2 families 的 Gold-free 单一机制：再冻结 fresh capability validation
+→ 若找不到：NO_SINGLE_DIRECTION，重排 B-03 vs B-06/B-05
 ```
 
 ## Active hypothesis
 
-Hypothesis ID: `H-60`
+Hypothesis ID: `H-61`
 
-Proposed task: `FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1`
+Proposed task: `FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1`
 
-Task kind: `capability_experiment`
+Task kind: `evaluator_design`
 
 Composite basis:
 
-> H-58 已独立证明 fresh12 有足够 miss-side 与 protected-control headroom；H-59 因 HF/Scaleway included-credit HTTP 402 停止，未形成 capability measurement。Human 选择换已配置并真实 preflight 通过的 Cloudflare 0.6B profile 重开，因此继续用同一 Fresh12 直接检验 contraction timing，而不是再次找题或调 Retriever。
+> H-60 已独立证明 late contraction 有真实但不足的收益：同 lane 下 verification-boundary reach `7/12 → 9/12`，恢复 2 case / 2 families、0 protected loss，但低于事前 `>=3` qualification。剩余 3 个 H-60 miss 均为 lexical Top5 ∪ semantic Top5 之外的 evidence-supply loss；历史 H-50 仍有 18/46 BOTH_MISS。H-53 固定邻页与 H-43 fresh target-guided planner 均已出现 fresh failure，因此不能直接重开旧机制。
 
-H-60 frozen comparison：
+H-61 只做 zero-API / zero-product-change 的方向重评估：冻结 H-60 的 3 个 residual miss 与 H-50/H-53/H-43 已有证据，描述 full-rank / page-distance / lane-agreement / structure-locality 等 failure signals；任何候选机制必须先定义 Gold-free trigger，再用 Gold 仅作诊断标签。
 
-```text
-BASELINE
-same H-58 lexical Top5 + same Cloudflare semantic Top5
-→ equal-weight RRF60
-→ fixed Top5
-→ verification boundary
-
-CANDIDATE
-same H-58 lexical Top5 + same Cloudflare semantic Top5
-→ deduplicated union workspace(max10)
-→ EvidenceWorkspaceScope / deterministic verification
-→ late contraction where supported
-```
-
-Primary qualification：`recovered_cases>=3 + recovered_families>=2 + protected_loss=0 + workspace<=10`。H-60 冻结 `cloudflare-workers-ai / @cf/qwen/qwen3-embedding-0.6b / 1024d`，先做 1 次 task-local preflight，再最多完成 80 个 runtime successful embedding calls；successful ceiling=`81`、physical ceiling=`162`、max per logical unit=`2`、max parallelism=`2`。只授权 embedding，不授权 paid fallback、Generative LLM/Judge/Solver/reranker。
+Direction gate：只有当同一未被历史 fresh 失败直接否决的机制覆盖 `>=3 independent cases + >=2 document families`，且能写出单一 principal change 与新的 fresh validation failure condition，才输出 `CANDIDATE_DIRECTION`。否则输出 `NO_SINGLE_DIRECTION`，停止 B-03 微调并重新排序 B-03 / B-06 / B-05。H-61 不授权任何 embedding、Generative LLM、Judge、Solver、reranker、provider call 或产品代码修改。
 
 ## Direction admission policy｜方向准入标准
 
@@ -661,3 +645,6 @@ Human 授权 H-59 embedding-only 调用后，Evaluator 完成 SiliconFlow / Mode
 
 <!-- r84 evaluator switch update -->
 H-59 执行到第 10 次物理尝试时，HF/Scaleway 返回 terminal HTTP 402；最终 `9 successful + 1 terminal`，L2=`4/8`，Primary=`NOT_MEASURED`，project impact=`INCONCLUSIVE`，没有形成 capability verdict。Human 于 `2026-09-16` 选择“换一个油、重开一个”，不补原 HF 额度。Evaluator 因此保留 H-59 审计与 8B partial cache，正式 `SWITCH` 到 H-60 `FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1`：复用同一 H-58 Fresh12 与同一 contraction-timing 主假设，但冻结 Cloudflare `@cf/qwen/qwen3-embedding-0.6b` 1024d 独立 profile。H-60 不做 0.6B-vs-8B 优劣比较；只在本任务内部比较同一 Cloudflare semantic lane 下 `RRF60 Top5` 与 `bounded union workspace(max10)`。B-03 继续 ACTIVE；B-06 明确为后续第二瓶颈，B-05 WATCH，B-07 secondary。
+
+<!-- r85 evaluator review update -->
+H-60 在 Amendment 01 零依赖门禁后完成全部 Cloudflare frozen run：Phase0 PASS，preflight PASS，80/80 runtime embedding units 完成，81 successful / 81 physical attempts，L2=`9/9 PASS`、Evaluator L3=`9/9 PASS`。同 lane 下 baseline RRF60 Top5 Gold reach=`7/12`，bounded workspace=`9/12`，恢复 `2 cases / 2 families`、`protected_loss=0`、workspace max=10；低于预声明 `recovered>=3`，因此任务 verdict=`PASS`、project impact=`IMPROVED`、continuation=`SWITCH`，方向 decision=`NOT_QUALIFIED`。剩余 3/12 为 lexical∪semantic union miss；H-60 两个近邻信号做 H-50 cross-cohort gap-fill sanity check 后，`max_gap=2/3/4` 均为 `0/18` BOTH_MISS recovery，禁止重开 fixed-neighbor/gap-fill 微调。激活 H-61 `FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1`，zero API / zero product change，先判断是否仍存在 >=3 cases + >=2 families 的 Gold-free 单一 evidence-supply/exploration 机制；否则返回 `NO_SINGLE_DIRECTION` 并重排 B-03 vs B-06/B-05。

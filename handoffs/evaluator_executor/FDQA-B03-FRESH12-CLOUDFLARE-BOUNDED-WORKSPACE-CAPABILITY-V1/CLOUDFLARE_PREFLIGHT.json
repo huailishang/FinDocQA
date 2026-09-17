@@ -1,0 +1,14 @@
+{
+  "credential_values_persisted_in_output": false,
+  "embedding_dimension": 1024,
+  "model": "@cf/qwen/qwen3-embedding-0.6b",
+  "paid_fallback_used": false,
+  "probe_text_sha256": "8a9322160c41a4c8a91e22dc8c10e6a19c1fd9323abda1f8a8ab81f909cc90af",
+  "profile_id": "qwen3-0.6b-cloudflare-v1",
+  "provider": "cloudflare-workers-ai",
+  "provider_route": "Cloudflare Workers AI",
+  "raw_provider_response_persisted": false,
+  "schema": "fdqa-h60-cloudflare-preflight/v1",
+  "status": "PASS",
+  "task_id": "FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1"
+}

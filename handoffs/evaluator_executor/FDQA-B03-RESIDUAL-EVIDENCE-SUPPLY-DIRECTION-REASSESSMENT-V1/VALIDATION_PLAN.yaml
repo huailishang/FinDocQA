@@ -1,0 +1,192 @@
+schema: evaluator-executor-validation-plan/v1
+task_id: FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1
+checks:
+- id: VP-01
+  ac: [AC-01]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import json,re
+    from pathlib import Path
+    h60=Path('handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1')
+    review=(h60/'REVIEW.md').read_text(encoding='utf-8')
+    l3=json.loads((h60/'evidence/l3/L3-GATE.json').read_text(encoding='utf-8'))
+    s=json.loads((h60/'BOUNDARY_CAPABILITY_SUMMARY.json').read_text(encoding='utf-8'))
+    assert re.search(r'## Final verdict\s+PASS(?:\s|$)', review)
+    assert 'capability_decision = NOT_QUALIFIED' in review
+    assert l3['result']=='PASS' and l3['checks_total']==9 and l3['mandatory_failures']==0
+    assert s['baseline_gold_reach_cases']==7 and s['candidate_gold_reach_cases']==9
+    assert s['recovered_cases']==2 and s['recovered_document_families']==2 and s['protected_loss']==0
+    assert s['qualified'] is False
+    print('h60_final_authority=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-02
+  ac: [AC-02]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import hashlib,json
+    from pathlib import Path
+    d=Path('handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1')
+    m=json.loads((d/'INPUT_MANIFEST.json').read_text(encoding='utf-8'))
+    files=m['files']
+    assert files and isinstance(files,dict)
+    for p,expected in files.items():
+      path=Path(p); assert path.is_file(), p
+      assert hashlib.sha256(path.read_bytes()).hexdigest()==expected, p
+    assert m['external_api_calls']==0 and m['model_calls']==0 and m['provider_calls']==0
+    print('frozen_input_manifest=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-03
+  ac: [AC-03]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import json
+    from pathlib import Path
+    d=Path('handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1')
+    rows=[json.loads(x) for x in (d/'RESIDUAL_CASES.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
+    expected={
+      ('financebench_id_00521','ULTABEAUTY_2023_10K'),
+      ('financebench_id_04735','ADOBE_2015_10K'),
+      ('financebench_id_03882','AMCOR_2020_10K'),
+    }
+    assert len(rows)==3
+    assert {(x['qid'],x['document_family']) for x in rows}==expected
+    assert all(x['derived_from_h60_candidate_gold_reach_false'] is True for x in rows)
+    assert all(x['candidate_gold_reach'] is False for x in rows)
+    print('h60_residual_set=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-04
+  ac: [AC-04]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import json
+    from pathlib import Path
+    d=Path('handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1')
+    rows=[json.loads(x) for x in (d/'FAILURE_SIGNAL_MATRIX.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
+    assert len(rows)>=3
+    for x in rows:
+      assert isinstance(x.get('gold_free_features'),dict)
+      assert isinstance(x.get('scoring_only_labels'),dict)
+      assert x.get('gold_reference_used_in_trigger') is False
+      assert x.get('qid_specific_threshold_used') is False
+      assert x.get('document_hardcoding_used') is False
+    print('gold_free_signal_separation=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-05
+  ac: [AC-05]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import json
+    from pathlib import Path
+    p=Path('handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/CROSS_COHORT_MECHANISM_AUDIT.json')
+    a=json.loads(p.read_text(encoding='utf-8'))
+    assert a['h43_fresh_target_planning_checked'] is True
+    assert a['h53_fixed_neighbor_fresh_failure_checked'] is True
+    assert a['h50_both_miss_count']==18
+    assert a['h60_local_internal_gap_signal_case_count']==2
+    assert a['h50_internal_gap_recovery_by_max_gap']=={'2':0,'3':0,'4':0}
+    assert a['fixed_neighbor_repromoted'] is False
+    assert a['simple_internal_gap_repromoted'] is False
+    print('historical_mechanism_audit=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-06
+  ac: [AC-06]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import json
+    from pathlib import Path
+    p=Path('handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/DIRECTION_DECISION.json')
+    d=json.loads(p.read_text(encoding='utf-8'))
+    assert d['decision'] in {'CANDIDATE_DIRECTION','NO_SINGLE_DIRECTION'}
+    if d['decision']=='CANDIDATE_DIRECTION':
+      assert d['candidate_mechanism']
+      assert d['independent_case_count']>=3
+      assert d['document_family_count']>=2
+      assert d['gold_free_trigger_defined'] is True
+      assert d['principal_change']
+      assert d['historical_rejection_conflict'] is False
+      assert d['fresh_validation_failure_condition']
+      assert d['next_bottleneck_reassessment_required'] is False
+    else:
+      assert d['candidate_mechanism'] is None
+      assert d['next_bottleneck_reassessment_required'] is True
+    print('direction_gate=',d['decision'])
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-07
+  ac: [AC-07]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    import subprocess
+    from pathlib import Path
+    task=Path('handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1')
+    forbidden=['API_ATTEMPT_LEDGER.jsonl','provider_ledger.jsonl','embedding_cache']
+    assert not any((task/x).exists() for x in forbidden)
+    rows=subprocess.check_output(['git','status','--porcelain'],text=True,encoding='utf-8',errors='replace').splitlines()
+    product=[]
+    for row in rows:
+      p=row[3:].strip().strip('"').replace('\\','/')
+      if p.startswith(('src/','config/','tests/')): product.append(p)
+    assert product==[], product
+    report=(task/'REPORT.md').read_text(encoding='utf-8')
+    assert 'external_api_calls = 0' in report
+    assert 'dependency_install_attempts = 0' in report
+    print('zero_api_zero_product_change=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-08
+  ac: [AC-08]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - |
+    from pathlib import Path
+    report=Path('handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/REPORT.md').read_text(encoding='utf-8')
+    assert 'Impact comparison' in report
+    assert 'Project-impact verdict' in report
+    assert 'diagnostic-only' in report or 'diagnostic only' in report
+    assert 'capability improvement' not in report.lower()
+    print('diagnostic_reporting_boundary=PASS')
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-09
+  ac: [AC-07, AC-08]
+  cwd: .
+  command:
+  - python3
+  - -c
+  - >-
+    from pathlib import Path; cur=Path('handoffs/evaluator_executor/state/CURRENT.md').read_text(encoding='utf-8'); assert 'task_id: FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1' in cur and 'authorization_api_call: false' in cur and 'state: EXECUTING' in cur and 'current_role: Executor' in cur; print('h61_executor_routing=PASS')
+  evaluator_command:
+  - python3
+  - -c
+  - >-
+    from pathlib import Path; cur=Path('handoffs/evaluator_executor/state/CURRENT.md').read_text(encoding='utf-8'); assert 'task_id: FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1' in cur and 'authorization_api_call: false' in cur and 'state: READY_FOR_REVIEW' in cur and 'current_role: Evaluator' in cur; print('h61_evaluator_routing=PASS')
+  expected_exit_code: 0
+  mandatory: true
