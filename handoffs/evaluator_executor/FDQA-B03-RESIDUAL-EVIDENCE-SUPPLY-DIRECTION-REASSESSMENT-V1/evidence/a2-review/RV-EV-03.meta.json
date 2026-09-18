@@ -1,0 +1,23 @@
+{
+  "schema": "evaluator-executor-evidence/v1",
+  "label": "RV-EV-03",
+  "command_argv": [
+    "python",
+    "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet_a2.py",
+    "--check",
+    "residual",
+    "--mode",
+    "evaluator"
+  ],
+  "command_display": "python handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet_a2.py --check residual --mode evaluator",
+  "working_directory": "D:\\SoftWare\\VScode\\install\\Project\\FinDocQA",
+  "started_at_utc": "2026-09-18T13:39:37.317207+00:00",
+  "finished_at_utc": "2026-09-18T13:39:37.505904+00:00",
+  "exit_code": 0,
+  "stdout_path": "RV-EV-03.stdout.log",
+  "stderr_path": "RV-EV-03.stderr.log",
+  "stdout_bytes": 50,
+  "stderr_bytes": 0,
+  "stdout_sha256": "30596e677fd8ed6e79ba9cbff94a895030bf0c51cde4fe2852e1c2d1f6649303",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

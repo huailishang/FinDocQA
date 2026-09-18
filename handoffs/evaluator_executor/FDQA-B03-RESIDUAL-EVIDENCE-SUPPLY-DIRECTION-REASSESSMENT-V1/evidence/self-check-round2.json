@@ -1,0 +1,40 @@
+{
+  "round": 2,
+  "type": "executor_semantic_boundary_check_before_l2",
+  "retrieval_direction": "NO_SINGLE_DIRECTION",
+  "next_action": "DOWNSTREAM_CONTRACT_FIRST",
+  "residual_observations": {
+    "h60_historical_union_miss": 3,
+    "h50_both_miss": 18,
+    "mechanism_candidates_frozen": 0
+  },
+  "downstream_boundary": {
+    "h60_status_origin": "STATIC_INPUT_APPLICABILITY",
+    "candidate_claim_available_cases": 0,
+    "observed_verifier_executions": 0,
+    "observed_answer_evaluations": 0,
+    "fact_sufficiency": "NOT_MEASURED",
+    "answer_correctness": "NOT_MEASURED"
+  },
+  "contract_consistency": {
+    "status": "BLOCKING_SEMANTIC_CONTRADICTION",
+    "detail": "CONTRACT_A1 requires all-Gold-pages scoring and AC-02 also says historical 7->9/recovered2 must reproduce. Frozen H-60 code at run_h60_cloudflare_workspace.py:908-909 uses set intersection (any-Gold), so all-Gold recomputation is 7->7 with 0 full-case recoveries. financebench_id_02024 and financebench_id_03856 are historical any-Gold recoveries but only partially cover their multi-page Gold sets.",
+    "executor_action": "Preserve H-60 historical verdict, preserve the strict H-61 recomputation, do not change evaluator-owned contract/checker, and report BLOCKED for semantic acceptance."
+  },
+  "implementation_correction": {
+    "first_l2_result": "FAIL",
+    "failed_check": "VP-07 / AC-07",
+    "cause": "INPUT_MANIFEST transcription omitted the final 'e' from the frozen SHA256 for src/verification/financial_report_claims.py.",
+    "product_behavior_changed": false,
+    "analysis_semantics_changed": false,
+    "correction": "INPUT_MANIFEST hash corrected to exactly match DESIGN_INPUT_MANIFEST.json.",
+    "first_attempt_preserved_at": "evidence/l2-attempt1/",
+    "correction_replay_authorized_by_contract": true
+  },
+  "scope": {
+    "external_api_calls": 0,
+    "model_calls": 0,
+    "dependency_install_attempts": 0,
+    "product_files_modified": false
+  }
+}

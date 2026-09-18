@@ -1,6 +1,6 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-09-18-r87`
+Map revision: `2026-09-18-r86`
 
 Last reviewed: `2026-09-18`
 
@@ -297,31 +297,13 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 
 ## Active bottleneck
 
-当前决策（2026-09-18 r87）：H-61 A2正式PASS / NOT_APPLICABLE / SWITCH；L2=7/7，独立L3=7/7。检索B-03仍是未关闭的已测损失，但下一步优先级转向有限的证据消费契约设计，不继续凑检索第三题。B-06未自动升为第一，B-05/B-07状态不变。
-
-重要测量纠正：H-60任一标注页命中7/12→9/12，全部标注页到齐7/12→7/12。两条恢复只覆盖部分多页证据；候选页60→104、字符250530→434584（约+73.47%）。历史裁决保持，但+2不得解读为完整证据或答案收益。
-
-H-60的12条VERIFIER_UNSUPPORTED是缺少非Gold候选断言的静态声明，实际验证/答案测量均未执行。现有scope路由可用，但中文选项断言接口不能假定通用支持英文自由问答；下一设计须限定语言/断言类型及拒绝范围。
-
-## Active hypothesis
-
-H-61已关闭，不再处于执行中。下一建议为DOWNSTREAM_CONTRACT_FIRST；拟议任务FDQA-FREEFORM-CANDIDATE-ASSERTION-CONSUMER-CONTRACT-V1尚为DRAFT_ONLY，未冻结、未授权真实运行。
-
-下一草案：handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/NEXT_TASK_DRAFT_A2.md。
-
-先冻结最小消费契约、支持范围、来源边界和离线接口反例，核查真实非Gold候选答案来源；模拟样例只验证接口，不能进入真实题能力统计。后续指标/门槛/成本按实验独立冻结，不能统一继承恢复>=3题。
-
-全链路当前位置：解析/来源与部分计算、工作区范围已建立 → 检索仍有缺口 → [下一设计焦点]候选断言与证据消费边界 → 实际验证与自由文本答案正确性仍未测。
-
-## Historical r86 bottleneck decision
-
 当前决策（2026-09-18 r86）：B-03仍是第一已测损失，B-06次级、B-05观察、B-07次级。不因检索还有漏题而无限优先修检索，也不把输入缺失视作验证器失败。
 
 链路：问题 → 解析/来源 → 检索 → 证据工作区 → 断言/绑定/计算/验证 → 可消费证据与答案。工作区scope及产品路由已闭环；H-60证明页面可达7/12→9/12，未证明最终答案收益。新增关键事实：H-60脚本因缺少候选答案断言统一写12条VERIFIER_UNSUPPORTED，没有逐题执行验证器。
 
 用户授权同包A1：一次检索收口与消费契约审计，覆盖全12题而非只看3个miss，复算页数/字符成本，区分页面、事实、断言、验证和答案的测量边界。历史H-60原判和阈值不变；零新题集/调参/API/产品实施。
 
-## Historical r86 hypothesis
+## Active hypothesis
 
 Hypothesis ID: `H-61`
 Task: `FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1`
@@ -534,7 +516,6 @@ Gold source Top5 rank
 
 | Revision | Date | Evidence or reason | Bottleneck change | Hypothesis change |
 |---|---|---|---|---|
-| 2026-09-18-r87 | 2026-09-18 | H-61 A2独立L3=7/7，any7→9/all7→7，候选字符+73.47%；静态不支持不等于验证失败 | B-03仍未闭合，停止当前检索微调；下一投入为消费契约设计，B-06未自动提升 | H-61 PASS/NOT_APPLICABLE/SWITCH；下一仅DRAFT_ONLY，真实候选来源未就绪 |
 | 2026-09-18-r86 | 2026-09-18 | 用户授权H-61 A1；查明H-60 unsupported为静态输入声明，非验证执行 | B-03主损失保留，开始比较消费契约缺口与检索机会成本；未宣称能力提升 | 同包一次收口、全12题漏斗/成本、消费边界审计；历史阈值不变 |
 | 2026-08-03-r1 | 2026-08-03 | C3-P Binder 与来源身份修复 PASS；Factory SUM 0/3 | B-01 ACTIVE；B-04 退出主线 | 激活 H-01 |
 | 2026-08-03-r2 | 2026-08-03 | SUM 0/3→3/3，但旧 stage-exit 回归失败 | B-01 改善待修复评测门 | H-01 获得产品改善证据 |

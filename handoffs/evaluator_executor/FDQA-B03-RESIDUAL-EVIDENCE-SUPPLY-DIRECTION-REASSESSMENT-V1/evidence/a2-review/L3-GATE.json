@@ -1,0 +1,173 @@
+{
+  "schema": "evaluator-executor-gate-summary/v1",
+  "task_id": "FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1",
+  "mode": "evaluator",
+  "gate_level": "L3",
+  "result": "PASS",
+  "plan": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/VALIDATION_PLAN_A2.yaml",
+  "checks_total": 7,
+  "mandatory_failures": 0,
+  "checks": [
+    {
+      "check_id": "VP-01",
+      "ac": [
+        "AC-01"
+      ],
+      "evidence_id": "RV-EV-01",
+      "mandatory": true,
+      "command": [
+        "python",
+        "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet_a2.py",
+        "--check",
+        "authority",
+        "--mode",
+        "evaluator"
+      ],
+      "working_directory": "D:\\SoftWare\\VScode\\install\\Project\\FinDocQA",
+      "expected_exit_code": 0,
+      "observed_exit_code": 0,
+      "result": "PASS",
+      "meta": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-01.meta.json",
+      "stdout": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-01.stdout.log",
+      "stderr": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-01.stderr.log"
+    },
+    {
+      "check_id": "VP-02",
+      "ac": [
+        "AC-02"
+      ],
+      "evidence_id": "RV-EV-02",
+      "mandatory": true,
+      "command": [
+        "python",
+        "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet_a2.py",
+        "--check",
+        "funnel",
+        "--mode",
+        "evaluator"
+      ],
+      "working_directory": "D:\\SoftWare\\VScode\\install\\Project\\FinDocQA",
+      "expected_exit_code": 0,
+      "observed_exit_code": 0,
+      "result": "PASS",
+      "meta": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-02.meta.json",
+      "stdout": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-02.stdout.log",
+      "stderr": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-02.stderr.log"
+    },
+    {
+      "check_id": "VP-03",
+      "ac": [
+        "AC-03"
+      ],
+      "evidence_id": "RV-EV-03",
+      "mandatory": true,
+      "command": [
+        "python",
+        "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet_a2.py",
+        "--check",
+        "residual",
+        "--mode",
+        "evaluator"
+      ],
+      "working_directory": "D:\\SoftWare\\VScode\\install\\Project\\FinDocQA",
+      "expected_exit_code": 0,
+      "observed_exit_code": 0,
+      "result": "PASS",
+      "meta": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-03.meta.json",
+      "stdout": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-03.stdout.log",
+      "stderr": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-03.stderr.log"
+    },
+    {
+      "check_id": "VP-04",
+      "ac": [
+        "AC-04"
+      ],
+      "evidence_id": "RV-EV-04",
+      "mandatory": true,
+      "command": [
+        "python",
+        "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet_a2.py",
+        "--check",
+        "downstream",
+        "--mode",
+        "evaluator"
+      ],
+      "working_directory": "D:\\SoftWare\\VScode\\install\\Project\\FinDocQA",
+      "expected_exit_code": 0,
+      "observed_exit_code": 0,
+      "result": "PASS",
+      "meta": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-04.meta.json",
+      "stdout": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-04.stdout.log",
+      "stderr": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-04.stderr.log"
+    },
+    {
+      "check_id": "VP-05",
+      "ac": [
+        "AC-05"
+      ],
+      "evidence_id": "RV-EV-05",
+      "mandatory": true,
+      "command": [
+        "python",
+        "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet_a2.py",
+        "--check",
+        "decision",
+        "--mode",
+        "evaluator"
+      ],
+      "working_directory": "D:\\SoftWare\\VScode\\install\\Project\\FinDocQA",
+      "expected_exit_code": 0,
+      "observed_exit_code": 0,
+      "result": "PASS",
+      "meta": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-05.meta.json",
+      "stdout": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-05.stdout.log",
+      "stderr": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-05.stderr.log"
+    },
+    {
+      "check_id": "VP-06",
+      "ac": [
+        "AC-06"
+      ],
+      "evidence_id": "RV-EV-06",
+      "mandatory": true,
+      "command": [
+        "python",
+        "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet_a2.py",
+        "--check",
+        "replay",
+        "--mode",
+        "evaluator"
+      ],
+      "working_directory": "D:\\SoftWare\\VScode\\install\\Project\\FinDocQA",
+      "expected_exit_code": 0,
+      "observed_exit_code": 0,
+      "result": "PASS",
+      "meta": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-06.meta.json",
+      "stdout": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-06.stdout.log",
+      "stderr": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-06.stderr.log"
+    },
+    {
+      "check_id": "VP-07",
+      "ac": [
+        "AC-07"
+      ],
+      "evidence_id": "RV-EV-07",
+      "mandatory": true,
+      "command": [
+        "python",
+        "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet_a2.py",
+        "--check",
+        "scope-report",
+        "--mode",
+        "evaluator"
+      ],
+      "working_directory": "D:\\SoftWare\\VScode\\install\\Project\\FinDocQA",
+      "expected_exit_code": 0,
+      "observed_exit_code": 0,
+      "result": "PASS",
+      "meta": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-07.meta.json",
+      "stdout": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-07.stdout.log",
+      "stderr": "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/evidence/a2-review/RV-EV-07.stderr.log"
+    }
+  ]
+}

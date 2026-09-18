@@ -1,0 +1,52 @@
+schema: evaluator-executor-validation-plan/v1
+task_id: FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1
+checks:
+- id: VP-01
+  ac: [AC-01]
+  cwd: .
+  command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, authority, --mode, executor]
+  evaluator_command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, authority, --mode, evaluator]
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-02
+  ac: [AC-02]
+  cwd: .
+  command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, funnel, --mode, executor]
+  evaluator_command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, funnel, --mode, evaluator]
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-03
+  ac: [AC-03]
+  cwd: .
+  command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, residual, --mode, executor]
+  evaluator_command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, residual, --mode, evaluator]
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-04
+  ac: [AC-04]
+  cwd: .
+  command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, downstream, --mode, executor]
+  evaluator_command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, downstream, --mode, evaluator]
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-05
+  ac: [AC-05]
+  cwd: .
+  command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, decision, --mode, executor]
+  evaluator_command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, decision, --mode, evaluator]
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-06
+  ac: [AC-06]
+  cwd: .
+  command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, replay, --mode, executor]
+  evaluator_command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, replay, --mode, evaluator]
+  expected_exit_code: 0
+  mandatory: true
+- id: VP-07
+  ac: [AC-07]
+  cwd: .
+  command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, scope-report, --mode, executor]
+  evaluator_command: [python, handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py, --check, scope-report, --mode, evaluator]
+  expected_exit_code: 0
+  mandatory: true

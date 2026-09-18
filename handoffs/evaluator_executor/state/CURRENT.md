@@ -6,17 +6,17 @@
 workflow: evaluator-executor-workflow/v2.2
 task_id: FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1
 task_kind: evaluator_design
-state: CONTRACT_FROZEN
-current_role: Executor
-baseline_commit: b057674
+state: PASS
+current_role: Evaluator
+baseline_commit: 849ff3bda52481c7ecb999d5967a851910624265
 project_map_path: docs/evaluation/PROJECT_BOTTLENECK_MAP.md
-project_map_revision: 2026-09-17-r85
+project_map_revision: 2026-09-18-r86
 active_bottleneck_id: B-03
 hypothesis_id: H-61
-contract_path: handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/CONTRACT.md
-executor_report_path: handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/REPORT.md
+contract_path: handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/CONTRACT_A2.md
+executor_report_path: handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/REPORT_A2.md
 evaluator_review_path: handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/REVIEW.md
-next_artifact_path: handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/REPORT.md
+next_artifact_path: handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/NEXT_TASK_DRAFT_A2.md
 authorization_commit: false
 authorization_push: false
 authorization_history_rewrite: false
@@ -49,26 +49,33 @@ Final review:
 
 ## Current execution task
 
-H-61 is frozen and routed to Executor as a zero-API evaluator-design diagnostic.
+H-61 A2 is CLOSED: PASS / NOT_APPLICABLE / SWITCH. Executor L2=7/7 and fresh Evaluator L3=7/7, with full semantic review in REVIEW.md. Historical any-Gold reach=7→9, all-Gold=7→7; two partial cases; pages=60→104; characters=250530→434584. No end-to-end gain measured. B-03 remains an unresolved measured loss; next priority is bounded consumer-contract design, not more retrieval tuning or automatic B-06 promotion.
+
+Next artifact is NEXT_TASK_DRAFT_A2.md, DRAFT_ONLY / NOT_READY_FOR_REAL_EXECUTION. No next-task execution or API call is authorized. The live map advances to r87; this completed task retains its frozen r86 revision and the preserved map snapshot for historical replay. The instructions below are historical execution context and must not restart the closed task.
+
+H-61 Amendment 02 corrects an evaluator-owned metric contradiction. Active contract/plan are CONTRACT_A2.md and VALIDATION_PLAN_A2.yaml. Preserve A1 contract/checker/manifest, Executor REPORT.md, all four machine outputs and original L2 evidence. Historical any-Gold is 7→9; complete all-Gold coverage is 7→7, with two partially covered cases and three any-Gold misses. A1 Executor correctly reported BLOCKED despite mechanical L2=7/7 PASS. Await REPORT_A2.md and the two revised decision/draft artifacts; no new capability run is required.
 
 Purpose:
 
 ```text
-H-60 remaining 3/12 union misses
-+ H-50 historical 18/46 BOTH_MISS
-→ reassess residual evidence-supply / selective-exploration directions
-→ CANDIDATE_DIRECTION only if >=3 independent cases + >=2 families + Gold-free same mechanism
-→ otherwise NO_SINGLE_DIRECTION and return to Evaluator for B-03 vs B-06/B-05 re-ranking
+H-60 full12 reach/cost funnel + remaining3 + H-50 historical18
+→ bounded residual closure AND downstream consumer-contract audit
+→ distinguish static VERIFIER_UNSUPPORTED from actual verifier execution
+→ compare B-03/B-05/B-06/B-07 and recommend exactly one DRAFT_ONLY next task
+→ no common retrieval mechanism is a valid diagnostic result
 ```
 
 Hard boundaries:
 
-- read only H-60/H-50/H-53/H-43 frozen evidence;
+- read only design-manifest inputs, existing source-linked artifacts and consumer code;
 - no new cohort;
 - no external API/model/provider call;
 - no dependency install/download;
 - no `src/**`, `config/**`, `tests/**` modification;
 - do not reopen fixed-neighbor, simple gap-fill, TopK expansion, RRF reweighting, or unchanged H-43 target planning without materially new cross-cohort evidence;
-- two-case signals may be recorded but may not be promoted.
+- keep H-60 verdict unchanged; observed +2 remains experimental evidence, not default enablement;
+- retain >=3 cases / >=2 families only for retrieval candidate admission, not interface audits;
+- do not infer 12 verifier failures from 12 static unsupported declarations;
+- at most one mechanism, no parameter sweeps; two offline generations plus one implementation-error correction replay.
 
-Executor should produce the frozen H-61 outputs and run L2. If no qualifying common mechanism exists, `NO_SINGLE_DIRECTION` is the expected valid outcome, not a task failure.
+Executor should follow EXECUTOR_START_A2.md, validate check_packet_a2.py --check authority, preserve original artifacts, and run VALIDATION_PLAN_A2.yaml to evidence/a2-l2. VP-06 reuses hash-checked original replay evidence. L3 additionally requires REVIEW_RUBRIC.md semantic review. No API, product implementation, new task execution, commit or push is authorized.

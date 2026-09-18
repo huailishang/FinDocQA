@@ -1,0 +1,38 @@
+{
+  "round": 1,
+  "type": "executor_local_mechanical_and_measurement_check",
+  "authority": "PASS",
+  "direct_checks": {
+    "funnel": "PASS",
+    "residual": "PASS",
+    "downstream": "PASS",
+    "decision": "PASS"
+  },
+  "case_funnel": {
+    "case_count": 12,
+    "lexical_all_gold_reach": 4,
+    "semantic_all_gold_reach": 7,
+    "baseline_rrf60_all_gold_reach": 7,
+    "candidate_workspace_all_gold_reach": 7,
+    "baseline_pages_total": 60,
+    "candidate_pages_total": 104,
+    "baseline_text_chars_total": 250530,
+    "candidate_text_chars_total": 434584,
+    "candidate_page_increase_pct": 73.3333333333,
+    "candidate_text_char_increase_pct": 73.4658523929
+  },
+  "historical_h60_any_gold": {
+    "baseline_reach": 7,
+    "candidate_reach": 9,
+    "recovered": 2,
+    "protected_loss": 0,
+    "verdict_unchanged": true
+  },
+  "scope": {
+    "external_api_calls": 0,
+    "model_calls": 0,
+    "dependency_install_attempts": 0,
+    "product_files_modified": false
+  },
+  "finding": "The new all-Gold-pages funnel is internally consistent, but it does not reproduce the historical H-60 7->9 because H-60 scored any Gold-page intersection."
+}

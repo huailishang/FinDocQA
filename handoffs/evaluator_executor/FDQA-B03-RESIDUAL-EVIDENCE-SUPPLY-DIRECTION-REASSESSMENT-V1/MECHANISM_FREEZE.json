@@ -1,0 +1,10 @@
+{
+  "mechanism": null,
+  "runtime_features": null,
+  "trigger": null,
+  "action": null,
+  "parameters": null,
+  "max_candidates": 1,
+  "freeze_basis": "No new Gold-free cross-case mechanism is admitted before analysis. H-43 target-guided planning and H-53 fixed-neighbor expansion already have fresh counterevidence; H-60 recovered only 2 cases / 2 families and its remaining 3 misses are outside the lexical+semantic Top5 union.",
+  "gold_used_for_runtime_trigger": false
+}

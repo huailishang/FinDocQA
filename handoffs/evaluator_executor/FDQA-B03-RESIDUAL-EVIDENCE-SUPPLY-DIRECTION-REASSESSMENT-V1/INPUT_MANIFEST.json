@@ -1,0 +1,39 @@
+{
+  "schema": "h61-executor-inputs/v1",
+  "baseline_head": "849ff3bda52481c7ecb999d5967a851910624265",
+  "files": {
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/REVIEW.md": "b7e0fe541295d3d46c27e94227201f1865d0b4a5415ac288bc222d6b118f09d3",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/evidence/l3/L3-GATE.json": "7fd40a3fa9daa273148352a936538d1bf7364574705fa38d36cdc2952bfdd956",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/BOUNDARY_CAPABILITY_SUMMARY.json": "6138db75a68152497920862baa7596b81400b97907f0630386455ac6db27df87",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/BASELINE_RRF60_RESULTS.jsonl": "5e2691d3ad1fcf258515d98045c4d2d4eac03b10f4ddc91259d18205705b8369",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/CANDIDATE_WORKSPACE_RESULTS.jsonl": "9f14253c9dc80714d137426adb40385ada751ada658e3307dd3b554e66b45ab1",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/SEMANTIC_TOP5.jsonl": "7d76a9a33180755146eb3ff1ae0588fc9b906bf4e77317a25514b2b42c3ad4fa",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/H60_RUNTIME_INPUTS.jsonl": "c0645faf9febe794b9400a30773d7bed46ff39af632c7a1c28ab4d4668fc62d7",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/DOWNSTREAM_TRUSTED_REACH.jsonl": "95b4b5a7f89b4a5706e0d422748587fff6ea841b9815fd6b93fa1e8bb724e38f",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/DOWNSTREAM_TRUSTED_SUMMARY.json": "40276a37d17849441db346418a903d8a3363ba53af21cd948836d035fea1b073",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/run_h60_cloudflare_workspace.py": "3a311f8388907f891fd7b0b2a28dd53ed82528733b349640b5fd624c6efa5a36",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/RUNTIME_OUTPUT_FREEZE.json": "540207aae23ec8f40a196bcd8f295bb503c87c4bb06bf564d559759339296c2d",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/RUN_COST_SUMMARY.json": "a895849691e0e71b384d9d10029e6ce4ff7c6691b8bb328f5e72101e6d3319a4",
+    "handoffs/evaluator_executor/FDQA-B03-CROSS-COHORT-LANE-ARBITRATION-DIAGNOSTIC-V1/LANE_OUTCOME_MATRIX.jsonl": "ae3a248d25ad175525da3a5b2944f5824296323ff202a797eee579510c012b92",
+    "handoffs/evaluator_executor/FDQA-B03-CROSS-COHORT-LANE-ARBITRATION-DIAGNOSTIC-V1/LANE_SIGNAL_TRACE.jsonl": "a93a66edaf07eea0c763f9314c626acc35682193e933e907e3ad226820a87f29",
+    "handoffs/evaluator_executor/FDQA-B03-CROSS-COHORT-LANE-ARBITRATION-DIAGNOSTIC-V1/REVIEW.md": "6ca7d4eb30250ffc7ce77631d2d774d29959c5f885f52f9cb5e44be64b799138",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-NEIGHBOR-EXPANSION-GENERALIZATION-V1/REVIEW.md": "c42c530fd642a6d416b8422255735ed7f54e67e149b4e351bd7520f86d05e077",
+    "handoffs/evaluator_executor/FDQA-B03-EVIDENCE-WORKSPACE-PRODUCT-ROUTE-WIRING-REPAIR-V1/REVIEW.md": "bf10a207313314511bddad33060dc7f6506332c88a622c1c06db4259e108acf0",
+    "src/verification/financial_claim_ast.py": "f6ecd263132d9f521e93fdabe9cf84edff159d886c07297c43438a3a08eebd9f",
+    "src/verification/claim_fact_binding.py": "0ed3e9c49b0d200d9ee05cf04b0c497cdcb3cea60fd423ea5dd646bc818b27ff",
+    "src/verification/evidence_sufficiency.py": "c86aac09f562824412e15ef7bd0e79953206082487b6847749311193eabaa3a0",
+    "src/verification/production_typed_evidence.py": "ee961c7e81b04182451d781579e703a515b4989c98c3ae059cf8ff127a82f181",
+    "src/verification/derived_claim_router.py": "d7b63d45ee36cb23d867060bf9c483153759cffa56cb1db9d78dae95439516e9",
+    "src/verification/financial_report_claims.py": "5a75e8f9a894cd38553fbb4c68d4df29f23152f560f3283ba48eac4b2152048e",
+    "src/verification/evidence_workspace.py": "6b4d75cef588ca257b2aa85b6b37145477e39b072142913edeee714c21bec1ec",
+    "handoffs/evaluator_executor/FDQA-B03-BOEING7-OPERATION-FIRST-TARGET-GUIDED-GENERALIZATION-V1/REVIEW.md": "6136a0ac5491d7f22f3e6d620f9b740a8cea29afdcdc1c0c3a3bfe9cbee05bc3",
+    "docs/evaluation/PROJECT_BOTTLENECK_MAP.md": "24cad5d8e17e08fcf02b822a2dc88d7b4339456705d0ecaf7648ee0eb56008cd"
+  },
+  "external_api_calls": 0,
+  "model_calls": 0,
+  "dependency_install_attempts": 0,
+  "environment": {
+    "executor_python": "Conda agent Python 3.12.13",
+    "shared_runner_python": "system Python 3.12.3 with PyYAML 6.0.3"
+  }
+}

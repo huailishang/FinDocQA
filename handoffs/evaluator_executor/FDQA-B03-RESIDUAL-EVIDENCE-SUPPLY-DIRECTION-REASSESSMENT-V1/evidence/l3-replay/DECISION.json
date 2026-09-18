@@ -1,0 +1,55 @@
+{
+  "alternatives": {
+    "B-03": {
+      "cost_dependency": "Another retrieval experiment needs a new Gold-free mechanism and fresh validation; fixed-neighbor/gap-fill/unchanged target planning are blocked by counterevidence.",
+      "evidence_strength": "high for residual loss; insufficient for another mechanism",
+      "priority_implication": "Do not spend the next bounded task on retrieval tuning.",
+      "scope": "H-50 18/46 BOTH_MISS; H-60 3/12 residual",
+      "status": "ACTIVE_MEASURED_BUT_NO_NEW_QUALIFIED_MECHANISM"
+    },
+    "B-05": {
+      "cost_dependency": "Needs question-level attribution before parser work is justified.",
+      "evidence_strength": "medium phenomenon / low question-level impact",
+      "priority_implication": "Not promoted by H-61.",
+      "scope": "2124 complex/image/span tables observed, question-level impact unknown",
+      "status": "WATCH"
+    },
+    "B-06": {
+      "cost_dependency": "H-61 has zero observed answer evaluations; expanding the judge now would skip the missing candidate-assertion/verifier-consumption boundary.",
+      "evidence_strength": "known-wrong judge evidence exists; known-correct/general freeform authority remains incomplete",
+      "priority_implication": "Do not jump directly to judge expansion.",
+      "scope": "end-to-end freeform answer scoring",
+      "status": "SECONDARY_BLOCKED_BY_MEASUREMENT_BOUNDARY"
+    },
+    "B-07": {
+      "cost_dependency": "No new common provider/output failure family was observed in H-61.",
+      "evidence_strength": "high on historical AMD cohort / medium global",
+      "priority_implication": "No new reason to promote.",
+      "scope": "provider/output-gate reliability",
+      "status": "SECONDARY_NO_SINGLE_COMMON_FAMILY"
+    }
+  },
+  "default_enable_authorized": false,
+  "end_to_end_improvement": "NOT_MEASURED",
+  "evidence_refs": [
+    "docs/evaluation/PROJECT_BOTTLENECK_MAP.md:292",
+    "docs/evaluation/PROJECT_BOTTLENECK_MAP.md:295",
+    "docs/evaluation/PROJECT_BOTTLENECK_MAP.md:300",
+    "docs/evaluation/PROJECT_BOTTLENECK_MAP.md:327",
+    "docs/evaluation/PROJECT_BOTTLENECK_MAP.md:328",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/run_h60_cloudflare_workspace.py:964",
+    "handoffs/evaluator_executor/FDQA-B03-FRESH12-CLOUDFLARE-BOUNDED-WORKSPACE-CAPABILITY-V1/run_h60_cloudflare_workspace.py:975"
+  ],
+  "fresh_failure_condition": "Any future retrieval probe must predeclare a materially new Gold-free trigger and fail if it does not recover >=3 independent qids across >=2 document families under its frozen fresh measurement boundary.",
+  "historical_counterevidence": [
+    "H-43 fresh target-guided planner: 0/7 recovery, NO_MEASURABLE_GAIN.",
+    "H-53 fixed ±2 neighbor fresh12: 2/12 recovery, NOT_QUALIFIED, high added-page cost.",
+    "H-60 local gap-fill signal replayed on H-50 18 BOTH_MISS: 0/18 for max_gap 2/3/4."
+  ],
+  "historical_verdicts_unchanged": true,
+  "next_action": "DOWNSTREAM_CONTRACT_FIRST",
+  "product_readiness_proven": false,
+  "reason": "Residual evidence supply remains real (3 H-60 misses and 18 H-50 BOTH_MISS observations), but no newly admitted Gold-free mechanism survives the historical fresh counterevidence. At the same time H-60's 12 VERIFIER_UNSUPPORTED rows are static input-applicability declarations: no candidate assertion was produced and no verifier or answer evaluation ran. The next bounded information gain is therefore to freeze and measure the missing freeform question/workspace -> candidate assertion -> verifier consumption contract before another retrieval or judge expansion.",
+  "retrieval_direction": "NO_SINGLE_DIRECTION",
+  "supporting_cases": []
+}

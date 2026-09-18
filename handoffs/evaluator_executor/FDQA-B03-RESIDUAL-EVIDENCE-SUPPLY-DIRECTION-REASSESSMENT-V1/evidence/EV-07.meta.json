@@ -1,0 +1,23 @@
+{
+  "schema": "evaluator-executor-evidence/v1",
+  "label": "EV-07",
+  "command_argv": [
+    "python",
+    "handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py",
+    "--check",
+    "scope-report",
+    "--mode",
+    "executor"
+  ],
+  "command_display": "python handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/check_packet.py --check scope-report --mode executor",
+  "working_directory": "D:\\SoftWare\\VScode\\install\\Project\\FinDocQA",
+  "started_at_utc": "2026-09-18T13:12:03.639246+00:00",
+  "finished_at_utc": "2026-09-18T13:12:04.036430+00:00",
+  "exit_code": 0,
+  "stdout_path": "EV-07.stdout.log",
+  "stderr_path": "EV-07.stderr.log",
+  "stdout_bytes": 60,
+  "stderr_bytes": 0,
+  "stdout_sha256": "49dd98be31cf291a5bca9d065ae6443726e798bcc971877e6a466acbec7e64f1",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

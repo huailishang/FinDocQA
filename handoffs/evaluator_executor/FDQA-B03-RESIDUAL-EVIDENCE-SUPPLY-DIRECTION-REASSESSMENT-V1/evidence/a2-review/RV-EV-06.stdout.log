@@ -1,0 +1,2 @@
+{"case_funnel_rows": 12, "external_api_calls": 0, "h50_both_miss": 18, "h60_residual": 3, "model_calls": 0, "next_action": "DOWNSTREAM_CONTRACT_FIRST", "residual_rows": 21, "retrieval_direction": "NO_SINGLE_DIRECTION"}
+replay=PASS; A2 semantic review still required
