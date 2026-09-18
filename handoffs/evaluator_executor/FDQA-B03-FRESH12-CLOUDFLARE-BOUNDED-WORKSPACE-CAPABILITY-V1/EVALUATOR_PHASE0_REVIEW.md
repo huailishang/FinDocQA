@@ -18,9 +18,9 @@ This review checks only whether the previously blocked runtime page-text supply 
 2. `H60_RUNTIME_INPUTS.jsonl` exists, has `1031` rows (`1019 + 12`), and its SHA256 matches the value frozen in `RUNTIME_TEXT_PREFLIGHT.json`.
 3. The rejected H-59 runtime text condition independently reproduces as `15/15` canonical page-text hash mismatches, so H-59 text is not being silently reused as H-60 authority.
 4. No task-local `site-packages`, wheel, `pip.pyz`, `.task*`, or `*pydeps*` residue is present in the active H-60 task directory.
-5. At least two already-existing Windows Python executables were independently probed and both import PyMuPDF `1.28.0` successfully:
-   - `D:\SoftWare\Anaconda\install\python.exe`
-   - `D:\SoftWare\Python\install\python.exe`
+5. At least two already-existing Windows Python runtimes were independently probed and both import PyMuPDF `1.28.0` successfully:
+   - one existing Anaconda runtime
+   - one existing standalone Python runtime
    Both resolve PyMuPDF from an already-existing user Python 3.12 site-packages location. This corroborates the Executor statement that Phase 0 could be completed without installing a new dependency.
 6. Cloudflare external-call artifacts are still absent: no `API_ATTEMPT_LEDGER.jsonl`, `CLOUDFLARE_PREFLIGHT.json`, or `RUN_COST_SUMMARY.json` exists. Therefore this review observed zero H-60 external calls.
 7. `run_h60_cloudflare_workspace.py` enforces `assert_runtime_text_gate()` before Cloudflare preflight reaches `cf_embed()`. The external-call boundary remains fail-closed if the Phase 0 artifact or runtime-input hash changes.
