@@ -1,2 +1,0 @@
-{"all_gold": {"baseline": 7, "candidate": 7, "lost": 0, "recovered": 0}, "any_gold": {"baseline": 7, "candidate": 9, "lost": 0, "recovered": 2}, "page_counts": [60, 104], "partial_missing_pages": {"financebench_id_02024": [63], "financebench_id_03856": [57]}, "text_chars": [250530, 434584]}
-funnel=PASS; A2 semantic review still required
