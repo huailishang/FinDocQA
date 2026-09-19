@@ -1,8 +1,8 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-09-18-r87`
+Map revision: `2026-09-19-r90`
 
-Last reviewed: `2026-09-18`
+Last reviewed: `2026-09-19`
 
 Map owner: Evaluator
 
@@ -297,7 +297,7 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 
 ## Active bottleneck
 
-当前决策（2026-09-18 r87）：H-61 A2正式PASS / NOT_APPLICABLE / SWITCH；L2=7/7，独立L3=7/7。检索B-03仍是未关闭的已测损失，但下一步优先级转向有限的证据消费契约设计，不继续凑检索第三题。B-06未自动升为第一，B-05/B-07状态不变。
+当前决策（2026-09-19 r90）：H-64 A2 正式 PASS / IMPROVED / CONTINUE；Executor A1 L2=7/7，Evaluator A2 独立 L3=7/7。`WorkspaceBundleAdapter` 已把 H-60 fixed12 的 structured query + bounded workspace + exact page text 确定性接成 canonical `Question + EvidenceBundle`：input wiring 0/12→12/12、producer consumability 0/12→12/12、workspace lineage 0/12→12/12、104 pages、outside page=0、8/8 fail-closed。真实 candidate/model/verifier 仍未执行。B-03 检索残余不变；下一前置缺口移动到 candidate answer → H-62 freeform assertion/envelope adapter。
 
 重要测量纠正：H-60任一标注页命中7/12→9/12，全部标注页到齐7/12→7/12。两条恢复只覆盖部分多页证据；候选页60→104、字符250530→434584（约+73.47%）。历史裁决保持，但+2不得解读为完整证据或答案收益。
 
@@ -305,13 +305,15 @@ H-60的12条VERIFIER_UNSUPPORTED是缺少非Gold候选断言的静态声明，�
 
 ## Active hypothesis
 
-H-61已关闭，不再处于执行中。下一建议为DOWNSTREAM_CONTRACT_FIRST；拟议任务FDQA-FREEFORM-CANDIDATE-ASSERTION-CONSUMER-CONTRACT-V1尚为DRAFT_ONLY，未冻结、未授权真实运行。
+Hypothesis ID: `H-65`
 
-下一草案：handoffs/evaluator_executor/FDQA-B03-RESIDUAL-EVIDENCE-SUPPLY-DIRECTION-REASSESSMENT-V1/NEXT_TASK_DRAFT_A2.md。
+H-64 已关闭。Active hypothesis 为 `H-65`：`FDQA-FREEFORM-CANDIDATE-ASSERTION-ENVELOPE-ADAPTER-V1`。目标是在零 API/模型调用下新增通用 freeform candidate assertion adapter，把既有 `SolverResult` + H-64 `EvidenceBundle` lineage + 显式 producer/run/source metadata 组装并 fail-close 成 H-62 的 21-field candidate assertion envelope；synthetic candidate 只验证接口，不计真实答案能力。
 
-先冻结最小消费契约、支持范围、来源边界和离线接口反例，核查真实非Gold候选答案来源；模拟样例只验证接口，不能进入真实题能力统计。后续指标/门槛/成本按实验独立冻结，不能统一继承恢复>=3题。
+当前冻结执行包：`handoffs/evaluator_executor/FDQA-FREEFORM-CANDIDATE-ASSERTION-ENVELOPE-ADAPTER-V1/CONTRACT.md`。
 
-全链路当前位置：解析/来源与部分计算、工作区范围已建立 → 检索仍有缺口 → [下一设计焦点]候选断言与证据消费边界 → 实际验证与自由文本答案正确性仍未测。
+H-64 已把 bounded workspace → producer input wiring 闭合。H-65 只闭合 candidate assertion envelope：产品模块不得硬编码 FinanceBench qid/Gold，不读取 H-60/H-64 task artifact path，不生成答案，不调用 verifier；必须从 bundle 实际 workspace metadata/candidates 构造 evidence refs 与 lineage，并对 dry-run、qid/doc mismatch、缺 producer/run/source、Gold 风险、workspace/evidence 越界失败关闭。
+
+全链路当前位置：解析/来源与部分计算、工作区范围已建立 → 检索仍有缺口 → H-62 候选断言消费契约已建立 → H-63 确认 producer 存在 → H-64 bounded workspace→EvidenceBundle 已闭合 → [当前实现焦点] candidate answer + workspace lineage → H-62 assertion envelope → 之后再判断 parser/verifier 与真实模型授权。
 
 ## Historical r86 bottleneck decision
 
@@ -534,6 +536,9 @@ Gold source Top5 rank
 
 | Revision | Date | Evidence or reason | Bottleneck change | Hypothesis change |
 |---|---|---|---|---|
+| 2026-09-19-r90 | 2026-09-19 | H-64 A1 L2=7/7；A2 L3=7/7；fixed12 wiring/producer-consumability/workspace-lineage 均 0/12→12/12；104 pages；outside=0；8/8 fail-closed；4题/3文档家族独立抽查 PASS | bounded workspace→producer input contract 已闭合；B-03 检索残余不变；真实 candidate/verifier 仍未测 | H-64 PASS/IMPROVED/CONTINUE；激活 H-65 candidate assertion/envelope adapter，零 API/模型调用 |
+| 2026-09-19-r89 | 2026-09-19 | H-63 L2/L3=7/7；existing producer chain found；fixed12 静态 12/12→Direct；normal runtime qid presence=0/12；H-62 envelope 仍有 7 个 wiring/adapter 缺口 | 下游真实测量的第一前置阻塞收敛到 workspace/query→EvidenceBundle producer input wiring；B-03 检索残余不变 | H-63 PASS/NOT_APPLICABLE/CONTINUE；激活 H-64 frozen-workspace→EvidenceBundle wiring capability experiment，零 API/模型调用 |
+| 2026-09-19-r88 | 2026-09-19 | H-62 L2/L3=7/7；固定12题 provenance-valid candidate source=0；readiness=NOT_READY；真实 verifier/fact/answer 均未测 | B-03仍未闭合，但下游真实测量被候选答案生产入口前置阻塞；继续暂停无新机制的检索微调 | H-62 PASS/NOT_APPLICABLE/SWITCH；激活 H-63 candidate-producer preflight，零 API/模型调用 |
 | 2026-09-18-r87 | 2026-09-18 | H-61 A2独立L3=7/7，any7→9/all7→7，候选字符+73.47%；静态不支持不等于验证失败 | B-03仍未闭合，停止当前检索微调；下一投入为消费契约设计，B-06未自动提升 | H-61 PASS/NOT_APPLICABLE/SWITCH；下一仅DRAFT_ONLY，真实候选来源未就绪 |
 | 2026-09-18-r86 | 2026-09-18 | 用户授权H-61 A1；查明H-60 unsupported为静态输入声明，非验证执行 | B-03主损失保留，开始比较消费契约缺口与检索机会成本；未宣称能力提升 | 同包一次收口、全12题漏斗/成本、消费边界审计；历史阈值不变 |
 | 2026-08-03-r1 | 2026-08-03 | C3-P Binder 与来源身份修复 PASS；Factory SUM 0/3 | B-01 ACTIVE；B-04 退出主线 | 激活 H-01 |
