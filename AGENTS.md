@@ -64,3 +64,19 @@ Keep this overview compact and bottleneck-oriented. Do not repeat the full histo
 - 批量生成或修改文件后，提交前必须检查关键标题、关键标识、文件数量和 `git diff`，防止内容被 Shell 展开或转义破坏。
 - Windows 路径调用优先使用项目已验证的命令形式；不要在同一条命令中混合 PowerShell、cmd、WSL Bash 多层转义。
 <!-- END localagent-common:codexpro-shell-safety -->
+
+<!-- BEGIN localagent-common:submission-security-gate -->
+## Git 提交与推送安全门禁（强制）
+
+- 本仓所有 Agent / 人工提交都必须使用 `localagent-common/security-hooks` 的数据安全门禁。执行提交前先确认仓库级 `core.hooksPath` 已指向该目录；若缺失或异常，先在同级 `localagent-common` 运行 `python scripts/install_security_hooks.py`。门禁不可用时按 fail-closed 处理：停止提交/推送，不得绕过。
+- 固定提交流程：
+  1. `git status --short`，确认只处理本任务文件；已有无关工作区改动保持 unstaged。
+  2. 只用 `git add <明确文件...>` 暂存本任务文件；禁止 `git add -f`，默认不使用 `git add .` / `git add -A`。
+  3. 对暂存区执行 `python ../localagent-common/security-hooks/security_scan.py pre-commit`。
+  4. 执行 `git diff --cached --check`。
+  5. 检查 `git diff --cached --name-status` 和实际 staged diff，确认没有日志、凭证、内部数据、本机路径或无关文件。
+  6. 正常 `git commit`，必须让 pre-commit Hook 再执行一次。
+  7. 正常 `git push`，必须让 pre-push Hook 扫描本次真正待推送的 commit/blob 范围。
+- 禁止使用 `--no-verify`、临时改 `core.hooksPath`、关闭扫描器或其他方式绕过门禁。误报只能通过脱敏或中央最小白名单修复。
+- GitHub API / Connector / Web 直接写远程不会自动经过本地 Hook，因此不得把它当绕过路径。若确需直接远程提交，必须先对候选 diff/commit 执行等价的 security policy 检查；无法证明等价检查已完成时，改走本地 Git 提交链路。
+<!-- END localagent-common:submission-security-gate -->
