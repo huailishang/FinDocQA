@@ -4,6 +4,8 @@
 
 这是一个面向金融长文档问答的工程基线；在当前企业 Agent 体系中，它定位为 **Enterprise Knowledge / Evidence（企业知识 / 证据）能力来源**。目标不是绑定某一轮排行榜，也不是扩成独立企业 Agent 产品，而是形成可被 Control Plane 或业务 Agent 消费的文档解析、检索、证据、来源追溯、计算、验证和恢复链路。
 
+最终交付形态不是一个独立聊天机器人，而是一套可复用的 **Evidence Service**：在核心能力稳定后，通过 MCP（必要时同时保留内部 API）向 data-warehouse-agent、支付 Agent 及其他业务 Agent 暴露受控的证据检索、文档读取、Evidence Workspace、Evidence Bundle、Claim Verification 和 Calculation Verification 能力。MCP 只作为能力服务边界，不把 Runtime、Agent 编排、长期记忆、Skill Sandbox 或业务流程执行职责并入 FinDocQA。
+
 覆盖的主要文档类型包括金融合同、财务报告、保险条款、监管文件和研究报告。
 
 ## 主链路

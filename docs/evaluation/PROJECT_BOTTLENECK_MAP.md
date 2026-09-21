@@ -1,12 +1,32 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-09-19-r90`
+Map revision: `2026-09-21-r95`
 
-Last reviewed: `2026-09-19`
+Last reviewed: `2026-09-21`
 
 Map owner: Evaluator
 
 Status: `ACTIVE`
+
+## Current priority — Chinese financial documents (2026-09-21)
+
+用户明确暂缓英文评测，回到中文金融文档。H-66英文兼容性与H-67外币绑定均PAUSED_BY_USER；H67未验收实现保留/归档，不继续正式验收、不自动作为中文基线。H65既有接口验收结论保留。
+
+第一瓶颈B-CN-01已再次前移：H-69 正式 L2/L3 均 3/3 mandatory PASS，同一 H-68 Retriever 输入仍为 fin_a_004/014/020 = 24/38/31 个唯一页，但 bounded evidence admission（受限证据准入）后 3/3 均可构造合法 <=10 页 EvidenceWorkspaceScope，required-document coverage 为 2/2，四类 fail-closed 控制全部拒绝，Gold/model/API/network 使用均为0。workspace admission 不再是这 3 个 DEV_SEED 的最早阻断点。
+
+当前 B-CN-01 红点移动到“admitted workspace 之后的真实下游首损尚未正式测量”：需要在隔离的 pre-H67 已验收源码上，把 H-69 选出的真实 10 页继续跑 evidence → AST → binding → calculation → verdict 漏斗，再决定 evidence supply 与 binding 哪一层是下一能力瓶颈。不得直接使用当前脏工作区 H-67 binder。
+
+次级B-CN-02保持：独立中文验证覆盖不足。现有本地Gold9题，其中财报3题(fin_a_014/020/004)、12选项、5文档；全部DEV_SEED、holdout=0。任何 H-69/H-70 结论都不得外推整体中文表现。H-68 Oracle 仅作为比较上界，不并入产品准确率。
+
+H-69最终复核：PASS / project impact IMPROVED / CONTINUE。Evaluator L3 重新执行 frozen plan 后 3/3 mandatory PASS，RV-EV-01 与 Executor EV-01 stdout SHA-256 完全一致；受保护 Retriever/workspace/evidence-builder 哈希不变。下一包 H-70 为 evaluator_design，只测 admitted Product workspace 的下游漏斗，不做产品修复。
+
+H-70 评估后的下一步采用显式双路线分流，不提前选择实现：若 admitted workspace 已基本保留可用证据、首损明确下移到 AST / binding / calculation / verdict，则保留 H-69 不再调 admission，后续先完成主链接入并修最早的真实下游瓶颈；若至少两个独立 DEV_SEED 问题可证明“关键/可用证据存在于 H-68 Retriever 候选中、但被 H-69 <=10 页选择排除”，则进入 Evidence Selection V2，先验证 focused/financial-target page 保留、跨文档 coverage/diversity 与现有排序信号，再视测量结果决定是否需要 RRF / semantic fusion / rerank。若证据不足则不强行二选一，先补测量。详细判据见 `docs/evaluation/H70_POST_MEASUREMENT_DECISION_BRANCHES.md`。
+
+## Current closure update — H-65
+
+H-65 已独立验收 PASS / IMPROVED / CONTINUE。七项检查7/7、固定12封装逐字段重放12/12、21字段闭合、原四反例4/4拒绝、异常页码矩阵22/22拒绝，相关回归53 passed / 27 subtests passed。两轮发现的dry-run遗漏、有损页码转换和数字字符串转换异常已关闭。
+
+收益仅为 candidate answer + explicit provenance + workspace lineage → assertion envelope；real_candidate_source_count=0，真实parser/binding/verifier与答案正确性仍未测。B-03证据供给残余不变，B-06仍待真实测量；下一投入为受限英文声明→绑定→验证最小闭环，草案未冻结，不自动授权API。正式证据见 `handoffs/evaluator_executor/FDQA-FREEFORM-CANDIDATE-ASSERTION-ENVELOPE-ADAPTER-V1/REVIEW_FINAL.md`。下文历史任务/候选假设不覆盖本条最新状态。
 
 ## Project outcome
 
@@ -297,23 +317,21 @@ Gold 领域 = 金融合同 1 / 财务报告 2 / 研究报告 2
 
 ## Active bottleneck
 
-当前决策（2026-09-19 r90）：H-64 A2 正式 PASS / IMPROVED / CONTINUE；Executor A1 L2=7/7，Evaluator A2 独立 L3=7/7。`WorkspaceBundleAdapter` 已把 H-60 fixed12 的 structured query + bounded workspace + exact page text 确定性接成 canonical `Question + EvidenceBundle`：input wiring 0/12→12/12、producer consumability 0/12→12/12、workspace lineage 0/12→12/12、104 pages、outside page=0、8/8 fail-closed。真实 candidate/model/verifier 仍未执行。B-03 检索残余不变；下一前置缺口移动到 candidate answer → H-62 freeform assertion/envelope adapter。
+Active bottleneck ID: `B-CN-01`
 
-重要测量纠正：H-60任一标注页命中7/12→9/12，全部标注页到齐7/12→7/12。两条恢复只覆盖部分多页证据；候选页60→104、字符250530→434584（约+73.47%）。历史裁决保持，但+2不得解读为完整证据或答案收益。
+当前决策（2026-09-21 r94）：H-69 已正式 PASS / IMPROVED / CONTINUE。workspace admission 子瓶颈在冻结 3 题上从 0/3 合法工作区推进到 3/3；24/38/31 原始唯一页保持不变，after 均为 10 页，required document 覆盖 2/2，来源审计与 fail-closed 护栏通过。Retriever、`EvidenceWorkspaceScope`、financial evidence builder 均未被 H-69 修改。
 
-H-60的12条VERIFIER_UNSUPPORTED是缺少非Gold候选断言的静态声明，实际验证/答案测量均未执行。现有scope路由可用，但中文选项断言接口不能假定通用支持英文自由问答；下一设计须限定语言/断言类型及拒绝范围。
+B-CN-01 当前红点不是 admission 本身，而是 admission 之后的 Product 下游 first-loss 未正式重新测量。H-68 Oracle 已证明 evidence / AST / binding / verdict 均可能成为后续损失，但 Oracle 不能代表 Product；必须使用 H-69 实际选出的 10 页重新跑真实 Product 漏斗。
+
+次级瓶颈 `B-CN-02` 仍是独立中文 holdout 缺失。当前 3 题只允许做 DEV_SEED 诊断。
 
 ## Active hypothesis
 
-Hypothesis ID: `H-65`
+Hypothesis ID: `H-70`
 
-H-64 已关闭。Active hypothesis 为 `H-65`：`FDQA-FREEFORM-CANDIDATE-ASSERTION-ENVELOPE-ADAPTER-V1`。目标是在零 API/模型调用下新增通用 freeform candidate assertion adapter，把既有 `SolverResult` + H-64 `EvidenceBundle` lineage + 显式 producer/run/source metadata 组装并 fail-close 成 H-62 的 21-field candidate assertion envelope；synthetic candidate 只验证接口，不计真实答案能力。
+H-70：`FDQA-CN-ADMITTED-WORKSPACE-DOWNSTREAM-FUNNEL-V1`，任务类型为 evaluator_design。目标是在 H-68 pre-H67 隔离源码上，仅叠加已验收 H-69 admission 模块，把同一 3 题 / 12 选项重新跑 evidence → AST → binding → calculation → verdict，形成新的 Product first-failure 分布。该任务只测量、不修产品；H-68 Oracle 只读取持久化统计作比较，不把 Oracle 页注入 Product。
 
-当前冻结执行包：`handoffs/evaluator_executor/FDQA-FREEFORM-CANDIDATE-ASSERTION-ENVELOPE-ADAPTER-V1/CONTRACT.md`。
-
-H-64 已把 bounded workspace → producer input wiring 闭合。H-65 只闭合 candidate assertion envelope：产品模块不得硬编码 FinanceBench qid/Gold，不读取 H-60/H-64 task artifact path，不生成答案，不调用 verifier；必须从 bundle 实际 workspace metadata/candidates 构造 evidence refs 与 lineage，并对 dry-run、qid/doc mismatch、缺 producer/run/source、Gold 风险、workspace/evidence 越界失败关闭。
-
-全链路当前位置：解析/来源与部分计算、工作区范围已建立 → 检索仍有缺口 → H-62 候选断言消费契约已建立 → H-63 确认 producer 存在 → H-64 bounded workspace→EvidenceBundle 已闭合 → [当前实现焦点] candidate answer + workspace lineage → H-62 assertion envelope → 之后再判断 parser/verifier 与真实模型授权。
+当前冻结执行包：`handoffs/evaluator_executor/FDQA-CN-ADMITTED-WORKSPACE-DOWNSTREAM-FUNNEL-V1/CONTRACT.md`。
 
 ## Historical r86 bottleneck decision
 
@@ -536,6 +554,11 @@ Gold source Top5 rank
 
 | Revision | Date | Evidence or reason | Bottleneck change | Hypothesis change |
 |---|---|---|---|---|
+| 2026-09-21-r95 | 2026-09-21 | 用户要求把 H-70 后两条候选路线显式记录给 Evaluator；新增 evaluation decision note，并在当前红点处链接 | 不预设新瓶颈；H-70 后按 Product 实测在“下游首损”与“Evidence Selection V2”之间分流，证据不足则先补测量 | H-70 仍为只测量；不提前激活新 capability hypothesis |
+| 2026-09-21-r94 | 2026-09-21 | H-69 Evaluator L3 3/3 mandatory PASS；24/38/31→10/10/10；3/3 合法 workspace；4/4 fail-closed | workspace admission 不再是冻结 3 题最早阻断；B-CN-01 红点移动到 admitted workspace 后的 Product downstream first-loss | H-69 PASS/IMPROVED/CONTINUE；激活 H-70 admitted-workspace downstream funnel measurement |
+| 2026-09-20-r93 | 2026-09-20 | H68 corrected R2 + Evaluator L3 2/2 PASS；3题检索唯一页24/38/31均>10；12/12首损=evidence/workspace admission；5/5负控制REJECT；R2/L3核心hash一致 | B-CN-01从中文链路首损未知收敛为bounded evidence admission/selection缺口；B-CN-02独立覆盖仍保留 | H68 PASS/NOT_APPLICABLE/CONTINUE；激活H69单变量bounded evidence admission capability experiment |
+| 2026-09-20-r92 | 2026-09-20 | 用户中文优先；H66/H67暂停；本地3财报seed、14证据引用hash有效，问题整文件hash漂移 | B-CN-01中文链路测量/基线，B-CN-02独立覆盖；英文损失不外推中文 | H68 DESIGN_ONLY；先中文逐选项漏斗，不执行模型、不直接改产品 |
+| 2026-09-20-r91 | 2026-09-20 | H-65最终独立7/7；12/12逐字段重放；4/4反例和22/22页码矩阵拒绝；53 passed/27 subtests | 封装入口阻塞关闭，证据供给与真实答案验证仍未闭合 | H-65 PASS/IMPROVED/CONTINUE；下一英文声明绑定验证切片仅DRAFT_ONLY |
 | 2026-09-19-r90 | 2026-09-19 | H-64 A1 L2=7/7；A2 L3=7/7；fixed12 wiring/producer-consumability/workspace-lineage 均 0/12→12/12；104 pages；outside=0；8/8 fail-closed；4题/3文档家族独立抽查 PASS | bounded workspace→producer input contract 已闭合；B-03 检索残余不变；真实 candidate/verifier 仍未测 | H-64 PASS/IMPROVED/CONTINUE；激活 H-65 candidate assertion/envelope adapter，零 API/模型调用 |
 | 2026-09-19-r89 | 2026-09-19 | H-63 L2/L3=7/7；existing producer chain found；fixed12 静态 12/12→Direct；normal runtime qid presence=0/12；H-62 envelope 仍有 7 个 wiring/adapter 缺口 | 下游真实测量的第一前置阻塞收敛到 workspace/query→EvidenceBundle producer input wiring；B-03 检索残余不变 | H-63 PASS/NOT_APPLICABLE/CONTINUE；激活 H-64 frozen-workspace→EvidenceBundle wiring capability experiment，零 API/模型调用 |
 | 2026-09-19-r88 | 2026-09-19 | H-62 L2/L3=7/7；固定12题 provenance-valid candidate source=0；readiness=NOT_READY；真实 verifier/fact/answer 均未测 | B-03仍未闭合，但下游真实测量被候选答案生产入口前置阻塞；继续暂停无新机制的检索微调 | H-62 PASS/NOT_APPLICABLE/SWITCH；激活 H-63 candidate-producer preflight，零 API/模型调用 |
