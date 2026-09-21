@@ -38,6 +38,12 @@ After the evaluation/review, summarize again:
 
 Keep this overview compact and bottleneck-oriented. Do not repeat the full historical ledger unless needed. The goal is that a reader can understand both the local verdict and the project's current position from every Evaluator response.
 
+## Skill-assisted decision clarification
+
+Before freezing the next capability task, use focused discussion skills only when they reduce a real uncertainty. Recommend `/wayfinder` only when the Evaluator cannot responsibly freeze a bounded next task because several material, cross-session direction branches remain unresolved and existing evidence is insufficient to choose among them; it is not a routine post-review step and does not replace the project bottleneck map. Load `domain-modeling` when terminology, object/state boundaries, or relationships are ambiguous, and load `codebase-design` when the uncertainty is module/interface/seam/adapter shape. When the discussion is already settled, the Evaluator should directly form the frozen contract and validation plan rather than inserting another spec/issue-ready handoff layer.
+
+After `CONTRACT_FROZEN`, the Executor may use `domain-modeling` or `codebase-design` only to clarify an implementation choice that stays inside the frozen hypothesis, scope, ACs, and budget. If a skill reveals a need to change the contract or project direction, stop expansion and return the issue to the Evaluator. Do not add a skill step to routine repairs or already well-scoped work.
+
 ## Engineering rules
 
 - Put reusable logic in src/; keep scripts thin.
