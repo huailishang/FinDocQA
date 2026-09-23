@@ -1,12 +1,32 @@
 # FinDocQA Project Bottleneck Map
 
-Map revision: `2026-09-21-r95`
+Map revision: `2026-09-22-r98`
 
-Last reviewed: `2026-09-21`
+Last reviewed: `2026-09-22`
 
 Map owner: Evaluator
 
 Status: `ACTIVE`
+
+## Latest review — H-72 (2026-09-22)
+
+H-72 为 REJECTED / NOT_APPLICABLE / CONTINUE。正式独立 L3 2/2 PASS，两份完整诊断输出 SHA-256 均为 `a62676507e349db977851aa9245fa685681d86caf02849009d1290634c670f54`。上轮 kg 单位反例、输出保全和预算问题已关闭；但额外零构造器调用反例证明 null/NaN 分子仍被当作完整分量，同身份 100/200 冲突会任取首组合，AC-01 未满足。
+
+第一产品瓶颈 B-CN-01 仍为证据首损可信归因；分类仍为 NO_SINGLE_PAGE_WITNESS=1 / UNKNOWN=4，零排除正见证不能证明准入充分。B-CN-02 覆盖不足不变。下一包 H-73 `FDQA-CN-COMPONENT-VALUE-CONFLICT-REPAIR-V1` 只修诊断数值有效性与冲突失败关闭，使用 H-72 已独立复现的完整快照重放归因，零新证据构造。H-67 仍暂停。本节覆盖下方 H-71 节中的下一任务指向。
+
+## Latest review — H-71 (2026-09-22)
+
+H-71 复核为 REJECTED / NOT_APPLICABLE / CONTINUE。只读独立审计确认冻结输入、93 页留存记录与 12 个基线阶段状态自洽，提交分类为 NO_SINGLE_PAGE_WITNESS=1 / UNKNOWN=4；但将真实研发费用单位从 CNY 改为 kg 后，诊断器仍接受为匹配分量，未满足单位失败关闭。另有两次非环境归因修订重跑，四次完整预算已耗尽，正式 L3 未执行；不能把结构验证和 L2 PASS 当最终验收。
+
+第一瓶颈 B-CN-01 不改判：H-70 的五个证据首损仍缺可信归因。当前无路线 A/B 新结论；B-CN-02 独立中文覆盖不足保持。下一包 H-72 `FDQA-CN-RETENTION-AUDIT-VALIDITY-REPAIR-V1` 只修任务内诊断有效性和独立输出保全，Executor L2 / Evaluator L3 各预留一次完整测量。H-71 所有原提交数据保留，H-67 继续暂停。本节覆盖下方 H-70 节中的“下一任务 H-71”。
+
+## Latest review — H-70 (2026-09-22)
+
+H-70 已独立复核 PASS / NOT_APPLICABLE / CONTINUE。冻结 L3 为 1/1 mandatory PASS：3/3 工作区各 10 页，12 个选项首损为 evidence=5 / binding=5 / NONE=2。L2 为 GBK、L3 为 UTF-8，正确解码后 JSON 完全相同；不能声称原始日志字节一致。额外核验 25 个结构化文档文件哈希无漂移，继续使用 pre-H67 隔离源码。
+
+B-CN-01 从“准入后首损未测”推进为“证据首损已测、但根因未分清”：三个问题均有证据失败，五个绑定失败是后续已观察瓶颈。测量通过不等于产品改进，也不等于两个选项答案已通过 Gold 正确性验证。B-CN-02 独立中文覆盖不足保持不变，holdout=0。
+
+路线裁决为 INSUFFICIENT_COVERAGE：既未证明准入基本保留充分证据，也未证明至少两个独立问题的相关可用证据在候选中存在却被准入排除。下一任务 H-71 `FDQA-CN-CANDIDATE-EVIDENCE-RETENTION-AUDIT-V1` 对五个证据失败作候选页/准入页来源事实审计；不修产品，不恢复 H-67，不把单页诊断算成产品表现。H-70 正式结论见其 REVIEW.md。本节覆盖下方 r95 历史状态中的“尚未正式测量”。
 
 ## Current priority — Chinese financial documents (2026-09-21)
 
