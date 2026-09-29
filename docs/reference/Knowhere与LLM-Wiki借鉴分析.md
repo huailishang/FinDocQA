@@ -273,41 +273,56 @@ Knowhere-like Structure Navigation
 
 停止条件：只增加复杂度、不能稳定提升证据召回，或必须重做全部 Parser 才能工作。
 
-### P-LW1｜LLM Wiki 式知识编译探针
+### P-KC1｜Financial Knowledge Compilation A/B Probe
 
-目标：验证持久主题目录是否减少跨文档问题的重复检索和重新归纳。
+原 P-LW1 升级为 P-KC1。结合 LLM Wiki 与京东海博 AI-Native 知识库实践，目标不再只是验证“Wiki 页面是否好用”，而是验证 **maintenance-time knowledge compilation** 是否能降低 query-time 检索、归纳和 Token 成本，同时不损害 Evidence Authority。
 
 最小范围：
 
 ```text
-10～20 份同主题文档
-→ 生成 index / source / concept / comparison 页面
-→ 每个 Claim 绑定原文来源
-→ 测试新增、修改、删除资料后的增量维护
+10～20 份同主题金融文档
+
+A：
+Raw / Document Memory
+→ query-time retrieval
+→ evidence
+→ answer
+
+B：
+Compiled Knowledge Index
+→ topic / concept navigation
+→ 回到 Document Memory / Canonical Source
+→ evidence
+→ answer
 ```
 
 核心指标：
 
-- Wiki Claim 来源回溯率；
-- 错误或无来源 Claim 数量；
-- 主题定位准确率；
-- 跨文档问题检索步骤和 Token 变化；
-- stale / delete cascade 正确率；
-- 人工维护成本。
+- Required Evidence Recall；
+- Claim → 原始来源回溯率；
+- 跨文档问题正确率；
+- query-time 检索轮数；
+- Token / latency；
+- stale / superseded / conflict 传播正确率；
+- 人工维护成本；
+- 派生知识误当原始事实的错误数。
 
-晋级条件：来源回溯稳定，主题导航明显减少重复检索，且没有把派生摘要误当原始事实。
+晋级条件：来源回溯稳定，query-time 成本有可归因下降，不降低证据召回和验证可靠性，并至少在跨文档 / 宽主题问题上产生稳定收益。
 
-停止条件：Wiki 更新成本高于收益、来源失效无法可靠传播，或生成页面长期需要大量人工修补。
+停止条件：只是增加摘要副本、维护成本高于收益、来源失效无法可靠传播、Compiled Knowledge 成为事实黑盒，或实验会打断当前产品主瓶颈。
 
 ### 推荐顺序
 
 ```text
-当前先完成 H-07
-→ 再做 P-KW1 结构导航探针
+当前继续 H-74 / B-CN-01 主线
+→ 先确认 evidence retention 与 downstream semantic / binding 的真实首损
+→ 主瓶颈允许时，再做 P-KW1 结构导航探针
 → P-KW1 有收益后决定是否扩大 Document Memory
-→ 同期可准备 P-LW1 的 Schema 和小样品
-→ 不直接建设完整 Wiki / Graph 平台
+→ 同期只准备 P-KC1 Schema / 小样品
+→ 不直接建设完整 Wiki / Graph / 企业大脑平台
 ```
+
+这里的长期目标可以理解为“企业知识大脑”，但工程上更准确的是 **Enterprise Context Fabric**：由 Knowledge、Evidence、Business、Runtime、Capability 等多类上下文共同组成。FinDocQA 只负责其中 Knowledge / Evidence Context，不吞并 Control Plane、业务状态或 Agent Runtime。详见 `京东海博AI-Native知识库对FinDocQA借鉴分析.md`。
 
 ---
 
@@ -327,3 +342,4 @@ Knowhere-like Structure Navigation
 - Knowhere：`https://github.com/Ontos-AI/knowhere`
 - LLM Wiki：`https://github.com/nashsu/llm_wiki`
 - LLM Wiki 方法说明：`https://github.com/nashsu/llm_wiki/blob/main/llm-wiki.md`
+- 京东海博 AI-Native 知识库实践：见 `京东海博AI-Native知识库对FinDocQA借鉴分析.md`

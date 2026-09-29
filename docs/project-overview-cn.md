@@ -6,6 +6,8 @@
 
 最终交付形态不是一个独立聊天机器人，而是一套可复用的 **Evidence Service**：在核心能力稳定后，通过 MCP（必要时同时保留内部 API）向 data-warehouse-agent、支付 Agent 及其他业务 Agent 暴露受控的证据检索、文档读取、Evidence Workspace、Evidence Bundle、Claim Verification 和 Calculation Verification 能力。MCP 只作为能力服务边界，不把 Runtime、Agent 编排、长期记忆、Skill Sandbox 或业务流程执行职责并入 FinDocQA。
 
+从更大的企业 AI 架构看，可以把整体目标理解为 **Enterprise Context Fabric（企业上下文底座 / 企业知识大脑框架）**：Knowledge、Evidence、Business、Runtime、Capability 等上下文按任务被组织后供 Agent 消费。FinDocQA 只承担其中 **Knowledge / Evidence Context**，重点解决原始资料结构化、知识导航、证据权威、来源追溯和验证；它不是整个“企业大脑”，也不替代业务系统、Control Plane 或 Agent Runtime。
+
 覆盖的主要文档类型包括金融合同、财务报告、保险条款、监管文件和研究报告。
 
 ## 主链路
